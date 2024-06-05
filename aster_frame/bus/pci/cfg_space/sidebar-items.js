@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["AddrLen","Bar","PciDeviceCommonCfgOffset"],"struct":["Command","IoBar","MemoryBar","Status"]};

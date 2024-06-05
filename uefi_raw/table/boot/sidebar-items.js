@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["BootServices","EventType","InterfaceType","MemoryAttribute","MemoryDescriptor","MemoryType","OpenProtocolInformationEntry","Tpl"],"type":["EventNotifyFn"]};

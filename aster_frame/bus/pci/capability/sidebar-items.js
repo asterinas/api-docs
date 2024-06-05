@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["CapabilityData"],"mod":["msix","vendor"],"struct":["Capability"]};
