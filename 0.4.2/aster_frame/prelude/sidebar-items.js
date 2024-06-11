@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"attr":["aster_main"],"macro":["print","println"],"type":["Result"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["console","device_path","rng"]};
