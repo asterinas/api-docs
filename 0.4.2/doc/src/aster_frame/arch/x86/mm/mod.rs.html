@@ -255,13 +255,6 @@
 <a href="#253" id="253">253</a>
 <a href="#254" id="254">254</a>
 <a href="#255" id="255">255</a>
-<a href="#256" id="256">256</a>
-<a href="#257" id="257">257</a>
-<a href="#258" id="258">258</a>
-<a href="#259" id="259">259</a>
-<a href="#260" id="260">260</a>
-<a href="#261" id="261">261</a>
-<a href="#262" id="262">262</a>
 </pre></div><pre class="rust"><code><span class="comment">// SPDX-License-Identifier: MPL-2.0
 
 </span><span class="attr">#![allow(dead_code)]
@@ -425,13 +418,6 @@
         </span><span class="kw">let </span>flags = PageTableFlags::PRESENT.bits()
             | PageTableFlags::WRITABLE.bits()
             | PageTableFlags::USER.bits();
-        <span class="attr">#[cfg(feature = <span class="string">"intel_tdx"</span>)]
-        </span><span class="kw">let </span>flags = flags
-            | <span class="macro">parse_flags!</span>(
-                prop.priv_flags.bits(),
-                PrivFlags::SHARED,
-                PageTableFlags::SHARED
-            );
         <span class="self">Self</span>(paddr &amp; <span class="self">Self</span>::PHYS_ADDR_MASK | flags)
     }
 

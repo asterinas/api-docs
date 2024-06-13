@@ -304,12 +304,9 @@
 <span class="kw">use crate</span>::{
     arch::mm::{PageTableEntry, PagingConsts},
     mm::{
-        paddr_to_vaddr,
-        page::allocator::FRAME_ALLOCATOR,
-        page_size,
-        page_table::{boot_pt::BootPageTable, PageTableEntryTrait},
-        CachePolicy, Paddr, PageFlags, PageProperty, PagingConstsTrait, PagingLevel,
-        PrivilegedPageFlags, PAGE_SIZE,
+        kspace::BOOT_PAGE_TABLE, paddr_to_vaddr, page::allocator::FRAME_ALLOCATOR, page_size,
+        page_table::PageTableEntryTrait, CachePolicy, Paddr, PageFlags, PageProperty,
+        PagingConstsTrait, PagingLevel, PrivilegedPageFlags, PAGE_SIZE,
     },
 };
 
@@ -442,7 +439,7 @@
 </span><span class="doccomment">/// Initializes the metadata of all physical pages.
 ///
 /// The function returns a list of `Page`s containing the metadata.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>init(boot_pt: <span class="kw-2">&amp;mut </span>BootPageTable) -&gt; Vec&lt;Range&lt;Paddr&gt;&gt; {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>init() -&gt; Vec&lt;Range&lt;Paddr&gt;&gt; {
     <span class="kw">let </span>max_paddr = {
         <span class="kw">let </span>regions = <span class="kw">crate</span>::boot::memory_regions();
         regions.iter().map(|r| r.base() + r.len()).max().unwrap()
@@ -458,18 +455,21 @@
     <span class="kw">let </span>num_pages = max_paddr / page_size::&lt;PagingConsts&gt;(<span class="number">1</span>);
     <span class="kw">let </span>num_meta_pages = (num_pages * size_of::&lt;MetaSlot&gt;()).div_ceil(PAGE_SIZE);
     <span class="kw">let </span>meta_pages = alloc_meta_pages(num_meta_pages);
-
     <span class="comment">// Map the metadata pages.
-    </span><span class="kw">for </span>(i, frame_paddr) <span class="kw">in </span>meta_pages.iter().enumerate() {
+    </span><span class="kw">let </span><span class="kw-2">mut </span>boot_pt_lock = BOOT_PAGE_TABLE.lock();
+    <span class="kw">let </span>boot_pt = boot_pt_lock
+        .as_mut()
+        .expect(<span class="string">"boot page table not initialized"</span>);
+    <span class="kw">for </span>(i, frame_paddr) <span class="kw">in </span>meta_pages.iter().enumerate() {
         <span class="kw">let </span>vaddr = mapping::page_to_meta::&lt;PagingConsts&gt;(<span class="number">0</span>) + i * PAGE_SIZE;
         <span class="kw">let </span>prop = PageProperty {
             flags: PageFlags::RW,
             cache: CachePolicy::Writeback,
             priv_flags: PrivilegedPageFlags::GLOBAL,
         };
-        boot_pt.map_base_page(vaddr, frame_paddr / PAGE_SIZE, prop);
+        <span class="comment">// SAFETY: we are doing the metadata mappings for the kernel.
+        </span><span class="kw">unsafe </span>{ boot_pt.map_base_page(vaddr, frame_paddr / PAGE_SIZE, prop) };
     }
-
     <span class="comment">// Now the metadata pages are mapped, we can initialize the metadata.
     </span>meta_pages
         .into_iter()

@@ -159,6 +159,62 @@
 <a href="#157" id="157">157</a>
 <a href="#158" id="158">158</a>
 <a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
 </pre></div><pre class="rust"><code><span class="comment">// SPDX-License-Identifier: MPL-2.0
 
 </span><span class="doccomment">//! Because that the page table implementation requires metadata initialized
@@ -171,8 +227,8 @@
 <span class="kw">use crate</span>::{
     arch::mm::{PageTableEntry, PagingConsts},
     mm::{
-        paddr_to_vaddr, page::allocator::FRAME_ALLOCATOR, PageProperty, PagingConstsTrait, Vaddr,
-        PAGE_SIZE,
+        nr_subpage_per_huge, paddr_to_vaddr, page::allocator::FRAME_ALLOCATOR, PageProperty,
+        PagingConstsTrait, Vaddr, PAGE_SIZE,
     },
 };
 
@@ -195,10 +251,7 @@
 
 <span class="kw">impl</span>&lt;E: PageTableEntryTrait, C: PagingConstsTrait&gt; BootPageTable&lt;E, C&gt; {
     <span class="doccomment">/// Creates a new boot page table from the current page table root physical address.
-    ///
-    /// The caller must ensure that the current page table may be set up by the firmware,
-    /// loader or the setup code.
-    </span><span class="kw">pub unsafe fn </span>from_current_pt() -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub fn </span>from_current_pt() -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>root_paddr = <span class="kw">crate</span>::arch::mm::current_page_table_paddr();
         <span class="self">Self </span>{
             root_pt: root_paddr / C::BASE_PAGE_SIZE,
@@ -208,8 +261,16 @@
     }
 
     <span class="doccomment">/// Maps a base page to a frame.
+    ///
+    /// # Panics
+    ///
     /// This function will panic if the page is already mapped.
-    </span><span class="kw">pub fn </span>map_base_page(<span class="kw-2">&amp;mut </span><span class="self">self</span>, from: Vaddr, to: FrameNumber, prop: PageProperty) {
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it can cause undefined behavior if the caller
+    /// maps a page in the kernel address space.
+    </span><span class="kw">pub unsafe fn </span>map_base_page(<span class="kw-2">&amp;mut </span><span class="self">self</span>, from: Vaddr, to: FrameNumber, prop: PageProperty) {
         <span class="kw">let </span><span class="kw-2">mut </span>pt = <span class="self">self</span>.root_pt;
         <span class="kw">let </span><span class="kw-2">mut </span>level = C::NR_LEVELS;
         <span class="comment">// Walk to the last level of the page table.
@@ -238,6 +299,67 @@
         <span class="kw">unsafe </span>{ pte_ptr.write(E::new_frame(to * C::BASE_PAGE_SIZE, <span class="number">1</span>, prop)) };
     }
 
+    <span class="doccomment">/// Maps a base page to a frame.
+    ///
+    /// This function may split a huge page into base pages, causing page allocations
+    /// if the original mapping is a huge page.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the page is already mapped.
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it can cause undefined behavior if the caller
+    /// maps a page in the kernel address space.
+    </span><span class="kw">pub unsafe fn </span>protect_base_page(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        virt_addr: Vaddr,
+        <span class="kw-2">mut </span>op: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span>PageProperty),
+    ) {
+        <span class="kw">let </span><span class="kw-2">mut </span>pt = <span class="self">self</span>.root_pt;
+        <span class="kw">let </span><span class="kw-2">mut </span>level = C::NR_LEVELS;
+        <span class="comment">// Walk to the last level of the page table.
+        </span><span class="kw">while </span>level &gt; <span class="number">1 </span>{
+            <span class="kw">let </span>index = pte_index::&lt;C&gt;(virt_addr, level);
+            <span class="kw">let </span>pte_ptr = <span class="kw">unsafe </span>{ (paddr_to_vaddr(pt * C::BASE_PAGE_SIZE) <span class="kw">as </span><span class="kw-2">*mut </span>E).add(index) };
+            <span class="kw">let </span>pte = <span class="kw">unsafe </span>{ pte_ptr.read() };
+            pt = <span class="kw">if </span>!pte.is_present() {
+                <span class="macro">panic!</span>(<span class="string">"protecting an unmapped page in the boot page table"</span>);
+            } <span class="kw">else if </span>pte.is_last(level) {
+                <span class="comment">// Split the huge page.
+                </span><span class="kw">let </span>frame = <span class="self">self</span>.alloc_frame();
+                <span class="kw">let </span>huge_pa = pte.paddr();
+                <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..nr_subpage_per_huge::&lt;C&gt;() {
+                    <span class="kw">let </span>nxt_ptr =
+                        <span class="kw">unsafe </span>{ (paddr_to_vaddr(frame * C::BASE_PAGE_SIZE) <span class="kw">as </span><span class="kw-2">*mut </span>E).add(i) };
+                    <span class="kw">unsafe </span>{
+                        nxt_ptr.write(E::new_frame(
+                            huge_pa + i * C::BASE_PAGE_SIZE,
+                            level - <span class="number">1</span>,
+                            pte.prop(),
+                        ))
+                    };
+                }
+                <span class="kw">unsafe </span>{ pte_ptr.write(E::new_pt(frame * C::BASE_PAGE_SIZE)) };
+                frame
+            } <span class="kw">else </span>{
+                pte.paddr() / C::BASE_PAGE_SIZE
+            };
+            level -= <span class="number">1</span>;
+        }
+        <span class="comment">// Do protection in the last level page table.
+        </span><span class="kw">let </span>index = pte_index::&lt;C&gt;(virt_addr, <span class="number">1</span>);
+        <span class="kw">let </span>pte_ptr = <span class="kw">unsafe </span>{ (paddr_to_vaddr(pt * C::BASE_PAGE_SIZE) <span class="kw">as </span><span class="kw-2">*mut </span>E).add(index) };
+        <span class="kw">let </span>pte = <span class="kw">unsafe </span>{ pte_ptr.read() };
+        <span class="kw">if </span>!pte.is_present() {
+            <span class="macro">panic!</span>(<span class="string">"protecting an unmapped page in the boot page table"</span>);
+        }
+        <span class="kw">let </span><span class="kw-2">mut </span>prop = pte.prop();
+        op(<span class="kw-2">&amp;mut </span>prop);
+        <span class="kw">unsafe </span>{ pte_ptr.write(E::new_frame(pte.paddr(), <span class="number">1</span>, prop)) };
+    }
+
     <span class="kw">fn </span>alloc_frame(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; FrameNumber {
         <span class="kw">let </span>frame = FRAME_ALLOCATOR.get().unwrap().lock().alloc(<span class="number">1</span>).unwrap();
         <span class="self">self</span>.frames.push(frame);
@@ -246,43 +368,19 @@
         <span class="kw">unsafe </span>{ core::ptr::write_bytes(vaddr, <span class="number">0</span>, PAGE_SIZE) };
         frame
     }
-
-    <span class="doccomment">/// Retires this boot-stage page table.
-    ///
-    /// Do not drop a boot-stage page table. Instead, retire it.
-    ///
-    /// # Safety
-    ///
-    /// This method can only be called when this boot-stage page table is no longer in use,
-    /// e.g., after the permanent kernel page table has been activated.
-    </span><span class="kw">pub unsafe fn </span>retire(<span class="kw-2">mut </span><span class="self">self</span>) {
-        <span class="comment">// Manually free all heap and frame memory allocated.
-        </span><span class="kw">let </span>frames = core::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.frames);
-        <span class="kw">for </span>frame <span class="kw">in </span>frames {
-            FRAME_ALLOCATOR.get().unwrap().lock().dealloc(frame, <span class="number">1</span>);
-        }
-        <span class="comment">// We do not want or need to trigger drop.
-        </span>core::mem::forget(<span class="self">self</span>);
-        <span class="comment">// FIXME: an empty `Vec` is leaked on the heap here since the drop is not called
-        // and we have no ways to free it.
-        // The best solution to recycle the boot-phase page table is to initialize all
-        // page table page metadata of the boot page table by page walk after the metadata
-        // pages are mapped. Therefore the boot page table can be recycled or dropped by
-        // the routines in the [`super::node`] module. There's even without a need of
-        // `first_activate` concept if the boot page table can be managed by page table
-        // pages.
-    </span>}
 }
 
 <span class="kw">impl</span>&lt;E: PageTableEntryTrait, C: PagingConstsTrait&gt; Drop <span class="kw">for </span>BootPageTable&lt;E, C&gt; {
     <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="macro">panic!</span>(<span class="string">"the boot page table is dropped rather than retired."</span>);
+        <span class="kw">for </span>frame <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.frames {
+            FRAME_ALLOCATOR.get().unwrap().lock().dealloc(<span class="kw-2">*</span>frame, <span class="number">1</span>);
+        }
     }
 }
 
 <span class="attr">#[cfg(ktest)]
 #[ktest]
-</span><span class="kw">fn </span>test_boot_pt() {
+</span><span class="kw">fn </span>test_boot_pt_map_protect() {
     <span class="kw">use </span><span class="kw">super</span>::page_walk;
     <span class="kw">use crate</span>::{
         arch::mm::{PageTableEntry, PagingConsts},
@@ -301,21 +399,35 @@
     <span class="kw">let </span>from1 = <span class="number">0x1000</span>;
     <span class="kw">let </span>to1 = <span class="number">0x2</span>;
     <span class="kw">let </span>prop1 = PageProperty::new(PageFlags::RW, CachePolicy::Writeback);
-    boot_pt.map_base_page(from1, to1, prop1);
+    <span class="kw">unsafe </span>{ boot_pt.map_base_page(from1, to1, prop1) };
     <span class="macro">assert_eq!</span>(
         <span class="kw">unsafe </span>{ page_walk::&lt;PageTableEntry, PagingConsts&gt;(root_paddr, from1 + <span class="number">1</span>) },
         <span class="prelude-val">Some</span>((to1 * PAGE_SIZE + <span class="number">1</span>, prop1))
+    );
+    <span class="kw">unsafe </span>{ boot_pt.protect_base_page(from1, |prop| prop.flags = PageFlags::RX) };
+    <span class="macro">assert_eq!</span>(
+        <span class="kw">unsafe </span>{ page_walk::&lt;PageTableEntry, PagingConsts&gt;(root_paddr, from1 + <span class="number">1</span>) },
+        <span class="prelude-val">Some</span>((
+            to1 * PAGE_SIZE + <span class="number">1</span>,
+            PageProperty::new(PageFlags::RX, CachePolicy::Writeback)
+        ))
     );
 
     <span class="kw">let </span>from2 = <span class="number">0x2000</span>;
     <span class="kw">let </span>to2 = <span class="number">0x3</span>;
     <span class="kw">let </span>prop2 = PageProperty::new(PageFlags::RX, CachePolicy::Uncacheable);
-    boot_pt.map_base_page(from2, to2, prop2);
+    <span class="kw">unsafe </span>{ boot_pt.map_base_page(from2, to2, prop2) };
     <span class="macro">assert_eq!</span>(
         <span class="kw">unsafe </span>{ page_walk::&lt;PageTableEntry, PagingConsts&gt;(root_paddr, from2 + <span class="number">2</span>) },
         <span class="prelude-val">Some</span>((to2 * PAGE_SIZE + <span class="number">2</span>, prop2))
     );
-
-    <span class="kw">unsafe </span>{ boot_pt.retire() }
+    <span class="kw">unsafe </span>{ boot_pt.protect_base_page(from2, |prop| prop.flags = PageFlags::RW) };
+    <span class="macro">assert_eq!</span>(
+        <span class="kw">unsafe </span>{ page_walk::&lt;PageTableEntry, PagingConsts&gt;(root_paddr, from2 + <span class="number">2</span>) },
+        <span class="prelude-val">Some</span>((
+            to2 * PAGE_SIZE + <span class="number">2</span>,
+            PageProperty::new(PageFlags::RW, CachePolicy::Uncacheable)
+        ))
+    );
 }
 </code></pre></div></section></main></body></html>

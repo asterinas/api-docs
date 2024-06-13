@@ -206,15 +206,15 @@
     boot::init();
 
     mm::page::allocator::init();
-    <span class="kw">let </span><span class="kw-2">mut </span>boot_pt = mm::get_boot_pt();
-    <span class="kw">let </span>meta_pages = mm::init_page_meta(<span class="kw-2">&amp;mut </span>boot_pt);
+    mm::kspace::init_boot_page_table();
+    mm::kspace::init_kernel_page_table(mm::init_page_meta());
     mm::misc_init();
 
     trap::init();
     arch::after_all_init();
     bus::init();
 
-    mm::kspace::init_kernel_page_table(boot_pt, meta_pages);
+    mm::kspace::activate_kernel_page_table();
 
     invoke_ffi_init_funcs();
 }

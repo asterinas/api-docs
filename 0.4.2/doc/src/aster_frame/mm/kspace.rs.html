@@ -215,6 +215,31 @@
 <a href="#213" id="213">213</a>
 <a href="#214" id="214">214</a>
 <a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
 </pre></div><pre class="rust"><code><span class="comment">// SPDX-License-Identifier: MPL-2.0
 
 </span><span class="attr">#![allow(dead_code)]
@@ -224,24 +249,27 @@
 //! The kernel memory space is currently managed as follows, if the
 //! address width is 48 bits (with 47 bits kernel space).
 //!
+//! TODO: the cap of linear mapping (the start of vm alloc) are raised
+//! to workaround for high IO in TDX. We need actual vm alloc API to have
+//! a proper fix.
+//!
 //! ```text
 //! +-+ &lt;- the highest used address (0xffff_ffff_ffff_0000)
 //! | |         For the kernel code, 1 GiB. Mapped frames are untracked.
 //! +-+ &lt;- 0xffff_ffff_8000_0000
 //! | |
 //! | |         Unused hole.
-//! +-+ &lt;- 0xffff_e100_0000_0000
-//! | |         For frame metadata, 1 TiB. Mapped frames are untracked.
-//! +-+ &lt;- 0xffff_e000_0000_0000
-//! | |
-//! | |         For vm alloc/io mappings, 32 TiB.
+//! +-+ &lt;- 0xffff_ff00_0000_0000
+//! | |         For frame metadata, 1 TiB.
+//! | |         Mapped frames are untracked.
+//! +-+ &lt;- 0xffff_fe00_0000_0000
+//! | |         For vm alloc/io mappings, 1 TiB.
 //! | |         Mapped frames are tracked with handles.
-//! | |
-//! +-+ &lt;- the middle of the higher half (0xffff_c000_0000_0000)
-//! | |
+//! +-+ &lt;- 0xffff_fd00_0000_0000
 //! | |
 //! | |
-//! | |         For linear mappings, 64 TiB.
+//! | |
+//! | |         For linear mappings.
 //! | |         Mapped physical addresses are untracked.
 //! | |
 //! | |
@@ -253,7 +281,7 @@
 //! 39 bits or 57 bits, the memory space just adjust porportionally.
 
 </span><span class="kw">use </span>alloc::vec::Vec;
-<span class="kw">use </span>core::ops::Range;
+<span class="kw">use </span>core::{mem::ManuallyDrop, ops::Range};
 
 <span class="kw">use </span>align_ext::AlignExt;
 <span class="kw">use </span>log::info;
@@ -269,7 +297,10 @@
     page_table::{boot_pt::BootPageTable, KernelMode, PageTable},
     MemoryRegionType, Paddr, PagingConstsTrait, Vaddr, PAGE_SIZE,
 };
-<span class="kw">use </span><span class="kw">crate</span>::arch::mm::{PageTableEntry, PagingConsts};
+<span class="kw">use crate</span>::{
+    arch::mm::{PageTableEntry, PagingConsts},
+    sync::SpinLock,
+};
 
 <span class="doccomment">/// The shortest supported address width is 39 bits. And the literal
 /// values are written for 48 bits address width. Adjust the values
@@ -293,12 +324,12 @@
 
 <span class="kw">const </span>KERNEL_CODE_BASE_VADDR: usize = <span class="number">0xffff_ffff_8000_0000 </span>&lt;&lt; ADDR_WIDTH_SHIFT;
 
-<span class="kw">const </span>FRAME_METADATA_CAP_VADDR: Vaddr = <span class="number">0xffff_e100_0000_0000 </span>&lt;&lt; ADDR_WIDTH_SHIFT;
-<span class="kw">const </span>FRAME_METADATA_BASE_VADDR: Vaddr = <span class="number">0xffff_e000_0000_0000 </span>&lt;&lt; ADDR_WIDTH_SHIFT;
+<span class="kw">const </span>FRAME_METADATA_CAP_VADDR: Vaddr = <span class="number">0xffff_ff00_0000_0000 </span>&lt;&lt; ADDR_WIDTH_SHIFT;
+<span class="kw">const </span>FRAME_METADATA_BASE_VADDR: Vaddr = <span class="number">0xffff_fe00_0000_0000 </span>&lt;&lt; ADDR_WIDTH_SHIFT;
 <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::mm) <span class="kw">const </span>FRAME_METADATA_RANGE: Range&lt;Vaddr&gt; =
     FRAME_METADATA_BASE_VADDR..FRAME_METADATA_CAP_VADDR;
 
-<span class="kw">const </span>VMALLOC_BASE_VADDR: Vaddr = <span class="number">0xffff_c000_0000_0000 </span>&lt;&lt; ADDR_WIDTH_SHIFT;
+<span class="kw">const </span>VMALLOC_BASE_VADDR: Vaddr = <span class="number">0xffff_fd00_0000_0000 </span>&lt;&lt; ADDR_WIDTH_SHIFT;
 <span class="kw">pub const </span>VMALLOC_VADDR_RANGE: Range&lt;Vaddr&gt; = VMALLOC_BASE_VADDR..FRAME_METADATA_BASE_VADDR;
 
 <span class="doccomment">/// The base address of the linear mapping of all physical
@@ -312,8 +343,24 @@
     pa + LINEAR_MAPPING_BASE_VADDR
 }
 
-<span class="kw">pub static </span>KERNEL_PAGE_TABLE: Once&lt;PageTable&lt;KernelMode, PageTableEntry, PagingConsts&gt;&gt; =
+<span class="doccomment">/// The boot page table instance.
+///
+/// It is used in the initialization phase before [`KERNEL_PAGE_TABLE`] is activated.
+/// Since we want dropping the boot page table unsafe, it is wrapped in a [`ManuallyDrop`].
+</span><span class="kw">pub static </span>BOOT_PAGE_TABLE: SpinLock&lt;<span class="prelude-ty">Option</span>&lt;ManuallyDrop&lt;BootPageTable&gt;&gt;&gt; = SpinLock::new(<span class="prelude-val">None</span>);
+
+<span class="doccomment">/// The kernel page table instance.
+///
+/// It manages the kernel mapping of all address spaces by sharing the kernel part. And it
+/// is unlikely to be activated.
+</span><span class="kw">pub static </span>KERNEL_PAGE_TABLE: Once&lt;PageTable&lt;KernelMode, PageTableEntry, PagingConsts&gt;&gt; =
     Once::new();
+
+<span class="doccomment">/// Initializes the boot page table.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>init_boot_page_table() {
+    <span class="kw">let </span>boot_pt = BootPageTable::from_current_pt();
+    <span class="kw-2">*</span>BOOT_PAGE_TABLE.lock() = <span class="prelude-val">Some</span>(ManuallyDrop::new(boot_pt));
+}
 
 <span class="doccomment">/// Initializes the kernel page table.
 ///
@@ -323,10 +370,7 @@
 ///
 /// This function should be called before:
 ///  - any initializer that modifies the kernel page table.
-</span><span class="kw">pub fn </span>init_kernel_page_table(
-    boot_pt: BootPageTable&lt;PageTableEntry, PagingConsts&gt;,
-    meta_pages: Vec&lt;Range&lt;Paddr&gt;&gt;,
-) {
+</span><span class="kw">pub fn </span>init_kernel_page_table(meta_pages: Vec&lt;Range&lt;Paddr&gt;&gt;) {
     <span class="macro">info!</span>(<span class="string">"Initializing the kernel page table"</span>);
 
     <span class="kw">let </span>regions = <span class="kw">crate</span>::boot::memory_regions();
@@ -418,16 +462,22 @@
         }
     }
 
+    KERNEL_PAGE_TABLE.call_once(|| kpt);
+}
+
+<span class="kw">pub fn </span>activate_kernel_page_table() {
+    <span class="kw">let </span>kpt = KERNEL_PAGE_TABLE
+        .get()
+        .expect(<span class="string">"The kernel page table is not initialized yet"</span>);
     <span class="comment">// SAFETY: the kernel page table is initialized properly.
     </span><span class="kw">unsafe </span>{
         kpt.first_activate_unchecked();
         <span class="kw">crate</span>::arch::mm::tlb_flush_all_including_global();
     }
 
-    KERNEL_PAGE_TABLE.call_once(|| kpt);
-
-    <span class="comment">// SAFETY: the boot page table is OK to be retired now since
+    <span class="comment">// SAFETY: the boot page table is OK to be dropped now since
     // the kernel page table is activated.
-    </span><span class="kw">unsafe </span>{ boot_pt.retire() };
+    </span><span class="kw">let </span><span class="kw-2">mut </span>boot_pt = BOOT_PAGE_TABLE.lock().take().unwrap();
+    <span class="kw">unsafe </span>{ ManuallyDrop::drop(<span class="kw-2">&amp;mut </span>boot_pt) };
 }
 </code></pre></div></section></main></body></html>
