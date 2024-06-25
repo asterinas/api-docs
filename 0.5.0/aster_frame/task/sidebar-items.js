@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["TaskStatus"],"fn":["add_task","current_task","disable_preempt","preempt","schedule","set_scheduler"],"struct":["DisablePreemptGuard","FifoScheduler","Priority","Task","TaskAdapter","TaskOptions"],"trait":["Scheduler","TaskContextApi"]};

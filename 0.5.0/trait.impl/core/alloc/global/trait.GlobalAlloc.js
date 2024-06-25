@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"buddy_system_allocator":[["impl&lt;const ORDER: usize&gt; GlobalAlloc for <a class=\"struct\" href=\"buddy_system_allocator/struct.LockedHeap.html\" title=\"struct buddy_system_allocator::LockedHeap\">LockedHeap</a>&lt;ORDER&gt;"],["impl&lt;const ORDER: usize&gt; GlobalAlloc for <a class=\"struct\" href=\"buddy_system_allocator/struct.LockedHeapWithRescue.html\" title=\"struct buddy_system_allocator::LockedHeapWithRescue\">LockedHeapWithRescue</a>&lt;ORDER&gt;"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
