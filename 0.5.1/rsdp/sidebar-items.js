@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["RsdpError"],"fn":["find_search_areas"],"mod":["handler"],"struct":["Rsdp"]};

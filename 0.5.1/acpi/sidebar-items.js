@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["AcpiError","RsdpError"],"mod":["bgrt","fadt","hpet","madt","mcfg","platform","sdt"],"struct":["AcpiTables","AmlTable","PhysicalMapping","Sdt"],"trait":["AcpiHandler","AcpiTable"]};
