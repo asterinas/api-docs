@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["GuidFromStrError"],"macro":["guid"],"struct":["Guid"]};

@@ -1,0 +1,1 @@
+searchState.loadedDescShard("int_to_c_enum", 0, "This crate provides a derive macro named TryFromInt. This …\nError type for TryFromInt derive macro\nReturns the argument unchanged.\nCalls <code>U::from(self)</code>.")
