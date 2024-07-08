@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["disable_local","enable_local","in_interrupt_context"],"mod":["softirq"],"struct":["DisabledLocalIrqGuard","IrqLine","TrapFrame"],"type":["IrqCallbackFunction"]};

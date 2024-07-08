@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["FileAttribute","FileInfo","FileIoToken","FileMode","FileProtocolRevision","FileProtocolV1","FileProtocolV2","FileSystemInfo","FileSystemVolumeLabel","SimpleFileSystemProtocol"]};

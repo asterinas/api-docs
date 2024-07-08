@@ -1,0 +1,46 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="PCI bus"><title>ostd::bus::pci - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-dd39b87e5fcfba68.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="ostd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0-nightly (d8a38b000 2024-06-19)" data-channel="nightly" data-search-js="search-0fe7219eb170c82e.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../ostd/index.html">ostd</a><span class="version">0.6.1</span></h2></div><h2 class="location"><a href="#">Module pci</a></h2><div class="sidebar-elems"><section><ul class="block"><li><a href="#modules">Modules</a></li><li><a href="#structs">Structs</a></li><li><a href="#statics">Statics</a></li></ul></section><h2><a href="../index.html">In ostd::bus</a></h2></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Module <a href="../../index.html">ostd</a>::<wbr><a href="../index.html">bus</a>::<wbr><a class="mod" href="#">pci</a><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><span class="out-of-band"><a class="src" href="../../../src/ostd/bus/pci/mod.rs.html#3-74">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>PCI bus</p>
+<p>Users can implement the bus under the <code>PciDriver</code> to the PCI bus to register devices,
+when the physical device and the driver match successfully, it will be provided through the driver <code>construct</code> function
+to construct a structure that implements the <code>PciDevice</code> trait. And in the end,
+PCI bus will store a reference to the structure and finally call the driver’s probe function to remind the driver of a new device access.</p>
+<p>Use case:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug)]
+</span><span class="kw">pub struct </span>PciDeviceA {
+    common_device: PciCommonDevice,
+}
+
+<span class="kw">impl </span>PciDevice <span class="kw">for </span>PciDeviceA {
+    <span class="kw">fn </span>device_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PciDeviceId {
+        <span class="self">self</span>.common_device.device_id().clone()
+    }
+}
+
+<span class="attr">#[derive(Debug)]
+</span><span class="kw">pub struct </span>PciDriverA {
+    devices: Mutex&lt;Vec&lt;Arc&lt;PciDeviceA&gt;&gt;&gt;,
+}
+
+<span class="kw">impl </span>PciDriver <span class="kw">for </span>PciDriverA {
+    <span class="kw">fn </span>probe(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        device: PciCommonDevice,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;<span class="kw">dyn </span>PciDevice&gt;, (PciDriverProbeError, PciCommonDevice)&gt; {
+        <span class="kw">if </span>device.device_id().vendor_id != <span class="number">0x1234 </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>((PciDriverProbeError::DeviceNotMatch, device));
+        }
+        <span class="kw">let </span>device = Arc::new(PciDeviceA {
+            common_device: device,
+        });
+        <span class="self">self</span>.devices.lock().push(device.clone());
+        <span class="prelude-val">Ok</span>(device)
+    }
+}
+
+<span class="kw">pub fn </span>driver_a_init() {
+    <span class="kw">let </span>driver_a = Arc::new(PciDriverA {
+        devices: Mutex::new(Vec::new()),
+    });
+    PCI_BUS.lock().register_driver(driver_a);
+}</code></pre></div>
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="mod" href="bus/index.html" title="mod ostd::bus::pci::bus">bus</a></div></li><li><div class="item-name"><a class="mod" href="capability/index.html" title="mod ostd::bus::pci::capability">capability</a></div></li><li><div class="item-name"><a class="mod" href="cfg_space/index.html" title="mod ostd::bus::pci::cfg_space">cfg_space</a></div></li><li><div class="item-name"><a class="mod" href="common_device/index.html" title="mod ostd::bus::pci::common_device">common_device</a></div></li></ul><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="struct" href="struct.PciDeviceId.html" title="struct ostd::bus::pci::PciDeviceId">PciDeviceId</a></div></li><li><div class="item-name"><a class="struct" href="struct.PciDeviceLocation.html" title="struct ostd::bus::pci::PciDeviceLocation">PciDeviceLocation</a></div></li></ul><h2 id="statics" class="section-header">Statics<a href="#statics" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="static" href="static.PCI_BUS.html" title="static ostd::bus::pci::PCI_BUS">PCI_BUS</a></div></li></ul></section></div></main></body></html>
