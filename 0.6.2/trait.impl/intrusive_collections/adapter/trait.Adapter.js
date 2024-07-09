@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"ostd":[["impl <a class=\"trait\" href=\"intrusive_collections/adapter/trait.Adapter.html\" title=\"trait intrusive_collections::adapter::Adapter\">Adapter</a> for <a class=\"struct\" href=\"ostd/task/struct.TaskAdapter.html\" title=\"struct ostd::task::TaskAdapter\">TaskAdapter</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

@@ -1,0 +1,1 @@
+searchState.loadedDescShard("pod", 0, "A marker trait for plain old data (POD).\nAs a slice of bytes.\nAs a mutable slice of bytes.\nCreates a new instance from the given bytes.\nCreates a new instance of Pod type with uninitialized …\nCreates a new instance of Pod type that is filled with …")

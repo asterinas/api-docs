@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["BootloaderAcpiArg"],"fn":["acpi_arg","bootloader_name","call_ostd_main","framebuffer_arg","init","initramfs","kernel_cmdline","memory_regions","register_boot_init_callbacks"],"mod":["kcmdline","memory_region"],"struct":["BootloaderFramebufferArg"]};
