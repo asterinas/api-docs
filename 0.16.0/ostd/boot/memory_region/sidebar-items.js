@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_REGIONS"],"enum":["MemoryRegionType"],"struct":["MemoryRegion","MemoryRegionArray"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["in_interrupt_context","register_bottom_half_handler"],"mod":["irq"]};

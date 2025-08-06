@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["might_sleep"],"trait":["AsAtomicModeGuard","InAtomicMode"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["KERNEL_VADDR_RANGE","MAX_USERSPACE_VADDR","PAGE_SIZE"],"enum":["CachePolicy","DmaDirection"],"fn":["is_page_aligned"],"mod":["frame","heap","io","tlb","vm_space"],"struct":["DmaCoherent","DmaStream","DmaStreamSlice","PageFlags","PageProperty"],"trait":["HasDaddr","HasPaddr"],"type":["Daddr","Paddr","PagingLevel","Vaddr"]};

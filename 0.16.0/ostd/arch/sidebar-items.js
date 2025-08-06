@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["read_random","read_tsc","tsc_freq"],"macro":["if_tdx_enabled"],"mod":["boot","device","kernel","qemu","timer","trap"]};

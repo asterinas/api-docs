@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["LINUX_BOOT_HEADER_MAGIC"],"enum":["E820Type"],"struct":["ApmBiosInfo","BootE820Entry","BootParams","EddDeviceParams","EddInfo","EdidInfo","EfiInfo","IstInfo","OlpcOfwHeader","ScreenInfo","SetupHeader","SysDescTable"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["century_register"],"static":["CMOS_ADDRESS","CMOS_DATA"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["allocator","linked_list","meta","segment","unique","untyped"],"struct":["Frame","FrameRef"]};

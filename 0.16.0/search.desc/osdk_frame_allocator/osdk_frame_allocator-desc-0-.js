@@ -1,0 +1,1 @@
+searchState.loadedDescShard("osdk_frame_allocator", 0, "An implementation of the global physical memory frame …\nThe global frame allocator provided by OSDK.\nThe total size of free memory.\nDefines a static fast SMP counter.\nReturns the argument unchanged.\nCalls <code>U::from(self)</code>.\nLoads the total size (in bytes) of free memory in the …")

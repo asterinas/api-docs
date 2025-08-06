@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SHARED_BIT","SHARED_MASK"],"fn":["handle_virtual_exception","init_tdx","tdx_is_enabled"],"macro":["serial_print","serial_println"],"mod":["tdcall","tdvmcall"],"trait":["TdxTrapFrame"],"type":["TdxGpa"]};
