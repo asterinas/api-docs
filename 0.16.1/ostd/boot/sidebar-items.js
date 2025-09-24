@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["BootloaderAcpiArg"],"fn":["boot_info"],"mod":["memory_region","smp"],"struct":["BootInfo","BootloaderFramebufferArg"]};

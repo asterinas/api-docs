@@ -1,0 +1,1 @@
+searchState.loadedDescShard("osdk_test_kernel", 0, "The OSTD unit test runner is a kernel that runs the tests …\nReturns the argument unchanged.\nCalls <code>U::from(self)</code>.")

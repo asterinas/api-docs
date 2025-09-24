@@ -1,0 +1,1 @@
+searchState.loadedDescShard("align_ext", 0, "An extension trait for Rust integer types, including <code>u8</code>, …\nReturns to the greatest number that is smaller than or …\nReturns to the smallest number that is greater than or …")
