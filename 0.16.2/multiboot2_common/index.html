@@ -1,0 +1,182 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Common helpers for the `multiboot2` and `multiboot2-header` crates."><title>multiboot2_common - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="multiboot2_common" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate multiboot2_common</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../multiboot2_common/index.html">multiboot2_<wbr>common</a><span class="version">0.3.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#value-add" title="Value-add">Value-add</a></li><li><a href="#tldr-specific-example" title="TL;DR: Specific Example">TL;DR: Specific Example</a></li><li><a href="#design-solved-problem-and-difficulties-along-the-way" title="Design, Solved Problem, and Difficulties along the Way">Design, Solved Problem, and Difficulties along the Way</a><ul><li><a href="#architecture-diagrams" title="Architecture Diagrams">Architecture Diagrams</a></li><li><a href="#multiboot2-structures" title="Multiboot2 Structures">Multiboot2 Structures</a></li><li><a href="#dynamic-and-sized-structs-in-rust" title="Dynamic and Sized Structs in Rust">Dynamic and Sized Structs in Rust</a></li><li><a href="#chosen-design" title="Chosen Design">Chosen Design</a></li><li><a href="#creating-fat-pointers-with-ptr_meta" title="Creating Fat Pointers with `ptr_meta`">Creating Fat Pointers with <code>ptr_meta</code></a></li><li><a href="#multiboot2-requirements" title="Multiboot2 Requirements">Multiboot2 Requirements</a></li><li><a href="#rustc-requirements" title="Rustc Requirements">Rustc Requirements</a></li><li><a href="#parsing-and-casting" title="Parsing and Casting">Parsing and Casting</a></li><li><a href="#iterating-tags" title="Iterating Tags">Iterating Tags</a></li></ul></li><li><a href="#memory-guarantees-and-safety-promises" title="Memory Guarantees and Safety Promises">Memory Guarantees and Safety Promises</a></li><li><a href="#no-public-api" title="No Public API">No Public API</a></li></ul><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#constants" title="Constants">Constants</a></li><li><a href="#traits" title="Traits">Traits</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>multiboot2_<wbr>common</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/multiboot2_common/lib.rs.html#1-533">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Common helpers for the <code>multiboot2</code> and <code>multiboot2-header</code> crates.</p>
+<h2 id="value-add"><a class="doc-anchor" href="#value-add">§</a>Value-add</h2>
+<p>The main value-add of this crate is to abstract away the parsing and
+construction of Multiboot2 structures. This is more complex as it may sound
+at first due to the difficulties listed below. Further, functionality for
+the iteration of tags are provided.</p>
+<p>The abstractions provided by this crate serve as the base to work with the
+following structures in interaction:</p>
+<ul>
+<li>multiboot2:
+<ul>
+<li>boot information</li>
+<li>boot information header (the fixed sized begin portion of a boot
+information)</li>
+<li>boot information tags</li>
+<li>boot information tag header (the fixed sized begin portion of a tag)</li>
+</ul>
+</li>
+<li>multiboot2-header:
+<ul>
+<li>header</li>
+<li>header header (the fixed sized begin portion of a header)</li>
+<li>header tags</li>
+<li>header tag header (the fixed sized begin portion of a tag)</li>
+</ul>
+</li>
+</ul>
+<h2 id="tldr-specific-example"><a class="doc-anchor" href="#tldr-specific-example">§</a>TL;DR: Specific Example</h2>
+<p>To name a specific example, the <code>multiboot2</code> crate just needs the following
+types:</p>
+<ul>
+<li><code>BootInformationHeader</code> implementing <a href="trait.Header.html" title="trait multiboot2_common::Header"><code>Header</code></a></li>
+<li><code>BootInformation</code> wrapping <a href="struct.DynSizedStructure.html" title="struct multiboot2_common::DynSizedStructure"><code>DynSizedStructure</code></a></li>
+<li><code>type TagIter&lt;'a&gt; = multiboot2_common::TagIter&lt;'a, TagHeader&gt;</code>
+(<a href="struct.TagIter.html" title="struct multiboot2_common::TagIter"><code>TagIter</code></a>)</li>
+<li><code>TagHeader</code> implementing <a href="trait.Header.html" title="trait multiboot2_common::Header"><code>Header</code></a></li>
+<li>Structs for each tag, each implementing <a href="trait.MaybeDynSized.html" title="trait multiboot2_common::MaybeDynSized"><code>MaybeDynSized</code></a></li>
+</ul>
+<p>Then, all the magic using the <a href="struct.TagIter.html" title="struct multiboot2_common::TagIter"><code>TagIter</code></a> and <a href="struct.DynSizedStructure.html#method.cast" title="method multiboot2_common::DynSizedStructure::cast"><code>DynSizedStructure::cast</code></a>
+can easily be utilized.</p>
+<p>The same correspondingly applies to the structures in <code>multiboot2-header</code>.</p>
+<h2 id="design-solved-problem-and-difficulties-along-the-way"><a class="doc-anchor" href="#design-solved-problem-and-difficulties-along-the-way">§</a>Design, Solved Problem, and Difficulties along the Way</h2>
+<p>Firstly, the design choice to have ABI-compatible rusty types in
+<code>multiboot2</code> and <code>multiboot2-header</code> mainly influenced the requirements and
+difficulties along the way. These obstacles on the other side, influenced
+the design. The outcome is what we perceive as the optimal rusty and
+convenient solution.</p>
+<h3 id="architecture-diagrams"><a class="doc-anchor" href="#architecture-diagrams">§</a>Architecture Diagrams</h3>
+<p>The figures in the <a href="https://crates.io/crates/multiboot2-common">README</a>
+(currently not embeddable in lib.rs unfortunately) provides an overview of
+the parsing of Multiboot2 structures and how the definitions from this
+crate are used.</p>
+<p>Note that although the diagrams seem complex, most logic is in
+<code>multiboot2-common</code>. For downstream users, the usage is quite simple.</p>
+<h3 id="multiboot2-structures"><a class="doc-anchor" href="#multiboot2-structures">§</a>Multiboot2 Structures</h3>
+<p>Multiboot2 structures are a consecutive chunk of bytes in memory. They use
+the “header pattern”, which means a fixed size and known <a href="trait.Header.html" title="trait multiboot2_common::Header"><code>Header</code></a> type
+indicates the total size of the structure. This is roughly translated to the
+following rusty base type:</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="attr">#[repr(C, align(<span class="number">8</span>))]
+</span><span class="kw">struct </span>DynStructure {
+    header: MyHeader,
+    payload: [u8]
+}</code></pre></div>
+<p>Note that these structures can also be nested. So for example, the
+Multiboot2 boot information contains Multiboot2 tags, and the Multiboot2
+header contains Multiboot2 header tags - both are itself <strong>dynamically
+sized</strong> structures. This means, you can know the size (and amount of
+elements) <strong>only at runtime!</strong></p>
+<p>A final <code>[u8]</code> field in the structs is the most rusty way to model this.
+However, this makes the type a Dynamically Sized Type (DST). To create
+references to these types from a byte slice, one needs fat pointers. They
+are a language feature currently not constructable with stable Rust.
+Luckily, we can utilize <a href="../ptr_meta/index.html" title="mod ptr_meta"><code>ptr_meta</code></a>.</p>
+<p>Figure 1 in the <a href="https://crates.io/crates/multiboot2-common">README</a>
+(currently not embeddable in lib.rs unfortunately) provides an overview of
+Multiboot2 structures.</p>
+<h3 id="dynamic-and-sized-structs-in-rust"><a class="doc-anchor" href="#dynamic-and-sized-structs-in-rust">§</a>Dynamic and Sized Structs in Rust</h3>
+<p>Note that we also have structures (tags) in Multiboot2 that looks like this:</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="attr">#[repr(C, align(<span class="number">8</span>))]
+</span><span class="kw">struct </span>DynStructure {
+    header: MyHeader,
+    <span class="comment">// Not just [`u8`]
+    </span>payload: [SomeType]
+}</code></pre></div>
+<p>or</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="attr">#[repr(C, align(<span class="number">8</span>))]
+</span><span class="kw">struct </span>CommandLineTag {
+    header: TagHeader,
+    start: u32,
+    end: u32,
+    <span class="comment">// More than just the base header before the dynamic portion
+    </span>data: [u8]
+}</code></pre></div><h3 id="chosen-design"><a class="doc-anchor" href="#chosen-design">§</a>Chosen Design</h3>
+<p>The overall common abstractions needed to solve the problems mentioned in
+this section are also mainly influenced by the fact that the <code>multiboot2</code>
+and <code>multiboot2-header</code> crates use a <strong>zero-copy</strong> design by parsing
+the corresponding raw bytes with <strong>ABI-compatible types</strong> owning all their
+memory.</p>
+<p>Further, by having ABI-compatible types that fully represent the reality, we
+can use the same type for parsing <strong>and</strong> for construction, as modelled in
+the following simplified example:</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="doccomment">/// ABI-compatible tag for parsing.
+</span><span class="attr">#[repr(C)]
+</span><span class="kw">pub struct </span>MemoryMapTag {
+    header: TagHeader,
+    entry_size: u32,
+    entry_version: u32,
+    areas: [MemoryArea],
+}
+
+<span class="kw">impl </span>MemoryMapTag {
+    <span class="comment">// We can also create an ABI-compatible structure of that type.
+    </span><span class="kw">pub fn </span>new(areas: <span class="kw-2">&amp;</span>[MemoryArea]) -&gt; Box&lt;<span class="self">Self</span>&gt; {
+        <span class="comment">// omitted
+    </span>}
+}</code></pre></div>
+<p>Hence, the structures can also be build at runtime. This is what we
+consider <strong>idiomatic and rusty</strong>.</p>
+<h3 id="creating-fat-pointers-with-ptr_meta"><a class="doc-anchor" href="#creating-fat-pointers-with-ptr_meta">§</a>Creating Fat Pointers with <a href="../ptr_meta/index.html" title="mod ptr_meta"><code>ptr_meta</code></a></h3>
+<p>Fat pointers are a language feature and the base for references to
+dynamically sized types, such as <code>&amp;str</code>, <code>&amp;[T]</code>, <code>dyn T</code> or
+<code>&amp;DynamicallySizedStruct</code>.</p>
+<p>Currently, they can’t be created using the standard library, but
+<a href="../ptr_meta/index.html" title="mod ptr_meta"><code>ptr_meta</code></a> can be utilized.</p>
+<p>To create fat pointers with <a href="../ptr_meta/index.html" title="mod ptr_meta"><code>ptr_meta</code></a>, each tag needs a <code>Metadata</code> type
+which is either <code>usize</code> (for DSTs) or <code>()</code>. A trait is needed to abstract
+above sized or unsized types. This is done by <a href="trait.MaybeDynSized.html" title="trait multiboot2_common::MaybeDynSized"><code>MaybeDynSized</code></a>.</p>
+<h3 id="multiboot2-requirements"><a class="doc-anchor" href="#multiboot2-requirements">§</a>Multiboot2 Requirements</h3>
+<p>All tags must be 8-byte aligned. The actual payload of tags may be followed
+by padding zeroes to fill the gap until the next alignment boundary, if
+necessary. These zeroes are not reflected in the tag’s size, but for Rust,
+must be reflected in the type’s memory allocation.</p>
+<h3 id="rustc-requirements"><a class="doc-anchor" href="#rustc-requirements">§</a>Rustc Requirements</h3>
+<p>The required allocation space that Rust uses for types is a multiple of the
+alignment. This means that if we cast between byte slices and specific
+types, Rust doesn’t just see the “trimmed down actual payload” defined by
+struct members, but also any necessary, but hidden, padding bytes. If we
+don’t guarantee the correct is not the case, for example we cast the bytes
+from a <code>&amp;[u8; 15]</code> to an 8-byte aligned struct, Miri will complain as it
+expects <code>&amp;[u8; 16]</code>.</p>
+<p>See <a href="https://doc.rust-lang.org/reference/type-layout.html">https://doc.rust-lang.org/reference/type-layout.html</a> for information.</p>
+<p>Further, this also means that we can’t cast references to smaller structs
+to bigger ones. Also, once we construct a <code>Box</code> on the heap and construct
+it using the <a href="fn.new_boxed.html" title="fn multiboot2_common::new_boxed"><code>new_boxed</code></a> helper, we must ensure that the default
+<a href="core::alloc::Layout"><code>Layout</code></a> for the underlying type equals the one we manually used for the
+allocation.</p>
+<h3 id="parsing-and-casting"><a class="doc-anchor" href="#parsing-and-casting">§</a>Parsing and Casting</h3>
+<p>The general idea of parsing is that the lifetime of the original byte slice
+propagates through to references of target types.</p>
+<p>First, we need byte slices which are guaranteed to be aligned and are a
+multiple of the alignment. We have <a href="struct.BytesRef.html" title="struct multiboot2_common::BytesRef"><code>BytesRef</code></a> for that. With that, we can
+create a <a href="struct.DynSizedStructure.html" title="struct multiboot2_common::DynSizedStructure"><code>DynSizedStructure</code></a>. This is a rusty type that owns all the bytes
+it owns, according to the size reported by its header. Using this type
+and with the help of <a href="trait.MaybeDynSized.html" title="trait multiboot2_common::MaybeDynSized"><code>MaybeDynSized</code></a>, we can call
+<a href="struct.DynSizedStructure.html#method.cast" title="method multiboot2_common::DynSizedStructure::cast"><code>DynSizedStructure::cast</code></a> to cast this to arbitrary sized or unsized
+struct types fulfilling the corresponding requirements.</p>
+<p>This way, one can create nice rusty structs modeling the structure of the
+tags, and we only need a single “complicated” type, namely
+<a href="struct.DynSizedStructure.html" title="struct multiboot2_common::DynSizedStructure"><code>DynSizedStructure</code></a>.</p>
+<h3 id="iterating-tags"><a class="doc-anchor" href="#iterating-tags">§</a>Iterating Tags</h3>
+<p>To iterate over the tags of a structure, use <a href="struct.TagIter.html" title="struct multiboot2_common::TagIter"><code>TagIter</code></a>.</p>
+<h2 id="memory-guarantees-and-safety-promises"><a class="doc-anchor" href="#memory-guarantees-and-safety-promises">§</a>Memory Guarantees and Safety Promises</h2>
+<p>For the parsing and construction of Multiboot2 structures, the alignment
+and necessary padding bytes as discussed above are guaranteed. When types
+are constructed, they return Results with appropriate error types. If
+during runtime something goes wrong, for example due to malformed tags,
+panics guarantee that no UB will happen.</p>
+<h2 id="no-public-api"><a class="doc-anchor" href="#no-public-api">§</a>No Public API</h2>
+<p>Not meant as stable public API for others outside Multiboot2.</p>
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="test_utils/index.html" title="mod multiboot2_common::test_utils">test_<wbr>utils</a></dt><dd>Various test utilities.</dd></dl><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.BytesRef.html" title="struct multiboot2_common::BytesRef">Bytes<wbr>Ref</a></dt><dd>Wraps a byte slice representing a Multiboot2 structure including an optional
+terminating padding, if necessary.</dd><dt><a class="struct" href="struct.DynSizedStructure.html" title="struct multiboot2_common::DynSizedStructure">DynSized<wbr>Structure</a></dt><dd>An C ABI-compatible dynamically sized type with a common sized <a href="trait.Header.html" title="trait multiboot2_common::Header"><code>Header</code></a>
+and a dynamic amount of bytes without hidden implicit padding.</dd><dt><a class="struct" href="struct.TagIter.html" title="struct multiboot2_common::TagIter">TagIter</a></dt><dd>Iterates over the tags (modelled by <a href="struct.DynSizedStructure.html" title="struct multiboot2_common::DynSizedStructure"><code>DynSizedStructure</code></a>) of the underlying
+byte slice. Each tag is expected to have the same common <a href="trait.Header.html" title="trait multiboot2_common::Header"><code>Header</code></a> with
+the corresponding ABI guarantees.</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.MemoryError.html" title="enum multiboot2_common::MemoryError">Memory<wbr>Error</a></dt><dd>Errors that may occur when working with memory.</dd></dl><h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2><dl class="item-table"><dt><a class="constant" href="constant.ALIGNMENT.html" title="constant multiboot2_common::ALIGNMENT">ALIGNMENT</a></dt><dd>The alignment of all Multiboot2 data structures.</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.Header.html" title="trait multiboot2_common::Header">Header</a></dt><dd>A sized header type for <a href="struct.DynSizedStructure.html" title="struct multiboot2_common::DynSizedStructure"><code>DynSizedStructure</code></a>.</dd><dt><a class="trait" href="trait.MaybeDynSized.html" title="trait multiboot2_common::MaybeDynSized">Maybe<wbr>DynSized</a></dt><dd>A trait to abstract sized and unsized structures (DSTs). It enables
+casting a <a href="struct.DynSizedStructure.html" title="struct multiboot2_common::DynSizedStructure"><code>DynSizedStructure</code></a> to sized or unsized structures using
+<a href="struct.DynSizedStructure.html#method.cast" title="method multiboot2_common::DynSizedStructure::cast"><code>DynSizedStructure::cast</code></a>.</dd><dt><a class="trait" href="trait.Tag.html" title="trait multiboot2_common::Tag">Tag</a></dt><dd>Extension of <a href="trait.MaybeDynSized.html" title="trait multiboot2_common::MaybeDynSized"><code>MaybeDynSized</code></a> for Tags.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.clone_dyn.html" title="fn multiboot2_common::clone_dyn">clone_<wbr>dyn</a></dt><dd>Clones a <a href="trait.MaybeDynSized.html" title="trait multiboot2_common::MaybeDynSized"><code>MaybeDynSized</code></a> by calling <a href="fn.new_boxed.html" title="fn multiboot2_common::new_boxed"><code>new_boxed</code></a>.</dd><dt><a class="fn" href="fn.increase_to_alignment.html" title="fn multiboot2_common::increase_to_alignment">increase_<wbr>to_<wbr>alignment</a></dt><dd>Increases the given size to the next alignment boundary, if it is not a
+multiple of the alignment yet.</dd><dt><a class="fn" href="fn.new_boxed.html" title="fn multiboot2_common::new_boxed">new_<wbr>boxed</a></dt><dd>Creates a new tag implementing <a href="trait.MaybeDynSized.html" title="trait multiboot2_common::MaybeDynSized"><code>MaybeDynSized</code></a> on the heap.</dd></dl></section></div></main></body></html>

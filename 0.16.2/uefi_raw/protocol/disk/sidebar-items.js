@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["DiskIo2Protocol","DiskIo2Token","DiskIoProtocol"]};
