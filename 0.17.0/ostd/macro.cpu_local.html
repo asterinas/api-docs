@@ -1,0 +1,28 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Defines a statically-allocated CPU-local variable."><title>cpu_local in ostd - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="ostd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc macro"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">cpu_local</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../ostd/index.html">ostd</a><span class="version">0.17.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">cpu_<wbr>local</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#example" title="Example">Example</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="index.html">In crate ostd</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">ostd</a></div><h1>Macro <span class="macro">cpu_<wbr>local</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/ostd/cpu/local/static_cpu_local.rs.html#48-63">Source</a> </span></div><pre class="rust item-decl"><code>macro_rules! cpu_local {
+    ($( $(#[$attr:meta])* $vis:vis static $name:ident: $t:ty = $init:expr; )*) =&gt; { ... };
+}</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Defines a statically-allocated CPU-local variable.</p>
+<p>The accessors of the CPU-local variables are defined with <a href="cpu/local/struct.CpuLocal.html" title="struct ostd::cpu::local::CpuLocal"><code>CpuLocal</code></a>.</p>
+<p>You can get the reference to the inner object on one CPU by calling
+<a href="cpu/local/struct.CpuLocal.html#method.get_on_cpu" title="method ostd::cpu::local::CpuLocal::get_on_cpu"><code>CpuLocal::get_on_cpu</code></a>. Also if you intend to access the inner object
+on the current CPU, you can use <a href="cpu/local/struct.CpuLocal.html#method.get_with" title="method ostd::cpu::local::CpuLocal::get_with"><code>CpuLocal::get_with</code></a>. The latter
+accessors can be used even if the inner object is not <code>Sync</code>.</p>
+<h2 id="example"><a class="doc-anchor" href="#example">§</a>Example</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>ostd::{cpu_local, cpu::PinCurrentCpu, task::disable_preempt, trap};
+<span class="kw">use </span>core::{sync::atomic::{AtomicU32, Ordering}, cell::Cell};
+
+<span class="macro">cpu_local!</span> {
+    <span class="kw">static </span>FOO: AtomicU32 = AtomicU32::new(<span class="number">1</span>);
+    <span class="kw">pub static </span>BAR: Cell&lt;usize&gt; = Cell::new(<span class="number">2</span>);
+}
+
+<span class="kw">fn </span>not_an_atomic_function() {
+    <span class="kw">let </span>preempt_guard = disable_preempt();
+    <span class="kw">let </span>ref_of_foo = FOO.get_on_cpu(preempt_guard.current_cpu());
+    <span class="kw">let </span>val_of_foo = ref_of_foo.load(Ordering::Relaxed);
+    <span class="macro">println!</span>(<span class="string">"FOO VAL: {}"</span>, val_of_foo);
+
+    <span class="kw">let </span>irq_guard = irq::disable_local();
+    <span class="kw">let </span>bar_guard = BAR.get_with(<span class="kw-2">&amp;</span>irq_guard);
+    <span class="kw">let </span>val_of_bar = bar_guard.get();
+    <span class="macro">println!</span>(<span class="string">"BAR VAL: {}"</span>, val_of_bar);
+}</code></pre></div></div></details></section></div></main></body></html>

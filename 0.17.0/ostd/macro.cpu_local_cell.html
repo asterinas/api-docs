@@ -1,0 +1,28 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Defines an inner-mutable CPU-local variable."><title>cpu_local_cell in ostd - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="ostd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc macro"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">cpu_local_cell</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../ostd/index.html">ostd</a><span class="version">0.17.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">cpu_<wbr>local_<wbr>cell</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#example" title="Example">Example</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="index.html">In crate ostd</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">ostd</a></div><h1>Macro <span class="macro">cpu_<wbr>local_<wbr>cell</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/ostd/cpu/local/cell.rs.html#43-58">Source</a> </span></div><pre class="rust item-decl"><code>macro_rules! cpu_local_cell {
+    ($( $(#[$attr:meta])* $vis:vis static $name:ident: $t:ty = $init:expr; )*) =&gt; { ... };
+}</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Defines an inner-mutable CPU-local variable.</p>
+<p>The accessors of the CPU-local variables are defined with <a href="cpu/local/struct.CpuLocalCell.html" title="struct ostd::cpu::local::CpuLocalCell"><code>CpuLocalCell</code></a>.</p>
+<p>It should be noted that if the interrupts or preemption is enabled, two
+operations on the same CPU-local cell variable may access different objects
+since the task may live on different CPUs.</p>
+<h2 id="example"><a class="doc-anchor" href="#example">§</a>Example</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>ostd::cpu_local_cell;
+
+<span class="macro">cpu_local_cell!</span> {
+    <span class="kw">static </span>FOO: u32 = <span class="number">1</span>;
+    <span class="kw">pub static </span>BAR: <span class="kw-2">*const </span>usize = core::ptr::null();
+}
+
+<span class="kw">fn </span>not_an_atomic_function() {
+    <span class="kw">let </span>bar_var: usize = <span class="number">1</span>;
+    BAR.store(<span class="kw-2">&amp;</span>bar_var <span class="kw">as </span><span class="kw-2">*const </span><span class="kw">_</span>);
+    <span class="comment">// Note that the value of `BAR` here doesn't necessarily equal to the address
+    // of `bar_var`, since the task may be preempted and moved to another CPU.
+    // You can avoid this by disabling interrupts (and preemption, if needed).
+    </span><span class="macro">println!</span>(<span class="string">"BAR VAL: {:?}"</span>, BAR.load());
+
+    <span class="kw">let </span>_irq_guard = ostd::irq::disable_local();
+    <span class="macro">println!</span>(<span class="string">"1st FOO VAL: {:?}"</span>, FOO.load());
+    <span class="comment">// No surprises here, the two accesses must result in the same value.
+    </span><span class="macro">println!</span>(<span class="string">"2nd FOO VAL: {:?}"</span>, FOO.load());
+}</code></pre></div></div></details></section></div></main></body></html>

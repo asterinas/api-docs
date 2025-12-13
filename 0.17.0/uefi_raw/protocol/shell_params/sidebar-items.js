@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["ShellParametersProtocol"],"type":["ShellFileHandle"]};

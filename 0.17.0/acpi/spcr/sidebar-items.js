@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["SpcrInterfaceType"],"struct":["Spcr","SpcrFlowControl","SpcrInterruptType","SpcrTerminalType"]};

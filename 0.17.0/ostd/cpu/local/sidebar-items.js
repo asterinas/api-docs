@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["CpuLocal","CpuLocalCell","CpuLocalDerefGuard","DynCpuLocalChunk"],"trait":["AnyStorage"],"type":["DynamicCpuLocal","StaticCpuLocal"]};

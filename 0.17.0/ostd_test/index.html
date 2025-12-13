@@ -1,0 +1,52 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="The kernel mode testing framework of OSTD."><title>ostd_test - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="ostd_test" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate ostd_test</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../ostd_test/index.html">ostd_<wbr>test</a><span class="version">0.17.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#the-kernel-mode-testing-framework-of-ostd" title="The kernel mode testing framework of OSTD.">The kernel mode testing framework of OSTD.</a><ul><li><a href="#usage" title="Usage">Usage</a></li></ul></li></ul><h3><a href="#structs">Crate Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>ostd_<wbr>test</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/ostd_test/lib.rs.html#3-254">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="the-kernel-mode-testing-framework-of-ostd"><a class="doc-anchor" href="#the-kernel-mode-testing-framework-of-ostd">§</a>The kernel mode testing framework of OSTD.</h2>
+<p><code>ostd-test</code> stands for kernel-mode testing framework for OSTD. Its goal is to provide a
+<code>cargo test</code>-like experience for any <code>#![no_std]</code> bare metal crates.</p>
+<p>In OSTD, all the tests written in the source tree of the crates will be run
+immediately after the initialization of <code>ostd</code>. Thus you can use any
+feature provided by the frame including the heap allocator, etc.</p>
+<p>By all means, ostd-test is an individual crate that only requires:</p>
+<ul>
+<li>a custom linker script section <code>.ktest_array</code>,</li>
+<li>and an alloc implementation.</li>
+</ul>
+<p>And the OSTD happens to provide both of them. Thus, any crates depending
+on the OSTD can use ostd-test without any extra dependency.</p>
+<h3 id="usage"><a class="doc-anchor" href="#usage">§</a>Usage</h3>
+<p>To write a unit test for any crates, it is recommended to create a new test
+module, e.g.:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[cfg(ktest)]
+</span><span class="kw">mod </span>test {
+    <span class="kw">use </span>ostd::prelude::<span class="kw-2">*</span>;
+
+    <span class="attr">#[ktest]
+    </span><span class="kw">fn </span>trivial_assertion() {
+        <span class="macro">assert_eq!</span>(<span class="number">0</span>, <span class="number">0</span>);
+    }
+    <span class="attr">#[ktest]
+    #[should_panic]
+    </span><span class="kw">fn </span>failing_assertion() {
+        <span class="macro">assert_eq!</span>(<span class="number">0</span>, <span class="number">1</span>);
+    }
+    <span class="attr">#[ktest]
+    #[should_panic(expected = <span class="string">"expected panic message"</span>)]
+    </span><span class="kw">fn </span>expect_panic() {
+        <span class="macro">panic!</span>(<span class="string">"expected panic message"</span>);
+    }
+}</code></pre></div>
+<p>Any crates using the ostd-test framework should be linked with ostd.</p>
+<p>By the way, <code>#[ktest]</code> attribute along also works, but it hinders test control
+using cfgs since plain attribute marked test will be executed in all test runs
+no matter what cfgs are passed to the compiler. More importantly, using <code>#[ktest]</code>
+without cfgs occupies binary real estate since the <code>.ktest_array</code> section is not
+explicitly stripped in normal builds.</p>
+<p>Rust cfg is used to control the compilation of the test module. In cooperation
+with the <code>ktest</code> framework, OSDK will set the <code>RUSTFLAGS</code> environment variable
+to pass the cfgs to all rustc invocations. To run the tests, you simply need
+to use the command <code>cargo osdk test</code> in the crate directory. For more information,
+please refer to the OSDK documentation.</p>
+<p>We support the <code>#[should_panic]</code> attribute just in the same way as the standard
+library do, but the implementation is quite slow currently. Use it with cautious.</p>
+<p>Doctest is not taken into consideration yet, and the interface is subject to
+change.</p>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.KtestItem.html" title="struct ostd_test::KtestItem">Ktest<wbr>Item</a></dt><dt><a class="struct" href="struct.KtestItemInfo.html" title="struct ostd_test::KtestItemInfo">Ktest<wbr>Item<wbr>Info</a></dt><dd>The information of the unit test.</dd><dt><a class="struct" href="struct.KtestIter.html" title="struct ostd_test::KtestIter">Ktest<wbr>Iter</a></dt><dd>The iterator of the ktest array.</dd><dt><a class="struct" href="struct.PanicInfo.html" title="struct ostd_test::PanicInfo">Panic<wbr>Info</a></dt></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.KtestError.html" title="enum ostd_test::KtestError">Ktest<wbr>Error</a></dt><dd>The error that may occur during the test.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.get_ktest_crate_whitelist.html" title="fn ostd_test::get_ktest_crate_whitelist">get_<wbr>ktest_<wbr>crate_<wbr>whitelist</a></dt><dd>Get the whitelist of the crates.</dd><dt><a class="fn" href="fn.get_ktest_test_whitelist.html" title="fn ostd_test::get_ktest_test_whitelist">get_<wbr>ktest_<wbr>test_<wbr>whitelist</a></dt><dd>Get the whitelist of the tests.</dd></dl></section></div></main></body></html>

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["AtomicIdSet","IdSet"],"trait":["Id","IdSetSlicer"]};

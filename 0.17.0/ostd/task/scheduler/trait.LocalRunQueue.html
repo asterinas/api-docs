@@ -1,0 +1,182 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="A per-CPU, local runqueue."><title>LocalRunQueue in ostd::task::scheduler - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="ostd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc trait"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">LocalRunQueue</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../ostd/index.html">ostd</a><span class="version">0.17.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Local<wbr>RunQueue</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#interactions-with-ostd" title="Interactions with OSTD">Interactions with OSTD</a><ul><li><a href="#overview" title="Overview">Overview</a></li><li><a href="#when-to-pick-the-next-task" title="When to Pick the Next Task?">When to Pick the Next Task?</a></li><li><a href="#internal-working" title="Internal Working">Internal Working</a></li></ul></li></ul><h3><a href="#required-methods">Required Methods</a></h3><ul class="block"><li><a href="#tymethod.current" title="current">current</a></li><li><a href="#tymethod.dequeue_current" title="dequeue_current">dequeue_current</a></li><li><a href="#tymethod.try_pick_next" title="try_pick_next">try_pick_next</a></li><li><a href="#tymethod.update_current" title="update_current">update_current</a></li></ul><h3><a href="#provided-methods">Provided Methods</a></h3><ul class="block"><li><a href="#method.pick_next" title="pick_next">pick_next</a></li></ul><h3><a href="#implementors">Implementors</a></h3></section><div id="rustdoc-modnav"><h2><a href="index.html">In ostd::<wbr>task::<wbr>scheduler</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">ostd</a>::<wbr><a href="../index.html">task</a>::<wbr><a href="index.html">scheduler</a></div><h1>Trait <span class="trait">Local<wbr>RunQueue</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/ostd/task/scheduler/mod.rs.html#330-371">Source</a> </span></div><pre class="rust item-decl"><code>pub trait LocalRunQueue&lt;T = <a class="struct" href="../struct.Task.html" title="struct ostd::task::Task">Task</a>&gt; {
+    // Required methods
+    fn <a href="#tymethod.current" class="fn">current</a>(&amp;self) -&gt; Option&lt;&amp;Arc&lt;T&gt;&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.update_current" class="fn">update_current</a>(&amp;mut self, flags: <a class="enum" href="enum.UpdateFlags.html" title="enum ostd::task::scheduler::UpdateFlags">UpdateFlags</a>) -&gt; bool;
+<span class="item-spacer"></span>    fn <a href="#tymethod.try_pick_next" class="fn">try_pick_next</a>(&amp;mut self) -&gt; Option&lt;&amp;Arc&lt;T&gt;&gt;;
+<span class="item-spacer"></span>    fn <a href="#tymethod.dequeue_current" class="fn">dequeue_current</a>(&amp;mut self) -&gt; Option&lt;Arc&lt;T&gt;&gt;;
+
+    // Provided method
+    fn <a href="#method.pick_next" class="fn">pick_next</a>(&amp;mut self) -&gt; &amp;Arc&lt;T&gt; { ... }
+}</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>A per-CPU, local runqueue.</p>
+<p>This abstraction allows OSTD to inspect and manipulate local runqueues.</p>
+<p>Conceptually, a local runqueue maintains:</p>
+<ol>
+<li>A priority queue of runnable tasks.
+The definition of “priority” is left to the concrete implementation.</li>
+<li>The current running task.</li>
+</ol>
+<h2 id="interactions-with-ostd"><a class="doc-anchor" href="#interactions-with-ostd">§</a>Interactions with OSTD</h2><h3 id="overview"><a class="doc-anchor" href="#overview">§</a>Overview</h3>
+<p>It is crucial for implementers of <code>LocalRunQueue</code>
+to understand how OSTD interacts with local runqueues.</p>
+<p>A local runqueue is consulted by OSTD in response to one of four scheduling events:</p>
+<ul>
+<li><strong>Yielding</strong>, triggered by <a href="../struct.Task.html#method.yield_now" title="associated function ostd::task::Task::yield_now"><code>Task::yield_now</code></a>, where the current task voluntarily gives up CPU time.</li>
+<li><strong>Sleeping</strong>, triggered by <a href="../../sync/struct.Waiter.html#method.wait" title="method ostd::sync::Waiter::wait"><code>crate::sync::Waiter::wait</code></a>
+or any synchronization primitive built upon it (e.g., <a href="../../sync/struct.WaitQueue.html" title="struct ostd::sync::WaitQueue"><code>crate::sync::WaitQueue</code></a>, <a href="../../sync/struct.Mutex.html" title="struct ostd::sync::Mutex"><code>crate::sync::Mutex</code></a>),
+which blocks the current task until a wake-up event occurs.</li>
+<li><strong>Ticking</strong>, triggered periodically by the system timer
+(see <a href="../../timer/constant.TIMER_FREQ.html" title="constant ostd::timer::TIMER_FREQ"><code>crate::timer::TIMER_FREQ</code></a>),
+which provides an opportunity to do time accounting and consider preemption.</li>
+<li><strong>Exiting</strong>, triggered when the execution logic of a task has come to an end,
+which informs the scheduler that the task is exiting and will never be enqueued again.</li>
+</ul>
+<p>The general workflow for OSTD to handle a scheduling event is as follows:</p>
+<ol>
+<li>Acquire exclusive access to the local runqueue using <a href="trait.Scheduler.html#tymethod.mut_local_rq_with" title="method ostd::task::scheduler::Scheduler::mut_local_rq_with"><code>Scheduler::mut_local_rq_with</code></a>.</li>
+<li>Call <a href="trait.LocalRunQueue.html#tymethod.update_current" title="method ostd::task::scheduler::LocalRunQueue::update_current"><code>LocalRunQueue::update_current</code></a> to update the current task’s state,
+returning a boolean value that indicates
+whether the current task should and can be replaced with another runnable task.</li>
+<li>If the task is about to sleep or exit, call <a href="trait.LocalRunQueue.html#tymethod.dequeue_current" title="method ostd::task::scheduler::LocalRunQueue::dequeue_current"><code>LocalRunQueue::dequeue_current</code></a>
+to remove it from the runqueue.</li>
+<li>If the return value of <code>update_current</code> in Step 2 is true,
+then select the next task to run with <a href="trait.LocalRunQueue.html#method.pick_next" title="method ostd::task::scheduler::LocalRunQueue::pick_next"><code>LocalRunQueue::pick_next</code></a>.</li>
+</ol>
+<h3 id="when-to-pick-the-next-task"><a class="doc-anchor" href="#when-to-pick-the-next-task">§</a>When to Pick the Next Task?</h3>
+<p>As shown above,
+OSTD guarantees that <code>pick_next</code> is only called
+when the current task should and can be replaced.
+This avoids unnecessary invocations and improves efficiency.</p>
+<p>But under what conditions should the current task be replaced?
+Two criteria must be met:</p>
+<ol>
+<li>There exists at least one other runnable task in the runqueue.</li>
+<li>That task should preempt the current one, if present.</li>
+</ol>
+<p>Some implications of these rules:</p>
+<ul>
+<li>If the runqueue is empty, <code>update_current</code> must return <code>false</code>—there’s nothing to run.</li>
+<li>If the runqueue is non-empty but the current task is absent,
+<code>update_current</code> should return <code>true</code>—anything is better than nothing.</li>
+<li>If the runqueue is non-empty and the flag is <code>UpdateFlags::WAIT</code>,
+<code>update_current</code> should also return <code>true</code>,
+because the current task is about to block.</li>
+<li>In other cases, the return value depends on the scheduler’s prioritization policy.
+For instance, a real-time task may only be preempted by a higher-priority task
+or if it explicitly yields.
+A normal task under Linux’s CFS may be preempted by a task with smaller vruntime,
+but never by the idle task.</li>
+</ul>
+<p>When OSTD is unsure about whether the current task should or can be replaced,
+it will invoke <a href="trait.LocalRunQueue.html#tymethod.try_pick_next" title="method ostd::task::scheduler::LocalRunQueue::try_pick_next"><code>LocalRunQueue::try_pick_next</code></a>, the fallible version of <code>pick_next</code>.</p>
+<h3 id="internal-working"><a class="doc-anchor" href="#internal-working">§</a>Internal Working</h3>
+<p>To guide scheduler implementers,
+we provide a simplified view of how OSTD interacts with local runqueues <em>internally</em>
+in order to handle the four scheduling events.</p>
+<h4 id="yielding"><a class="doc-anchor" href="#yielding">§</a>Yielding</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="doccomment">/// Yields the current task.
+</span><span class="kw">fn yield</span>(scheduler: <span class="kw-2">&amp;</span><span class="lifetime">'static </span><span class="kw">dyn </span>Scheduler) {
+    <span class="kw">let </span>next_task_opt: <span class="prelude-ty">Option</span>&lt;Arc&lt;Task&gt;&gt; = scheduler.mut_local_rq_with(|local_rq| {
+        <span class="kw">let </span>should_pick_next = local_rq.update_current(UpdateFlags::Yield);
+        should_pick_next.then(|| local_rq.pick_next().clone())
+    });
+    <span class="kw">let </span><span class="prelude-val">Some</span>(next_task) = next_task_opt {
+        switch_to(next_task);
+    }
+}</code></pre></div><h4 id="sleeping"><a class="doc-anchor" href="#sleeping">§</a>Sleeping</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="doccomment">/// Puts the current task to sleep.
+///
+/// The function takes a closure to check if the task is woken.
+/// This function is used internally to guard against race conditions,
+/// where the task is woken just before it goes to sleep.
+</span><span class="kw">fn </span>sleep&lt;F: Fn() -&gt; bool&gt;(scheduler: <span class="kw-2">&amp;</span><span class="lifetime">'static </span><span class="kw">dyn </span>Scheduler, is_woken: F) {
+    <span class="kw">let </span><span class="kw-2">mut </span>next_task_opt: <span class="prelude-ty">Option</span>&lt;Arc&lt;Task&gt;&gt; = <span class="prelude-val">None</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>is_first_try = <span class="bool-val">true</span>;
+    <span class="kw">while </span>scheduler.mut_local_rq_with(|local_rq| {
+        <span class="kw">if </span>is_first_try {
+            <span class="kw">if </span>is_woken() {
+                <span class="kw">return </span><span class="bool-val">false</span>; <span class="comment">// exit loop
+            </span>}
+            is_first_try = <span class="bool-val">false</span>;
+
+            <span class="kw">let </span>should_pick_next = local_rq.update_current(UpdateFlags::Wait);
+            <span class="kw">let </span>_current = local_rq.dequeue_current();
+            <span class="kw">if </span>!should_pick_next {
+                <span class="kw">return </span><span class="bool-val">true</span>; <span class="comment">// continue loop
+            </span>}
+            next_task_opt = <span class="prelude-val">Some</span>(local_rq.pick_next().clone());
+            <span class="bool-val">false </span><span class="comment">// exit loop
+        </span>} <span class="kw">else </span>{
+            next_task_opt = local_rq.try_pick_next().cloned();
+            next_task_opt.is_none()
+        }
+    }) {}
+    <span class="kw">let </span><span class="prelude-val">Some</span>(next_task) = next_task_opt {
+        switch_to(next_task);
+    }
+}</code></pre></div><h4 id="ticking"><a class="doc-anchor" href="#ticking">§</a>Ticking</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="doccomment">/// A callback to be invoked periodically by the timer interrupt.
+</span><span class="kw">fn </span>on_tick(scheduler: <span class="kw-2">&amp;</span><span class="lifetime">'static </span><span class="kw">dyn </span>Scheduler) {
+    scheduler.mut_local_rq_with(|local_rq| {
+        <span class="kw">let </span>should_pick_next = local_rq.update_current(UpdateFlags::Tick);
+        <span class="kw">if </span>should_pick_next {
+            cpu_local::set_need_preempt();
+        }
+    });
+}
+
+<span class="doccomment">/// A preemption point, called at an earliest convenient timing
+/// when OSTD can safely preempt the current running task.
+</span><span class="kw">fn </span>might_preempt(scheduler: <span class="kw-2">&amp;</span><span class="lifetime">'static </span><span class="kw">dyn </span>Scheduler) {
+    <span class="kw">if </span>!cpu_local::should_preempt() {
+        <span class="kw">return</span>;
+    }
+    <span class="kw">let </span>next_task_opt: <span class="prelude-ty">Option</span>&lt;Arc&lt;Task&gt;&gt; = scheduler
+        .mut_local_rq_with(|local_rq| local_rq.try_pick_next().cloned())
+    <span class="kw">let </span><span class="prelude-val">Some</span>(next_task) = next_task_opt {
+        switch_to(next_task);
+    }
+}</code></pre></div><h4 id="exiting"><a class="doc-anchor" href="#exiting">§</a>Exiting</h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="doccomment">/// Exits the current task.
+</span><span class="kw">fn </span>exit(scheduler: <span class="kw-2">&amp;</span><span class="lifetime">'static </span><span class="kw">dyn </span>Scheduler) {
+    <span class="kw">let </span><span class="kw-2">mut </span>next_task_opt: <span class="prelude-ty">Option</span>&lt;Arc&lt;Task&gt;&gt; = <span class="prelude-val">None</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>is_first_try = <span class="bool-val">true</span>;
+    <span class="kw">while </span>scheduler.mut_local_rq_with(|local_rq| {
+        <span class="kw">if </span>is_first_try {
+            is_first_try = <span class="bool-val">false</span>;
+            <span class="kw">let </span>should_pick_next = local_rq.update_current(UpdateFlags::Exit);
+            <span class="kw">let </span>_current = local_rq.dequeue_current();
+            <span class="kw">if </span>!should_pick_next {
+                <span class="kw">return </span><span class="bool-val">true</span>; <span class="comment">// continue loop
+            </span>}
+            next_task_opt = <span class="prelude-val">Some</span>(local_rq.pick_next().clone());
+            <span class="bool-val">false </span><span class="comment">// exit loop
+        </span>} <span class="kw">else </span>{
+            next_task_opt = local_rq.try_pick_next().cloned();
+            next_task_opt.is_none()
+        }
+    }) {}
+    <span class="kw">let </span>next_task = next_task_opt.unwrap();
+    switch_to(next_task);
+}</code></pre></div></div></details><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="tymethod.current" class="method"><a class="src rightside" href="../../../src/ostd/task/scheduler/mod.rs.html#332">Source</a><h4 class="code-header">fn <a href="#tymethod.current" class="fn">current</a>(&amp;self) -&gt; Option&lt;&amp;Arc&lt;T&gt;&gt;</h4></section></summary><div class="docblock"><p>Gets the current runnable task.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="tymethod.update_current" class="method"><a class="src rightside" href="../../../src/ostd/task/scheduler/mod.rs.html#340">Source</a><h4 class="code-header">fn <a href="#tymethod.update_current" class="fn">update_current</a>(&amp;mut self, flags: <a class="enum" href="enum.UpdateFlags.html" title="enum ostd::task::scheduler::UpdateFlags">UpdateFlags</a>) -&gt; bool</h4></section></summary><div class="docblock"><p>Updates the current runnable task’s scheduling statistics and
+potentially its position in the runqueue.</p>
+<p>The return value of this method indicates whether an invocation of <code>pick_next</code> should be followed
+to find another task to replace the current one.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="tymethod.try_pick_next" class="method"><a class="src rightside" href="../../../src/ostd/task/scheduler/mod.rs.html#364">Source</a><h4 class="code-header">fn <a href="#tymethod.try_pick_next" class="fn">try_pick_next</a>(&amp;mut self) -&gt; Option&lt;&amp;Arc&lt;T&gt;&gt;</h4></section></summary><div class="docblock"><p>Tries to pick the next runnable task.</p>
+<p>This method instructs the local runqueue to pick the next runnable task on a best-effort basis.
+If such a task can be picked, then this task supersedes the current task and
+the new the method returns a reference to the new “current” task.
+If the “old” current task presents, then it is still runnable and thus remains in the runqueue.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="tymethod.dequeue_current" class="method"><a class="src rightside" href="../../../src/ostd/task/scheduler/mod.rs.html#370">Source</a><h4 class="code-header">fn <a href="#tymethod.dequeue_current" class="fn">dequeue_current</a>(&amp;mut self) -&gt; Option&lt;Arc&lt;T&gt;&gt;</h4></section></summary><div class="docblock"><p>Removes the current runnable task from runqueue.</p>
+<p>This method returns the current runnable task.
+If there is no current runnable task, this method returns <code>None</code>.</p>
+</div></details></div><h2 id="provided-methods" class="section-header">Provided Methods<a href="#provided-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="method.pick_next" class="method"><a class="src rightside" href="../../../src/ostd/task/scheduler/mod.rs.html#354-356">Source</a><h4 class="code-header">fn <a href="#method.pick_next" class="fn">pick_next</a>(&amp;mut self) -&gt; &amp;Arc&lt;T&gt;</h4></section></summary><div class="docblock"><p>Picks the next runnable task.</p>
+<p>This method instructs the local runqueue to pick the next runnable task and replace the current one.
+A reference to the new “current” task will be returned by this method.
+If the “old” current task presents, then it is still runnable and thus remains in the runqueue.</p>
+<h5 id="panics"><a class="doc-anchor" href="#panics">§</a>Panics</h5>
+<p>As explained in the type-level Rust doc,
+this method will only be invoked by OSTD after a call to <code>update_current</code> returns true.
+In case that this contract is broken by the caller,
+the implementer is free to exhibit any undesirable or incorrect behaviors, include panicking.</p>
+</div></details></div><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"></div><script src="../../../trait.impl/ostd/task/scheduler/trait.LocalRunQueue.js" async></script></section></div></main></body></html>

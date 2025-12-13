@@ -1,0 +1,55 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Task scheduling."><title>ostd::task::scheduler - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="ostd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module scheduler</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../ostd/index.html">ostd</a><span class="version">0.17.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module scheduler</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#scheduler-injection" title="Scheduler Injection">Scheduler Injection</a></li><li><a href="#scheduler-abstraction" title="Scheduler Abstraction">Scheduler Abstraction</a></li><li><a href="#safety-impact" title="Safety Impact">Safety Impact</a></li></ul><h3><a href="#modules">Module Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#traits" title="Traits">Traits</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In ostd::<wbr>task</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">ostd</a>::<wbr><a href="../index.html">task</a></div><h1>Module <span>scheduler</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/ostd/task/scheduler/mod.rs.html#3-593">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Task scheduling.</p>
+<h2 id="scheduler-injection"><a class="doc-anchor" href="#scheduler-injection">§</a>Scheduler Injection</h2>
+<p>The task scheduler of an OS is a complex beast,
+and the most suitable scheduling algorithm often depends on the target usage scenario.
+To avoid code bloat and offer flexibility,
+OSTD does not include a gigantic, one-size-fits-all task scheduler.
+Instead, it allows the client to implement a custom scheduler (in safe Rust, of course)
+and register it with OSTD.
+This feature is known as <strong>scheduler injection</strong>.</p>
+<p>The client kernel performs scheduler injection via the <a href="fn.inject_scheduler.html" title="fn ostd::task::scheduler::inject_scheduler"><code>inject_scheduler</code></a> API.
+This API should be called as early as possible during kernel initialization,
+before any <a href="../struct.Task.html" title="struct ostd::task::Task"><code>Task</code></a>-related APIs are used.
+This requirement is reasonable since <code>Task</code>s depend on the scheduler.</p>
+<h2 id="scheduler-abstraction"><a class="doc-anchor" href="#scheduler-abstraction">§</a>Scheduler Abstraction</h2>
+<p>The <code>inject_scheduler</code> API accepts an object implementing the <a href="trait.Scheduler.html" title="trait ostd::task::scheduler::Scheduler"><code>Scheduler</code></a> trait,
+which abstracts over any SMP-aware task scheduler.
+Whenever an OSTD client spawns a new task (via <a href="../struct.TaskOptions.html" title="struct ostd::task::TaskOptions"><code>crate::task::TaskOptions</code></a>)
+or wakes a sleeping task (e.g., via <a href="../../sync/struct.Waker.html" title="struct ostd::sync::Waker"><code>crate::sync::Waker</code></a>),
+OSTD internally forwards the corresponding <code>Arc&lt;Task&gt;</code>
+to the scheduler by invoking the <a href="trait.Scheduler.html#tymethod.enqueue" title="method ostd::task::scheduler::Scheduler::enqueue"><code>Scheduler::enqueue</code></a> method.
+This allows the injected scheduler to manage all runnable tasks.</p>
+<p>Each enqueued task is dispatched to one of the per-CPU local runqueues,
+which manage all runnable tasks on a specific CPU.
+A local runqueue is abstracted by the <a href="trait.LocalRunQueue.html" title="trait ostd::task::scheduler::LocalRunQueue"><code>LocalRunQueue</code></a> trait.
+OSTD accesses the local runqueue of the current CPU
+via <a href="trait.Scheduler.html#tymethod.local_rq_with" title="method ostd::task::scheduler::Scheduler::local_rq_with"><code>Scheduler::local_rq_with</code></a> or <a href="trait.Scheduler.html#tymethod.mut_local_rq_with" title="method ostd::task::scheduler::Scheduler::mut_local_rq_with"><code>Scheduler::mut_local_rq_with</code></a>,
+which return immutable and mutable references to <code>dyn LocalRunQueue</code>, respectively.</p>
+<p>The <a href="trait.LocalRunQueue.html" title="trait ostd::task::scheduler::LocalRunQueue"><code>LocalRunQueue</code></a> trait enables OSTD to inspect and manipulate local runqueues.
+For instance, OSTD invokes the <a href="trait.LocalRunQueue.html#method.pick_next" title="method ostd::task::scheduler::LocalRunQueue::pick_next"><code>LocalRunQueue::pick_next</code></a> method
+to let the scheduler select the next task to run.
+OSTD then performs a context switch to that task,
+which becomes the <em>current</em> running task, accessible via <a href="trait.LocalRunQueue.html#tymethod.current" title="method ostd::task::scheduler::LocalRunQueue::current"><code>LocalRunQueue::current</code></a>.
+When the current task is about to sleep (e.g., via <a href="../../sync/struct.Waiter.html" title="struct ostd::sync::Waiter"><code>crate::sync::Waiter</code></a>),
+OSTD removes it from the local runqueue using <a href="trait.LocalRunQueue.html#tymethod.dequeue_current" title="method ostd::task::scheduler::LocalRunQueue::dequeue_current"><code>LocalRunQueue::dequeue_current</code></a>.</p>
+<p>The interfaces of <code>Scheduler</code> and <code>LocalRunQueue</code> are simple
+yet (perhaps surprisingly) powerful enough to support
+even complex and advanced task scheduler implementations.
+Scheduler implementations are free to employ any load-balancing strategy
+to dispatch enqueued tasks across local runqueues,
+and each local runqueue is free to choose any prioritization strategy
+for selecting the next task to run.
+Based on OSTD’s scheduling abstractions,
+the Asterinas kernel has successfully supported multiple Linux scheduling classes,
+including both real-time and normal policies.</p>
+<h2 id="safety-impact"><a class="doc-anchor" href="#safety-impact">§</a>Safety Impact</h2>
+<p>While OSTD delegates scheduling decisions to the injected task scheduler,
+it verifies these decisions to avoid undefined behavior.
+In particular, it enforces the following safety invariant:</p>
+<blockquote>
+<p>A task must not be scheduled to run on more than one CPU at a time.</p>
+</blockquote>
+<p>Violating this invariant—e.g., running the same task on two CPUs concurrently—
+can have catastrophic consequences,
+as the task’s stack and internal state may be corrupted by concurrent modifications.</p>
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="info/index.html" title="mod ostd::task::scheduler::info">info</a></dt><dd>Scheduling related information in a task.</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.EnqueueFlags.html" title="enum ostd::task::scheduler::EnqueueFlags">Enqueue<wbr>Flags</a></dt><dd>Possible triggers of an <code>enqueue</code> action.</dd><dt><a class="enum" href="enum.UpdateFlags.html" title="enum ostd::task::scheduler::UpdateFlags">Update<wbr>Flags</a></dt><dd>Possible triggers of an <code>update_current</code> action.</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.LocalRunQueue.html" title="trait ostd::task::scheduler::LocalRunQueue">Local<wbr>RunQueue</a></dt><dd>A per-CPU, local runqueue.</dd><dt><a class="trait" href="trait.Scheduler.html" title="trait ostd::task::scheduler::Scheduler">Scheduler</a></dt><dd>A SMP-aware task scheduler.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.enable_preemption_on_cpu.html" title="fn ostd::task::scheduler::enable_preemption_on_cpu">enable_<wbr>preemption_<wbr>on_<wbr>cpu</a></dt><dd>Enables preemptive scheduling on the current CPU.</dd><dt><a class="fn" href="fn.inject_scheduler.html" title="fn ostd::task::scheduler::inject_scheduler">inject_<wbr>scheduler</a></dt><dd>Injects a custom implementation of task scheduler into OSTD.</dd></dl></section></div></main></body></html>
