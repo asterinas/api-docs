@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["LINUX_CAPABILITY_VERSION_3"],"struct":["CUserCapData","CUserCapHeader"]};

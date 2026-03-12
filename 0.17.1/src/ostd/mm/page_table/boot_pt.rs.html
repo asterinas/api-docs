@@ -1,0 +1,337 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `ostd/src/mm/page_table/boot_pt.rs`."><title>boot_pt.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="ostd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../static.files/storage-e2aeef58.js"></script><script defer src="../../../../static.files/src-script-813739b1.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">ostd/mm/page_table/</div>boot_pt.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="comment">// SPDX-License-Identifier: MPL-2.0
+<a href=#2 id=2 data-nosnippet>2</a>
+<a href=#3 id=3 data-nosnippet>3</a></span><span class="doccomment">//! Because that the page table implementation requires metadata initialized
+<a href=#4 id=4 data-nosnippet>4</a>//! and mapped, the boot page table is needed to do early stage page table setup
+<a href=#5 id=5 data-nosnippet>5</a>//! in order to initialize the running phase page tables.
+<a href=#6 id=6 data-nosnippet>6</a>
+<a href=#7 id=7 data-nosnippet>7</a></span><span class="kw">use </span>core::{
+<a href=#8 id=8 data-nosnippet>8</a>    alloc::Layout,
+<a href=#9 id=9 data-nosnippet>9</a>    result::Result,
+<a href=#10 id=10 data-nosnippet>10</a>    sync::atomic::{AtomicU32, Ordering},
+<a href=#11 id=11 data-nosnippet>11</a>};
+<a href=#12 id=12 data-nosnippet>12</a>
+<a href=#13 id=13 data-nosnippet>13</a><span class="kw">use </span>ostd_pod::FromZeros;
+<a href=#14 id=14 data-nosnippet>14</a>
+<a href=#15 id=15 data-nosnippet>15</a><span class="kw">use super</span>::{PteTrait, pte_index};
+<a href=#16 id=16 data-nosnippet>16</a><span class="kw">use crate</span>::{
+<a href=#17 id=17 data-nosnippet>17</a>    arch::mm::{PageTableEntry, PagingConsts},
+<a href=#18 id=18 data-nosnippet>18</a>    cpu::num_cpus,
+<a href=#19 id=19 data-nosnippet>19</a>    cpu_local_cell,
+<a href=#20 id=20 data-nosnippet>20</a>    mm::{
+<a href=#21 id=21 data-nosnippet>21</a>        Frame, FrameAllocOptions, PAGE_SIZE, Paddr, PageProperty, PagingConstsTrait, PagingLevel,
+<a href=#22 id=22 data-nosnippet>22</a>        Vaddr,
+<a href=#23 id=23 data-nosnippet>23</a>        frame::{
+<a href=#24 id=24 data-nosnippet>24</a>            <span class="self">self</span>,
+<a href=#25 id=25 data-nosnippet>25</a>            allocator::{<span class="self">self</span>, EarlyAllocatedFrameMeta},
+<a href=#26 id=26 data-nosnippet>26</a>        },
+<a href=#27 id=27 data-nosnippet>27</a>        nr_subpage_per_huge, paddr_to_vaddr,
+<a href=#28 id=28 data-nosnippet>28</a>        page_prop::PageTableFlags,
+<a href=#29 id=29 data-nosnippet>29</a>        page_table::PteScalar,
+<a href=#30 id=30 data-nosnippet>30</a>    },
+<a href=#31 id=31 data-nosnippet>31</a>    sync::SpinLock,
+<a href=#32 id=32 data-nosnippet>32</a>};
+<a href=#33 id=33 data-nosnippet>33</a>
+<a href=#34 id=34 data-nosnippet>34</a><span class="doccomment">/// The accessor to the boot page table singleton [`BootPageTable`].
+<a href=#35 id=35 data-nosnippet>35</a>///
+<a href=#36 id=36 data-nosnippet>36</a>/// The user should provide a closure to access the boot page table. The
+<a href=#37 id=37 data-nosnippet>37</a>/// function will acquire the lock and call the closure with a mutable
+<a href=#38 id=38 data-nosnippet>38</a>/// reference to the boot page table as the argument.
+<a href=#39 id=39 data-nosnippet>39</a>///
+<a href=#40 id=40 data-nosnippet>40</a>/// The boot page table will be dropped when all CPUs have dismissed it.
+<a href=#41 id=41 data-nosnippet>41</a>/// This function will return an [`Err`] if the boot page table is dropped.
+<a href=#42 id=42 data-nosnippet>42</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>with_borrow&lt;F, R&gt;(f: F) -&gt; <span class="prelude-ty">Result</span>&lt;R, ()&gt;
+<a href=#43 id=43 data-nosnippet>43</a><span class="kw">where
+<a href=#44 id=44 data-nosnippet>44</a>    </span>F: FnOnce(<span class="kw-2">&amp;mut </span>BootPageTable) -&gt; R,
+<a href=#45 id=45 data-nosnippet>45</a>{
+<a href=#46 id=46 data-nosnippet>46</a>    <span class="kw">let </span><span class="kw-2">mut </span>boot_pt = BOOT_PAGE_TABLE.lock();
+<a href=#47 id=47 data-nosnippet>47</a>
+<a href=#48 id=48 data-nosnippet>48</a>    <span class="kw">if </span>IS_DISMISSED.load() {
+<a href=#49 id=49 data-nosnippet>49</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(());
+<a href=#50 id=50 data-nosnippet>50</a>    }
+<a href=#51 id=51 data-nosnippet>51</a>
+<a href=#52 id=52 data-nosnippet>52</a>    <span class="comment">// Lazy initialization.
+<a href=#53 id=53 data-nosnippet>53</a>    </span><span class="kw">if </span>boot_pt.is_none() {
+<a href=#54 id=54 data-nosnippet>54</a>        <span class="comment">// SAFETY: This function is called only once.
+<a href=#55 id=55 data-nosnippet>55</a>        </span><span class="kw-2">*</span>boot_pt = <span class="prelude-val">Some</span>(<span class="kw">unsafe </span>{ BootPageTable::from_current_pt() });
+<a href=#56 id=56 data-nosnippet>56</a>    }
+<a href=#57 id=57 data-nosnippet>57</a>
+<a href=#58 id=58 data-nosnippet>58</a>    <span class="kw">let </span>r = f(boot_pt.as_mut().unwrap());
+<a href=#59 id=59 data-nosnippet>59</a>
+<a href=#60 id=60 data-nosnippet>60</a>    <span class="prelude-val">Ok</span>(r)
+<a href=#61 id=61 data-nosnippet>61</a>}
+<a href=#62 id=62 data-nosnippet>62</a>
+<a href=#63 id=63 data-nosnippet>63</a><span class="doccomment">/// Dismiss the boot page table.
+<a href=#64 id=64 data-nosnippet>64</a>///
+<a href=#65 id=65 data-nosnippet>65</a>/// By calling it on a CPU, the caller claims that the boot page table is no
+<a href=#66 id=66 data-nosnippet>66</a>/// longer needed on this CPU.
+<a href=#67 id=67 data-nosnippet>67</a>///
+<a href=#68 id=68 data-nosnippet>68</a>/// # Safety
+<a href=#69 id=69 data-nosnippet>69</a>///
+<a href=#70 id=70 data-nosnippet>70</a>/// The caller should ensure that:
+<a href=#71 id=71 data-nosnippet>71</a>///  - another legitimate page table is activated on this CPU;
+<a href=#72 id=72 data-nosnippet>72</a>///  - this function should be called only once per CPU;
+<a href=#73 id=73 data-nosnippet>73</a>///  - no [`with_borrow`] calls are performed on this CPU after this dismissal;
+<a href=#74 id=74 data-nosnippet>74</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">unsafe fn </span>dismiss() {
+<a href=#75 id=75 data-nosnippet>75</a>    IS_DISMISSED.store(<span class="bool-val">true</span>);
+<a href=#76 id=76 data-nosnippet>76</a>    <span class="kw">if </span>DISMISS_COUNT.fetch_add(<span class="number">1</span>, Ordering::SeqCst) <span class="kw">as </span>usize == num_cpus() - <span class="number">1 </span>{
+<a href=#77 id=77 data-nosnippet>77</a>        <span class="kw">let </span>boot_pt = BOOT_PAGE_TABLE.lock().take().unwrap();
+<a href=#78 id=78 data-nosnippet>78</a>
+<a href=#79 id=79 data-nosnippet>79</a>        dfs_walk_on_leave::&lt;PageTableEntry, PagingConsts&gt;(
+<a href=#80 id=80 data-nosnippet>80</a>            boot_pt.root_pt,
+<a href=#81 id=81 data-nosnippet>81</a>            PagingConsts::NR_LEVELS,
+<a href=#82 id=82 data-nosnippet>82</a>            <span class="kw-2">&amp;mut </span>|pte, pa, <span class="kw">_</span>, flags| {
+<a href=#83 id=83 data-nosnippet>83</a>                <span class="kw">if </span>!flags.contains(PTE_POINTS_TO_FIRMWARE_PT) {
+<a href=#84 id=84 data-nosnippet>84</a>                    <span class="comment">// SAFETY: The pointed frame is allocated and forgotten with `into_raw`.
+<a href=#85 id=85 data-nosnippet>85</a>                    </span>drop(<span class="kw">unsafe </span>{ Frame::&lt;EarlyAllocatedFrameMeta&gt;::from_raw(pa) })
+<a href=#86 id=86 data-nosnippet>86</a>                }
+<a href=#87 id=87 data-nosnippet>87</a>                <span class="comment">// Firmware provided page tables may be a DAG instead of a tree.
+<a href=#88 id=88 data-nosnippet>88</a>                // Clear it to avoid double-free when we meet it the second time.
+<a href=#89 id=89 data-nosnippet>89</a>                </span><span class="kw-2">*</span>pte = PageTableEntry::new_zeroed();
+<a href=#90 id=90 data-nosnippet>90</a>            },
+<a href=#91 id=91 data-nosnippet>91</a>        );
+<a href=#92 id=92 data-nosnippet>92</a>    }
+<a href=#93 id=93 data-nosnippet>93</a>}
+<a href=#94 id=94 data-nosnippet>94</a>
+<a href=#95 id=95 data-nosnippet>95</a><span class="doccomment">/// The boot page table singleton instance.
+<a href=#96 id=96 data-nosnippet>96</a></span><span class="kw">static </span>BOOT_PAGE_TABLE: SpinLock&lt;<span class="prelude-ty">Option</span>&lt;BootPageTable&gt;&gt; = SpinLock::new(<span class="prelude-val">None</span>);
+<a href=#97 id=97 data-nosnippet>97</a><span class="doccomment">/// If it reaches the number of CPUs, the boot page table will be dropped.
+<a href=#98 id=98 data-nosnippet>98</a></span><span class="kw">static </span>DISMISS_COUNT: AtomicU32 = AtomicU32::new(<span class="number">0</span>);
+<a href=#99 id=99 data-nosnippet>99</a><span class="macro">cpu_local_cell!</span> {
+<a href=#100 id=100 data-nosnippet>100</a>    <span class="doccomment">/// If the boot page table is dismissed on this CPU.
+<a href=#101 id=101 data-nosnippet>101</a>    </span><span class="kw">static </span>IS_DISMISSED: bool = <span class="bool-val">false</span>;
+<a href=#102 id=102 data-nosnippet>102</a>}
+<a href=#103 id=103 data-nosnippet>103</a>
+<a href=#104 id=104 data-nosnippet>104</a><span class="doccomment">/// A simple boot page table singleton for boot stage mapping management.
+<a href=#105 id=105 data-nosnippet>105</a>///
+<a href=#106 id=106 data-nosnippet>106</a>/// If applicable, the boot page table could track the lifetime of page table
+<a href=#107 id=107 data-nosnippet>107</a>/// frames that are set up by the firmware, loader or the setup code.
+<a href=#108 id=108 data-nosnippet>108</a>///
+<a href=#109 id=109 data-nosnippet>109</a>/// All the newly allocated page table frames have the first unused bit in
+<a href=#110 id=110 data-nosnippet>110</a>/// parent PTEs. This allows us to deallocate them when the boot page table
+<a href=#111 id=111 data-nosnippet>111</a>/// is dropped.
+<a href=#112 id=112 data-nosnippet>112</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>BootPageTable&lt;E: PteTrait = PageTableEntry, C: PagingConstsTrait = PagingConsts&gt; {
+<a href=#113 id=113 data-nosnippet>113</a>    root_pt: Paddr,
+<a href=#114 id=114 data-nosnippet>114</a>    _phantom: core::marker::PhantomData&lt;(E, C)&gt;,
+<a href=#115 id=115 data-nosnippet>115</a>}
+<a href=#116 id=116 data-nosnippet>116</a>
+<a href=#117 id=117 data-nosnippet>117</a><span class="comment">// We use extra two available bits in the boot PT for memory management.
+<a href=#118 id=118 data-nosnippet>118</a>//
+<a href=#119 id=119 data-nosnippet>119</a>// The first available bit is used to differentiate firmware page tables from
+<a href=#120 id=120 data-nosnippet>120</a>// the page tables allocated here. The second is for identifying double-visits
+<a href=#121 id=121 data-nosnippet>121</a>// when walking the page tables since the PT can be a DAG.
+<a href=#122 id=122 data-nosnippet>122</a></span><span class="kw">const </span>PTE_POINTS_TO_FIRMWARE_PT: PageTableFlags = PageTableFlags::AVAIL1;
+<a href=#123 id=123 data-nosnippet>123</a>
+<a href=#124 id=124 data-nosnippet>124</a><span class="kw">impl</span>&lt;E: PteTrait, C: PagingConstsTrait&gt; BootPageTable&lt;E, C&gt; {
+<a href=#125 id=125 data-nosnippet>125</a>    <span class="doccomment">/// Creates a new boot page table from the current page table root
+<a href=#126 id=126 data-nosnippet>126</a>    /// physical address.
+<a href=#127 id=127 data-nosnippet>127</a>    ///
+<a href=#128 id=128 data-nosnippet>128</a>    /// # Safety
+<a href=#129 id=129 data-nosnippet>129</a>    ///
+<a href=#130 id=130 data-nosnippet>130</a>    /// This function should be called only once in the initialization phase.
+<a href=#131 id=131 data-nosnippet>131</a>    /// Otherwise, It would lead to double-drop of the page table frames set up
+<a href=#132 id=132 data-nosnippet>132</a>    /// by the firmware, loader or the setup code.
+<a href=#133 id=133 data-nosnippet>133</a>    </span><span class="kw">unsafe fn </span>from_current_pt() -&gt; <span class="self">Self </span>{
+<a href=#134 id=134 data-nosnippet>134</a>        <span class="kw">let </span>root_pt = <span class="kw">crate</span>::arch::mm::current_page_table_paddr();
+<a href=#135 id=135 data-nosnippet>135</a>        <span class="comment">// Make sure the 2 available bits are not set for firmware page tables.
+<a href=#136 id=136 data-nosnippet>136</a>        </span>dfs_walk_on_leave::&lt;E, C&gt;(
+<a href=#137 id=137 data-nosnippet>137</a>            root_pt,
+<a href=#138 id=138 data-nosnippet>138</a>            C::NR_LEVELS,
+<a href=#139 id=139 data-nosnippet>139</a>            <span class="kw-2">&amp;mut </span>|pte: <span class="kw-2">&amp;mut </span>E, pa, level, <span class="kw-2">mut </span>flags| {
+<a href=#140 id=140 data-nosnippet>140</a>                flags |= PTE_POINTS_TO_FIRMWARE_PT;
+<a href=#141 id=141 data-nosnippet>141</a>                <span class="kw-2">*</span>pte = E::from_repr(<span class="kw-2">&amp;</span>PteScalar::PageTable(pa, flags), level);
+<a href=#142 id=142 data-nosnippet>142</a>            },
+<a href=#143 id=143 data-nosnippet>143</a>        );
+<a href=#144 id=144 data-nosnippet>144</a>        <span class="self">Self </span>{
+<a href=#145 id=145 data-nosnippet>145</a>            root_pt,
+<a href=#146 id=146 data-nosnippet>146</a>            _phantom: core::marker::PhantomData,
+<a href=#147 id=147 data-nosnippet>147</a>        }
+<a href=#148 id=148 data-nosnippet>148</a>    }
+<a href=#149 id=149 data-nosnippet>149</a>
+<a href=#150 id=150 data-nosnippet>150</a>    <span class="doccomment">/// Returns the root physical address of the boot page table.
+<a href=#151 id=151 data-nosnippet>151</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>root_address(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Paddr {
+<a href=#152 id=152 data-nosnippet>152</a>        <span class="self">self</span>.root_pt
+<a href=#153 id=153 data-nosnippet>153</a>    }
+<a href=#154 id=154 data-nosnippet>154</a>
+<a href=#155 id=155 data-nosnippet>155</a>    <span class="doccomment">/// Maps a base page to a frame.
+<a href=#156 id=156 data-nosnippet>156</a>    ///
+<a href=#157 id=157 data-nosnippet>157</a>    /// # Panics
+<a href=#158 id=158 data-nosnippet>158</a>    ///
+<a href=#159 id=159 data-nosnippet>159</a>    /// This function will panic if the page is already mapped.
+<a href=#160 id=160 data-nosnippet>160</a>    ///
+<a href=#161 id=161 data-nosnippet>161</a>    /// # Safety
+<a href=#162 id=162 data-nosnippet>162</a>    ///
+<a href=#163 id=163 data-nosnippet>163</a>    /// This function is unsafe because it can cause undefined behavior if the caller
+<a href=#164 id=164 data-nosnippet>164</a>    /// maps a page in the kernel address space.
+<a href=#165 id=165 data-nosnippet>165</a>    </span><span class="kw">pub unsafe fn </span>map_base_page(<span class="kw-2">&amp;mut </span><span class="self">self</span>, from: Vaddr, to: Paddr, prop: PageProperty) {
+<a href=#166 id=166 data-nosnippet>166</a>        <span class="kw">let </span><span class="kw-2">mut </span>pt = <span class="self">self</span>.root_pt;
+<a href=#167 id=167 data-nosnippet>167</a>        <span class="kw">let </span><span class="kw-2">mut </span>level = C::NR_LEVELS;
+<a href=#168 id=168 data-nosnippet>168</a>        <span class="comment">// Walk to the last level of the page table.
+<a href=#169 id=169 data-nosnippet>169</a>        </span><span class="kw">while </span>level &gt; <span class="number">1 </span>{
+<a href=#170 id=170 data-nosnippet>170</a>            <span class="kw">let </span>index = pte_index::&lt;C&gt;(from, level);
+<a href=#171 id=171 data-nosnippet>171</a>            <span class="comment">// SAFETY: The result pointer is within the PT frame.
+<a href=#172 id=172 data-nosnippet>172</a>            </span><span class="kw">let </span>pte_ptr = <span class="kw">unsafe </span>{ (paddr_to_vaddr(pt) <span class="kw">as </span><span class="kw-2">*mut </span>E).add(index) };
+<a href=#173 id=173 data-nosnippet>173</a>            <span class="comment">// SAFETY: The pointer to the entry is valid to read.
+<a href=#174 id=174 data-nosnippet>174</a>            </span><span class="kw">let </span>pte = <span class="kw">unsafe </span>{ pte_ptr.read() };
+<a href=#175 id=175 data-nosnippet>175</a>            <span class="kw">match </span>pte.to_repr(level) {
+<a href=#176 id=176 data-nosnippet>176</a>                PteScalar::Absent =&gt; {
+<a href=#177 id=177 data-nosnippet>177</a>                    <span class="kw">let </span>(pte, child_pt) = <span class="self">self</span>.alloc_child(level);
+<a href=#178 id=178 data-nosnippet>178</a>                    <span class="comment">// SAFETY: The pointer to the entry is valid to write.
+<a href=#179 id=179 data-nosnippet>179</a>                    </span><span class="kw">unsafe </span>{ pte_ptr.write(pte) };
+<a href=#180 id=180 data-nosnippet>180</a>                    pt = child_pt;
+<a href=#181 id=181 data-nosnippet>181</a>                }
+<a href=#182 id=182 data-nosnippet>182</a>                PteScalar::Mapped(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+<a href=#183 id=183 data-nosnippet>183</a>                    <span class="macro">panic!</span>(<span class="string">"mapping an already mapped huge page in the boot page table"</span>);
+<a href=#184 id=184 data-nosnippet>184</a>                }
+<a href=#185 id=185 data-nosnippet>185</a>                PteScalar::PageTable(child_pt, <span class="kw">_</span>) =&gt; {
+<a href=#186 id=186 data-nosnippet>186</a>                    pt = child_pt;
+<a href=#187 id=187 data-nosnippet>187</a>                }
+<a href=#188 id=188 data-nosnippet>188</a>            };
+<a href=#189 id=189 data-nosnippet>189</a>            level -= <span class="number">1</span>;
+<a href=#190 id=190 data-nosnippet>190</a>        }
+<a href=#191 id=191 data-nosnippet>191</a>        <span class="comment">// Map the page in the last level page table.
+<a href=#192 id=192 data-nosnippet>192</a>        </span><span class="kw">let </span>index = pte_index::&lt;C&gt;(from, <span class="number">1</span>);
+<a href=#193 id=193 data-nosnippet>193</a>        <span class="comment">// SAFETY: The result pointer is within the PT frame.
+<a href=#194 id=194 data-nosnippet>194</a>        </span><span class="kw">let </span>pte_ptr = <span class="kw">unsafe </span>{ (paddr_to_vaddr(pt) <span class="kw">as </span><span class="kw-2">*mut </span>E).add(index) };
+<a href=#195 id=195 data-nosnippet>195</a>        <span class="comment">// SAFETY: The pointer to the entry is valid to read.
+<a href=#196 id=196 data-nosnippet>196</a>        </span><span class="kw">let </span>pte = <span class="kw">unsafe </span>{ pte_ptr.read() };
+<a href=#197 id=197 data-nosnippet>197</a>        <span class="kw">if </span><span class="macro">matches!</span>(pte.to_repr(<span class="number">1</span>), PteScalar::Mapped(<span class="kw">_</span>, <span class="kw">_</span>)) {
+<a href=#198 id=198 data-nosnippet>198</a>            <span class="macro">panic!</span>(<span class="string">"mapping an already mapped page in the boot page table"</span>);
+<a href=#199 id=199 data-nosnippet>199</a>        }
+<a href=#200 id=200 data-nosnippet>200</a>        <span class="comment">// SAFETY: The pointer to the entry is valid to write.
+<a href=#201 id=201 data-nosnippet>201</a>        </span><span class="kw">unsafe </span>{ pte_ptr.write(E::from_repr(<span class="kw-2">&amp;</span>PteScalar::Mapped(to, prop), <span class="number">1</span>)) };
+<a href=#202 id=202 data-nosnippet>202</a>    }
+<a href=#203 id=203 data-nosnippet>203</a>
+<a href=#204 id=204 data-nosnippet>204</a>    <span class="doccomment">/// Set protections of a base page mapping.
+<a href=#205 id=205 data-nosnippet>205</a>    ///
+<a href=#206 id=206 data-nosnippet>206</a>    /// This function may split a huge page into base pages, causing page allocations
+<a href=#207 id=207 data-nosnippet>207</a>    /// if the original mapping is a huge page.
+<a href=#208 id=208 data-nosnippet>208</a>    ///
+<a href=#209 id=209 data-nosnippet>209</a>    /// # Panics
+<a href=#210 id=210 data-nosnippet>210</a>    ///
+<a href=#211 id=211 data-nosnippet>211</a>    /// This function will panic if the page is already mapped.
+<a href=#212 id=212 data-nosnippet>212</a>    ///
+<a href=#213 id=213 data-nosnippet>213</a>    /// # Safety
+<a href=#214 id=214 data-nosnippet>214</a>    ///
+<a href=#215 id=215 data-nosnippet>215</a>    /// This function is unsafe because it can cause undefined behavior if the caller
+<a href=#216 id=216 data-nosnippet>216</a>    /// maps a page in the kernel address space.
+<a href=#217 id=217 data-nosnippet>217</a>    </span><span class="attr">#[cfg_attr(not(ktest), expect(dead_code))]
+<a href=#218 id=218 data-nosnippet>218</a>    </span><span class="kw">pub unsafe fn </span>protect_base_page(
+<a href=#219 id=219 data-nosnippet>219</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#220 id=220 data-nosnippet>220</a>        virt_addr: Vaddr,
+<a href=#221 id=221 data-nosnippet>221</a>        <span class="kw-2">mut </span>op: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span>PageProperty),
+<a href=#222 id=222 data-nosnippet>222</a>    ) {
+<a href=#223 id=223 data-nosnippet>223</a>        <span class="kw">let </span><span class="kw-2">mut </span>pt = <span class="self">self</span>.root_pt;
+<a href=#224 id=224 data-nosnippet>224</a>        <span class="kw">let </span><span class="kw-2">mut </span>level = C::NR_LEVELS;
+<a href=#225 id=225 data-nosnippet>225</a>        <span class="comment">// Walk to the last level of the page table.
+<a href=#226 id=226 data-nosnippet>226</a>        </span><span class="kw">while </span>level &gt; <span class="number">1 </span>{
+<a href=#227 id=227 data-nosnippet>227</a>            <span class="kw">let </span>index = pte_index::&lt;C&gt;(virt_addr, level);
+<a href=#228 id=228 data-nosnippet>228</a>            <span class="comment">// SAFETY: The result pointer is within the PT frame.
+<a href=#229 id=229 data-nosnippet>229</a>            </span><span class="kw">let </span>pte_ptr = <span class="kw">unsafe </span>{ (paddr_to_vaddr(pt) <span class="kw">as </span><span class="kw-2">*mut </span>E).add(index) };
+<a href=#230 id=230 data-nosnippet>230</a>            <span class="comment">// SAFETY: The pointer to the entry is valid to read.
+<a href=#231 id=231 data-nosnippet>231</a>            </span><span class="kw">let </span>pte = <span class="kw">unsafe </span>{ pte_ptr.read() };
+<a href=#232 id=232 data-nosnippet>232</a>            <span class="kw">match </span>pte.to_repr(level) {
+<a href=#233 id=233 data-nosnippet>233</a>                PteScalar::Absent =&gt; {
+<a href=#234 id=234 data-nosnippet>234</a>                    <span class="macro">panic!</span>(<span class="string">"protecting an unmapped page in the boot page table"</span>);
+<a href=#235 id=235 data-nosnippet>235</a>                }
+<a href=#236 id=236 data-nosnippet>236</a>                PteScalar::PageTable(child_pt, <span class="kw">_</span>) =&gt; {
+<a href=#237 id=237 data-nosnippet>237</a>                    pt = child_pt;
+<a href=#238 id=238 data-nosnippet>238</a>                }
+<a href=#239 id=239 data-nosnippet>239</a>                PteScalar::Mapped(huge_pa, prop) =&gt; {
+<a href=#240 id=240 data-nosnippet>240</a>                    <span class="comment">// Split the huge page.
+<a href=#241 id=241 data-nosnippet>241</a>                    </span><span class="kw">let </span>(child_pte, child_frame_pa) = <span class="self">self</span>.alloc_child(level);
+<a href=#242 id=242 data-nosnippet>242</a>                    <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..nr_subpage_per_huge::&lt;C&gt;() {
+<a href=#243 id=243 data-nosnippet>243</a>                        <span class="comment">// SAFETY: The result pointer is within the new PT frame.
+<a href=#244 id=244 data-nosnippet>244</a>                        </span><span class="kw">let </span>nxt_ptr = <span class="kw">unsafe </span>{ (paddr_to_vaddr(child_frame_pa) <span class="kw">as </span><span class="kw-2">*mut </span>E).add(i) };
+<a href=#245 id=245 data-nosnippet>245</a>                        <span class="comment">// SAFETY: The pointer to the entry is valid to write.
+<a href=#246 id=246 data-nosnippet>246</a>                        </span><span class="kw">unsafe </span>{
+<a href=#247 id=247 data-nosnippet>247</a>                            nxt_ptr.write(E::from_repr(
+<a href=#248 id=248 data-nosnippet>248</a>                                <span class="kw-2">&amp;</span>PteScalar::Mapped(huge_pa + i * C::BASE_PAGE_SIZE, prop),
+<a href=#249 id=249 data-nosnippet>249</a>                                level - <span class="number">1</span>,
+<a href=#250 id=250 data-nosnippet>250</a>                            ))
+<a href=#251 id=251 data-nosnippet>251</a>                        };
+<a href=#252 id=252 data-nosnippet>252</a>                    }
+<a href=#253 id=253 data-nosnippet>253</a>                    <span class="comment">// SAFETY: The pointer to the entry is valid to write.
+<a href=#254 id=254 data-nosnippet>254</a>                    </span><span class="kw">unsafe </span>{ pte_ptr.write(child_pte) };
+<a href=#255 id=255 data-nosnippet>255</a>                    pt = child_frame_pa;
+<a href=#256 id=256 data-nosnippet>256</a>                }
+<a href=#257 id=257 data-nosnippet>257</a>            };
+<a href=#258 id=258 data-nosnippet>258</a>            level -= <span class="number">1</span>;
+<a href=#259 id=259 data-nosnippet>259</a>        }
+<a href=#260 id=260 data-nosnippet>260</a>        <span class="comment">// Do protection in the last level page table.
+<a href=#261 id=261 data-nosnippet>261</a>        </span><span class="kw">let </span>index = pte_index::&lt;C&gt;(virt_addr, <span class="number">1</span>);
+<a href=#262 id=262 data-nosnippet>262</a>        <span class="comment">// SAFETY: The result pointer is within the PT frame.
+<a href=#263 id=263 data-nosnippet>263</a>        </span><span class="kw">let </span>pte_ptr = <span class="kw">unsafe </span>{ (paddr_to_vaddr(pt) <span class="kw">as </span><span class="kw-2">*mut </span>E).add(index) };
+<a href=#264 id=264 data-nosnippet>264</a>        <span class="comment">// SAFETY: The pointer to the entry is valid to read.
+<a href=#265 id=265 data-nosnippet>265</a>        </span><span class="kw">let </span>pte = <span class="kw">unsafe </span>{ pte_ptr.read() };
+<a href=#266 id=266 data-nosnippet>266</a>        <span class="kw">let </span>PteScalar::Mapped(pa, <span class="kw-2">mut </span>prop) = pte.to_repr(<span class="number">1</span>) <span class="kw">else </span>{
+<a href=#267 id=267 data-nosnippet>267</a>            <span class="macro">panic!</span>(<span class="string">"protecting an unmapped page in the boot page table"</span>);
+<a href=#268 id=268 data-nosnippet>268</a>        };
+<a href=#269 id=269 data-nosnippet>269</a>        op(<span class="kw-2">&amp;mut </span>prop);
+<a href=#270 id=270 data-nosnippet>270</a>        <span class="comment">// SAFETY: The pointer to the entry is valid to write.
+<a href=#271 id=271 data-nosnippet>271</a>        </span><span class="kw">unsafe </span>{ pte_ptr.write(E::from_repr(<span class="kw-2">&amp;</span>PteScalar::Mapped(pa, prop), <span class="number">1</span>)) };
+<a href=#272 id=272 data-nosnippet>272</a>    }
+<a href=#273 id=273 data-nosnippet>273</a>
+<a href=#274 id=274 data-nosnippet>274</a>    <span class="kw">fn </span>alloc_child(<span class="kw-2">&amp;mut </span><span class="self">self</span>, level: PagingLevel) -&gt; (E, Paddr) {
+<a href=#275 id=275 data-nosnippet>275</a>        <span class="kw">let </span>frame_paddr = <span class="kw">if </span>frame::meta::is_initialized() {
+<a href=#276 id=276 data-nosnippet>276</a>            <span class="kw">let </span>frame = FrameAllocOptions::new()
+<a href=#277 id=277 data-nosnippet>277</a>                .zeroed(<span class="bool-val">false</span>)
+<a href=#278 id=278 data-nosnippet>278</a>                .alloc_frame_with(EarlyAllocatedFrameMeta)
+<a href=#279 id=279 data-nosnippet>279</a>                .unwrap();
+<a href=#280 id=280 data-nosnippet>280</a>            frame.into_raw()
+<a href=#281 id=281 data-nosnippet>281</a>        } <span class="kw">else </span>{
+<a href=#282 id=282 data-nosnippet>282</a>            allocator::early_alloc(
+<a href=#283 id=283 data-nosnippet>283</a>                Layout::from_size_align(C::BASE_PAGE_SIZE, C::BASE_PAGE_SIZE).unwrap(),
+<a href=#284 id=284 data-nosnippet>284</a>            )
+<a href=#285 id=285 data-nosnippet>285</a>            .unwrap()
+<a href=#286 id=286 data-nosnippet>286</a>        };
+<a href=#287 id=287 data-nosnippet>287</a>
+<a href=#288 id=288 data-nosnippet>288</a>        <span class="comment">// Zero it out.
+<a href=#289 id=289 data-nosnippet>289</a>        </span><span class="kw">let </span>vaddr = paddr_to_vaddr(frame_paddr) <span class="kw">as </span><span class="kw-2">*mut </span>u8;
+<a href=#290 id=290 data-nosnippet>290</a>        <span class="comment">// SAFETY: The allocated frame is valid to write.
+<a href=#291 id=291 data-nosnippet>291</a>        </span><span class="kw">unsafe </span>{ core::ptr::write_bytes(vaddr, <span class="number">0</span>, PAGE_SIZE) };
+<a href=#292 id=292 data-nosnippet>292</a>
+<a href=#293 id=293 data-nosnippet>293</a>        (
+<a href=#294 id=294 data-nosnippet>294</a>            E::from_repr(
+<a href=#295 id=295 data-nosnippet>295</a>                <span class="kw-2">&amp;</span>PteScalar::PageTable(frame_paddr, PageTableFlags::empty()),
+<a href=#296 id=296 data-nosnippet>296</a>                level,
+<a href=#297 id=297 data-nosnippet>297</a>            ),
+<a href=#298 id=298 data-nosnippet>298</a>            frame_paddr,
+<a href=#299 id=299 data-nosnippet>299</a>        )
+<a href=#300 id=300 data-nosnippet>300</a>    }
+<a href=#301 id=301 data-nosnippet>301</a>
+<a href=#302 id=302 data-nosnippet>302</a>    <span class="attr">#[cfg(ktest)]
+<a href=#303 id=303 data-nosnippet>303</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(root_pt: Paddr) -&gt; <span class="self">Self </span>{
+<a href=#304 id=304 data-nosnippet>304</a>        <span class="self">Self </span>{
+<a href=#305 id=305 data-nosnippet>305</a>            root_pt,
+<a href=#306 id=306 data-nosnippet>306</a>            _phantom: core::marker::PhantomData,
+<a href=#307 id=307 data-nosnippet>307</a>        }
+<a href=#308 id=308 data-nosnippet>308</a>    }
+<a href=#309 id=309 data-nosnippet>309</a>}
+<a href=#310 id=310 data-nosnippet>310</a>
+<a href=#311 id=311 data-nosnippet>311</a><span class="doccomment">/// A helper function to walk on the page table frames.
+<a href=#312 id=312 data-nosnippet>312</a>///
+<a href=#313 id=313 data-nosnippet>313</a>/// Once leaving a page table frame, the closure will be called with the PTE to
+<a href=#314 id=314 data-nosnippet>314</a>/// the frame.
+<a href=#315 id=315 data-nosnippet>315</a></span><span class="kw">fn </span>dfs_walk_on_leave&lt;E: PteTrait, C: PagingConstsTrait&gt;(
+<a href=#316 id=316 data-nosnippet>316</a>    pt: Paddr,
+<a href=#317 id=317 data-nosnippet>317</a>    level: PagingLevel,
+<a href=#318 id=318 data-nosnippet>318</a>    op: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span>E, Paddr, PagingLevel, PageTableFlags),
+<a href=#319 id=319 data-nosnippet>319</a>) {
+<a href=#320 id=320 data-nosnippet>320</a>    <span class="kw">if </span>level &gt;= <span class="number">2 </span>{
+<a href=#321 id=321 data-nosnippet>321</a>        <span class="kw">let </span>pt_vaddr = paddr_to_vaddr(pt) <span class="kw">as </span><span class="kw-2">*mut </span>E;
+<a href=#322 id=322 data-nosnippet>322</a>        <span class="kw">for </span>offset <span class="kw">in </span><span class="number">0</span>..nr_subpage_per_huge::&lt;C&gt;() {
+<a href=#323 id=323 data-nosnippet>323</a>            <span class="comment">// SAFETY: The result pointer is within the PT frame.
+<a href=#324 id=324 data-nosnippet>324</a>            </span><span class="kw">let </span>pte_ptr = <span class="kw">unsafe </span>{ pt_vaddr.add(offset) };
+<a href=#325 id=325 data-nosnippet>325</a>            <span class="comment">// SAFETY: The pointer to the entry is valid to read.
+<a href=#326 id=326 data-nosnippet>326</a>            </span><span class="kw">let </span><span class="kw-2">mut </span>pte = <span class="kw">unsafe </span>{ pte_ptr.read() };
+<a href=#327 id=327 data-nosnippet>327</a>
+<a href=#328 id=328 data-nosnippet>328</a>            <span class="kw">if let </span>PteScalar::PageTable(child_pt, flags) = pte.to_repr(level) {
+<a href=#329 id=329 data-nosnippet>329</a>                dfs_walk_on_leave::&lt;E, C&gt;(child_pt, level - <span class="number">1</span>, op);
+<a href=#330 id=330 data-nosnippet>330</a>                op(<span class="kw-2">&amp;mut </span>pte, child_pt, level, flags);
+<a href=#331 id=331 data-nosnippet>331</a>                <span class="comment">// SAFETY: The pointer to the entry is valid to write.
+<a href=#332 id=332 data-nosnippet>332</a>                </span><span class="kw">unsafe </span>{ pte_ptr.write(pte) };
+<a href=#333 id=333 data-nosnippet>333</a>            }
+<a href=#334 id=334 data-nosnippet>334</a>        }
+<a href=#335 id=335 data-nosnippet>335</a>    }
+<a href=#336 id=336 data-nosnippet>336</a>}
+</code></pre></div></section></main></body></html>

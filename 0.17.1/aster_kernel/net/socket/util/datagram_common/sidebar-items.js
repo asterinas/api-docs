@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Inner"],"fn":["select_remote_and_bind"],"trait":["Bound","Unbound"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["do_inotify_init","parse_inotify_watch_request","sys_inotify_add_watch","sys_inotify_init","sys_inotify_init1","sys_inotify_rm_watch"],"struct":["InotifyFileFlags"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CLOEXEC","NONBLOCK"],"fn":["do_accept","sys_accept","sys_accept4"],"struct":["Flags"]};

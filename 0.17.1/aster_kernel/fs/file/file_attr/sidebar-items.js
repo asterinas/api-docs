@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["access_mode","creation_flags","open_args","status_flags"]};

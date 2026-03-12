@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["PTMX_MAJOR_NUM","PTMX_MINOR_NUM"],"struct":["Inner","Ptmx"]};

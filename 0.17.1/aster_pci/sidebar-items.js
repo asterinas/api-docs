@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["bus","capability","cfg_space","common_device"],"static":["PCI_BUS"],"struct":["PciDeviceId","PciDeviceLocation"]};

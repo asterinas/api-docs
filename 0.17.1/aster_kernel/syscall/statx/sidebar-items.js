@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["STATX_ATTR_MOUNT_ROOT"],"fn":["sys_statx"],"struct":["Statx","StatxFlags","StatxMask","StatxTimestamp"]};

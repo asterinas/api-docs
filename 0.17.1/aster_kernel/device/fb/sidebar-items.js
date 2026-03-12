@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["init_in_first_kthread"],"mod":["ioctl_defs"],"struct":["Fb","FbBitfield","FbCmapUser","FbFixScreenInfo","FbHandle","FbVarScreenInfo"]};

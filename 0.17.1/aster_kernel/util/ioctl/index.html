@@ -1,0 +1,94 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Decoding and dispatching ioctl commands."><title>aster_kernel::util::ioctl - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="aster_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module ioctl</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../aster_kernel/index.html">aster_<wbr>kernel</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module ioctl</a></h2><h3><a href="#modules">Module Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#macros" title="Macros">Macros</a></li><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In aster_<wbr>kernel::<wbr>util</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">aster_kernel</a>::<wbr><a href="../index.html">util</a></div><h1>Module <span>ioctl</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/aster_kernel/util/ioctl/mod.rs.html#3-723">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Decoding and dispatching ioctl commands.</p>
+<p>When the system call layer handles an ioctl system call, it creates a <a href="struct.RawIoctl.html" title="struct aster_kernel::util::ioctl::RawIoctl"><code>RawIoctl</code></a>, which is
+basically the numeric ioctl command and argument.</p>
+<p>The component that handles the specific ioctl logic should first convert the <a href="struct.RawIoctl.html" title="struct aster_kernel::util::ioctl::RawIoctl"><code>RawIoctl</code></a> to a
+strongly typed <a href="struct.Ioctl.html" title="struct aster_kernel::util::ioctl::Ioctl"><code>Ioctl</code></a> instance, which decodes the ioctl command and includes type
+information about the ioctl argument.</p>
+<p>To achieve this, define type aliases for <a href="struct.Ioctl.html" title="struct aster_kernel::util::ioctl::Ioctl"><code>Ioctl</code></a> using the <a href="macro.ioc.html" title="macro aster_kernel::util::ioctl::ioc"><code>ioc</code></a> macro, preferably in a
+separate module for clarity. At the function that dispatches the ioctl commands, we can
+glob-import the defined <a href="struct.Ioctl.html" title="struct aster_kernel::util::ioctl::Ioctl"><code>Ioctl</code></a> type aliases and use the <a href="macro.dispatch_ioctl.html" title="macro aster_kernel::util::ioctl::dispatch_ioctl"><code>dispatch_ioctl</code></a> macro for the
+ioctl dispatching.</p>
+<p>Here is an complete example that demonstrates the basic usage:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">mod </span>ioctl_defs {
+    <span class="kw">use </span><span class="kw">crate</span>::util::ioctl::{ioc, InData, OutData, PassByVal};
+
+    <span class="comment">// Here we give the code in Linux to provide an intuitive guide on how to use the `ioc`
+    // macro and how it corresponds to the Linux definitions. This is for demonstration
+    // purposes only. For regular code, keeping the reference link below is sufficient.
+    //
+    // Also, note that the line containing the `ioc` macro will not be automatically formatted.
+    // This is a deliberate design so that whitespaces can be manually inserted to vertically
+    // align the `ioc` macro's parameters and improve code readability.
+
+    // Reference: &lt;https://elixir.bootlin.com/linux/v6.18/source/include/uapi/asm-generic/ioctls.h&gt;&gt;
+
+    // ```c
+    // #define TIOCSCTTY    0x540E
+    // ```
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">type </span>SetControlTty = <span class="macro">ioc!</span>(TIOCSCTTY,  <span class="number">0x540E</span>,     InData&lt;i32, PassByVal&gt;);
+
+    <span class="comment">// ```c
+    // #define TIOCSPTLCK   _IOW('T', 0x31, int)  /* Lock/unlock Pty */
+    // ```
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">type </span>SetPtyLock    = <span class="macro">ioc!</span>(TIOCSPTLCK, <span class="string">b'T'</span>, <span class="number">0x31</span>, InData&lt;i32&gt;);
+
+    <span class="comment">// ```c
+    // #define TIOCGPTLCK   _IOR('T', 0x39, int) /* Get Pty lock state */
+    //  ```
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">type </span>GetPtyLock    = <span class="macro">ioc!</span>(TIOCGPTLCK, <span class="string">b'T'</span>, <span class="number">0x39</span>, OutData&lt;i32&gt;);
+}
+
+<span class="attr">#[derive(Debug, Default)]
+</span><span class="kw">struct </span>TtyState {
+    is_controlling: bool,
+    is_locked: bool,
+}
+
+<span class="kw">impl </span>TtyState {
+    <span class="kw">fn </span>ioctl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, raw_ioctl: RawIoctl) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">use </span>ioctl_defs::<span class="kw-2">*</span>;
+
+        <span class="macro">dispatch_ioctl!</span>(<span class="kw">match </span>raw_ioctl {
+            cmd @ SetControlTty =&gt; {
+                <span class="kw">let </span>_should_steal_tty = cmd.get() == <span class="number">1</span>;
+                <span class="self">self</span>.is_controlling = <span class="bool-val">true</span>;
+            }
+            cmd @ SetPtyLock =&gt; {
+                <span class="self">self</span>.is_locked = cmd.read()<span class="question-mark">? </span>!= <span class="number">0</span>;
+            }
+            cmd @ GetPtyLock =&gt; {
+                cmd.write(<span class="kw">if </span><span class="self">self</span>.is_locked { <span class="kw-2">&amp;</span><span class="number">1 </span>} <span class="kw">else </span>{ <span class="kw-2">&amp;</span><span class="number">0 </span>})<span class="question-mark">?</span>;
+            }
+            <span class="kw">_ </span>=&gt; <span class="macro">return_errno_with_message!</span>(Errno::ENOTTY, <span class="string">"the ioctl command is unknown"</span>),
+        });
+        <span class="prelude-val">Ok</span>(())
+    }
+}
+
+<span class="kw">fn </span>fake_tty_ioctl() {
+    <span class="kw">let </span><span class="kw-2">mut </span>state = TtyState::default();
+    <span class="macro">assert!</span>(!state.is_controlling);
+
+    state.ioctl(RawIoctl::new(<span class="number">0x540E</span>, <span class="number">0</span>));
+    <span class="macro">assert!</span>(state.is_controlling);
+}</code></pre></div>
+<p>Additionally, we support the following advanced usage:</p>
+<ul>
+<li>
+<p>For <a href="struct.InOutData.html" title="struct aster_kernel::util::ioctl::InOutData"><code>InOutData</code></a>, it is possible to obtain a [<code>SafePtr</code>] instance to the underlying data
+using <a href="struct.Ioctl.html#method.with_data_ptr" title="method aster_kernel::util::ioctl::Ioctl::with_data_ptr"><code>Ioctl::with_data_ptr</code></a>. This allows some structure fields to be treated as input and
+others as output. <code>TDX_CMD_GET_REPORT0</code> is such an example.</p>
+</li>
+<li>
+<p>For <code>OutData&lt;[u8]&gt;</code> (or <code>InData&lt;[u8]&gt;</code>), the argument size is encoded in the ioctl command.
+A <a href="../../prelude/struct.VmWriter.html" title="struct aster_kernel::prelude::VmWriter"><code>VmWriter</code></a> (or <a href="../../prelude/struct.VmReader.html" title="struct aster_kernel::prelude::VmReader"><code>VmReader</code></a>) can be obtained from <a href="struct.Ioctl.html#method.with_writer" title="method aster_kernel::util::ioctl::Ioctl::with_writer"><code>Ioctl::with_writer</code></a> (or
+<a href="struct.Ioctl.html#method.with_reader" title="method aster_kernel::util::ioctl::Ioctl::with_reader"><code>Ioctl::with_reader</code></a>), which allows for the writing (or reading) of variable-length data.
+<code>EVIOCGNAME</code> is such an example.</p>
+</li>
+<li>
+<p>For a group of ioctls that serve similar purposes, the <a href="struct.IoctlEnum.html" title="struct aster_kernel::util::ioctl::IoctlEnum"><code>IoctlEnum</code></a> type allows to
+represent them all with a single type (just like an enum). <code>EVIOCGBIT</code> is such an example.</p>
+</li>
+</ul>
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="common_defs/index.html" title="mod aster_kernel::util::ioctl::common_defs">common_<wbr>defs</a></dt><dd>Common <code>ioctl</code> command definitions.</dd><dt><a class="mod" href="sealed/index.html" title="mod aster_kernel::util::ioctl::sealed">sealed</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl><h2 id="macros" class="section-header">Macros<a href="#macros" class="anchor">§</a></h2><dl class="item-table"><dt><a class="macro" href="macro.dispatch_ioctl.html" title="macro aster_kernel::util::ioctl::dispatch_ioctl">dispatch_<wbr>ioctl</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Dispatches ioctl commands.</dd><dt><a class="macro" href="macro.impl_get_by_val_for.html" title="macro aster_kernel::util::ioctl::impl_get_by_val_for">impl_<wbr>get_<wbr>by_<wbr>val_<wbr>for</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="macro" href="macro.ioc.html" title="macro aster_kernel::util::ioctl::ioc">ioc</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Defines an ioctl type.</dd></dl><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.InData.html" title="struct aster_kernel::util::ioctl::InData">InData</a></dt><dd>Input-only data.</dd><dt><a class="struct" href="struct.InOutData.html" title="struct aster_kernel::util::ioctl::InOutData">InOut<wbr>Data</a></dt><dd>Input and output data, passed by pointer to a single object.</dd><dt><a class="struct" href="struct.Ioctl.html" title="struct aster_kernel::util::ioctl::Ioctl">Ioctl</a></dt><dd>An ioctl command and its argument in strongly typed form.</dd><dt><a class="struct" href="struct.IoctlEnum.html" title="struct aster_kernel::util::ioctl::IoctlEnum">Ioctl<wbr>Enum</a></dt><dd>An ioctl enum that represents one of a possible set of almost identical <a href="struct.Ioctl.html" title="struct aster_kernel::util::ioctl::Ioctl"><code>Ioctl</code></a>s.</dd><dt><a class="struct" href="struct.NoData.html" title="struct aster_kernel::util::ioctl::NoData">NoData</a></dt><dd>No input/output data.</dd><dt><a class="struct" href="struct.OutData.html" title="struct aster_kernel::util::ioctl::OutData">OutData</a></dt><dd>Output-only data, always passed by pointer.</dd><dt><a class="struct" href="struct.RawIoctl.html" title="struct aster_kernel::util::ioctl::RawIoctl">RawIoctl</a></dt><dd>An ioctl command and its argument in raw form.</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.PassByPtr.html" title="enum aster_kernel::util::ioctl::PassByPtr">Pass<wbr>ByPtr</a></dt><dd>A marker that denotes the input is passed by pointer (i.e., pointed to by the ioctl argument).</dd><dt><a class="enum" href="enum.PassByVal.html" title="enum aster_kernel::util::ioctl::PassByVal">Pass<wbr>ByVal</a></dt><dd>A marker that denotes the input is passed by value (i.e., encoded in the ioctl argument).</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.u16_size_of.html" title="fn aster_kernel::util::ioctl::u16_size_of">u16_<wbr>size_<wbr>of</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl></section></div></main></body></html>

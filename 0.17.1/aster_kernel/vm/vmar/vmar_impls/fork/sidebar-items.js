@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["cow_copy_pt"]};

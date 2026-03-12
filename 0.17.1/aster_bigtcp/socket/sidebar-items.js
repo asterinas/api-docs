@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["TCP_RECV_BUF_LEN","TCP_SEND_BUF_LEN","UDP_RECV_PAYLOAD_LEN","UDP_SEND_PAYLOAD_LEN"],"enum":["ConnectState"],"struct":["NeedIfacePoll","RawTcpOption","RawTcpSocketExt","SocketEvents"],"trait":["RawTcpSetOption","SocketEventObserver"],"type":["RawUdpSocket","TcpConnection","TcpListener","UdpSocket"]};

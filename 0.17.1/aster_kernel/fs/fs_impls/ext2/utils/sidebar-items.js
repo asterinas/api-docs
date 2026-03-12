@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["now"],"macro":["impl_ipo_for"],"struct":["Dirty"],"trait":["IsPowerOf"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_IO_VECTOR_LENGTH","MAX_TOTAL_IOV_BYTES"],"fn":["copy_iovs_and_convert"],"struct":["IoVec","UserIoVec","VmReaderArray","VmWriterArray"],"trait":["MultiRead","MultiWrite"]};

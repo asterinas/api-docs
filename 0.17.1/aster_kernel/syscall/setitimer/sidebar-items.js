@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ItimerType"],"fn":["sys_getitimer","sys_setitimer"]};

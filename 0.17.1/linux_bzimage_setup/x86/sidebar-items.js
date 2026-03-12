@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CFG_TARGET_ARCH_X86_64"],"fn":["image_load_offset","payload"],"mod":["amd64_efi"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["OFFSET_MAX"],"enum":["FileRangeChange","OverlapWith"],"struct":["FileRange"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["check_length","sys_ftruncate","sys_truncate"]};

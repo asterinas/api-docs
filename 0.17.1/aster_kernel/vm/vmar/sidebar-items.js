@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["VMAR_CAP_ADDR","VMAR_LOWEST_ADDR"],"fn":["is_userspace_vaddr","is_userspace_vaddr_range"],"mod":["interval_set","util","vm_mapping","vmar_impls"]};

@@ -1,0 +1,420 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `kernel/src/syscall/arch/x86.rs`."><title>x86.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="aster_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../static.files/storage-e2aeef58.js"></script><script defer src="../../../../static.files/src-script-813739b1.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">aster_kernel/syscall/arch/</div>x86.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="comment">// SPDX-License-Identifier: MPL-2.0
+<a href=#2 id=2 data-nosnippet>2</a>
+<a href=#3 id=3 data-nosnippet>3</a></span><span class="doccomment">//! System call dispatch in the x86 architecture.
+<a href=#4 id=4 data-nosnippet>4</a>
+<a href=#5 id=5 data-nosnippet>5</a></span><span class="kw">use super</span>::{
+<a href=#6 id=6 data-nosnippet>6</a>    accept::{sys_accept, sys_accept4},
+<a href=#7 id=7 data-nosnippet>7</a>    access::{sys_access, sys_faccessat, sys_faccessat2},
+<a href=#8 id=8 data-nosnippet>8</a>    alarm::sys_alarm,
+<a href=#9 id=9 data-nosnippet>9</a>    arch_prctl::sys_arch_prctl,
+<a href=#10 id=10 data-nosnippet>10</a>    bind::sys_bind,
+<a href=#11 id=11 data-nosnippet>11</a>    brk::sys_brk,
+<a href=#12 id=12 data-nosnippet>12</a>    capget::sys_capget,
+<a href=#13 id=13 data-nosnippet>13</a>    capset::sys_capset,
+<a href=#14 id=14 data-nosnippet>14</a>    chdir::{sys_chdir, sys_fchdir},
+<a href=#15 id=15 data-nosnippet>15</a>    chmod::{sys_chmod, sys_fchmod, sys_fchmodat, sys_fchmodat2},
+<a href=#16 id=16 data-nosnippet>16</a>    chown::{sys_chown, sys_fchown, sys_fchownat, sys_lchown},
+<a href=#17 id=17 data-nosnippet>17</a>    chroot::sys_chroot,
+<a href=#18 id=18 data-nosnippet>18</a>    clock_gettime::sys_clock_gettime,
+<a href=#19 id=19 data-nosnippet>19</a>    clone::{sys_clone, sys_clone3},
+<a href=#20 id=20 data-nosnippet>20</a>    close::{sys_close, sys_close_range},
+<a href=#21 id=21 data-nosnippet>21</a>    connect::sys_connect,
+<a href=#22 id=22 data-nosnippet>22</a>    dup::{sys_dup, sys_dup2, sys_dup3},
+<a href=#23 id=23 data-nosnippet>23</a>    epoll::{
+<a href=#24 id=24 data-nosnippet>24</a>        sys_epoll_create, sys_epoll_create1, sys_epoll_ctl, sys_epoll_pwait, sys_epoll_pwait2,
+<a href=#25 id=25 data-nosnippet>25</a>        sys_epoll_wait,
+<a href=#26 id=26 data-nosnippet>26</a>    },
+<a href=#27 id=27 data-nosnippet>27</a>    eventfd::{sys_eventfd, sys_eventfd2},
+<a href=#28 id=28 data-nosnippet>28</a>    execve::{sys_execve, sys_execveat},
+<a href=#29 id=29 data-nosnippet>29</a>    exit::sys_exit,
+<a href=#30 id=30 data-nosnippet>30</a>    exit_group::sys_exit_group,
+<a href=#31 id=31 data-nosnippet>31</a>    fadvise64::sys_fadvise64,
+<a href=#32 id=32 data-nosnippet>32</a>    fallocate::sys_fallocate,
+<a href=#33 id=33 data-nosnippet>33</a>    fcntl::sys_fcntl,
+<a href=#34 id=34 data-nosnippet>34</a>    flock::sys_flock,
+<a href=#35 id=35 data-nosnippet>35</a>    fork::{sys_fork, sys_vfork},
+<a href=#36 id=36 data-nosnippet>36</a>    fsync::{sys_fdatasync, sys_fsync},
+<a href=#37 id=37 data-nosnippet>37</a>    futex::sys_futex,
+<a href=#38 id=38 data-nosnippet>38</a>    get_ioprio::sys_ioprio_get,
+<a href=#39 id=39 data-nosnippet>39</a>    get_priority::sys_get_priority,
+<a href=#40 id=40 data-nosnippet>40</a>    getcpu::sys_getcpu,
+<a href=#41 id=41 data-nosnippet>41</a>    getcwd::sys_getcwd,
+<a href=#42 id=42 data-nosnippet>42</a>    getdents64::{sys_getdents, sys_getdents64},
+<a href=#43 id=43 data-nosnippet>43</a>    getegid::sys_getegid,
+<a href=#44 id=44 data-nosnippet>44</a>    geteuid::sys_geteuid,
+<a href=#45 id=45 data-nosnippet>45</a>    getgid::sys_getgid,
+<a href=#46 id=46 data-nosnippet>46</a>    getgroups::sys_getgroups,
+<a href=#47 id=47 data-nosnippet>47</a>    getpeername::sys_getpeername,
+<a href=#48 id=48 data-nosnippet>48</a>    getpgid::sys_getpgid,
+<a href=#49 id=49 data-nosnippet>49</a>    getpgrp::sys_getpgrp,
+<a href=#50 id=50 data-nosnippet>50</a>    getpid::sys_getpid,
+<a href=#51 id=51 data-nosnippet>51</a>    getppid::sys_getppid,
+<a href=#52 id=52 data-nosnippet>52</a>    getrandom::sys_getrandom,
+<a href=#53 id=53 data-nosnippet>53</a>    getresgid::sys_getresgid,
+<a href=#54 id=54 data-nosnippet>54</a>    getresuid::sys_getresuid,
+<a href=#55 id=55 data-nosnippet>55</a>    getrusage::sys_getrusage,
+<a href=#56 id=56 data-nosnippet>56</a>    getsid::sys_getsid,
+<a href=#57 id=57 data-nosnippet>57</a>    getsockname::sys_getsockname,
+<a href=#58 id=58 data-nosnippet>58</a>    getsockopt::sys_getsockopt,
+<a href=#59 id=59 data-nosnippet>59</a>    gettid::sys_gettid,
+<a href=#60 id=60 data-nosnippet>60</a>    gettimeofday::sys_gettimeofday,
+<a href=#61 id=61 data-nosnippet>61</a>    getuid::sys_getuid,
+<a href=#62 id=62 data-nosnippet>62</a>    getxattr::{sys_fgetxattr, sys_getxattr, sys_lgetxattr},
+<a href=#63 id=63 data-nosnippet>63</a>    impl_syscall_nums_and_dispatch_fn,
+<a href=#64 id=64 data-nosnippet>64</a>    inotify::{sys_inotify_add_watch, sys_inotify_init, sys_inotify_init1, sys_inotify_rm_watch},
+<a href=#65 id=65 data-nosnippet>65</a>    ioctl::sys_ioctl,
+<a href=#66 id=66 data-nosnippet>66</a>    kill::sys_kill,
+<a href=#67 id=67 data-nosnippet>67</a>    link::{sys_link, sys_linkat},
+<a href=#68 id=68 data-nosnippet>68</a>    listen::sys_listen,
+<a href=#69 id=69 data-nosnippet>69</a>    listxattr::{sys_flistxattr, sys_listxattr, sys_llistxattr},
+<a href=#70 id=70 data-nosnippet>70</a>    lseek::sys_lseek,
+<a href=#71 id=71 data-nosnippet>71</a>    madvise::sys_madvise,
+<a href=#72 id=72 data-nosnippet>72</a>    memfd_create::sys_memfd_create,
+<a href=#73 id=73 data-nosnippet>73</a>    mkdir::{sys_mkdir, sys_mkdirat},
+<a href=#74 id=74 data-nosnippet>74</a>    mknod::{sys_mknod, sys_mknodat},
+<a href=#75 id=75 data-nosnippet>75</a>    mmap::sys_mmap,
+<a href=#76 id=76 data-nosnippet>76</a>    mount::sys_mount,
+<a href=#77 id=77 data-nosnippet>77</a>    mprotect::sys_mprotect,
+<a href=#78 id=78 data-nosnippet>78</a>    mremap::sys_mremap,
+<a href=#79 id=79 data-nosnippet>79</a>    msync::sys_msync,
+<a href=#80 id=80 data-nosnippet>80</a>    munmap::sys_munmap,
+<a href=#81 id=81 data-nosnippet>81</a>    nanosleep::{sys_clock_nanosleep, sys_nanosleep},
+<a href=#82 id=82 data-nosnippet>82</a>    open::{sys_creat, sys_open, sys_openat},
+<a href=#83 id=83 data-nosnippet>83</a>    pause::sys_pause,
+<a href=#84 id=84 data-nosnippet>84</a>    pidfd_getfd::sys_pidfd_getfd,
+<a href=#85 id=85 data-nosnippet>85</a>    pidfd_open::sys_pidfd_open,
+<a href=#86 id=86 data-nosnippet>86</a>    pidfd_send_signal::sys_pidfd_send_signal,
+<a href=#87 id=87 data-nosnippet>87</a>    pipe::{sys_pipe, sys_pipe2},
+<a href=#88 id=88 data-nosnippet>88</a>    pivot_root::sys_pivot_root,
+<a href=#89 id=89 data-nosnippet>89</a>    poll::sys_poll,
+<a href=#90 id=90 data-nosnippet>90</a>    ppoll::sys_ppoll,
+<a href=#91 id=91 data-nosnippet>91</a>    prctl::sys_prctl,
+<a href=#92 id=92 data-nosnippet>92</a>    pread64::sys_pread64,
+<a href=#93 id=93 data-nosnippet>93</a>    preadv::{sys_preadv, sys_preadv2, sys_readv},
+<a href=#94 id=94 data-nosnippet>94</a>    prlimit64::{sys_getrlimit, sys_prlimit64, sys_setrlimit},
+<a href=#95 id=95 data-nosnippet>95</a>    pselect6::sys_pselect6,
+<a href=#96 id=96 data-nosnippet>96</a>    pwrite64::sys_pwrite64,
+<a href=#97 id=97 data-nosnippet>97</a>    pwritev::{sys_pwritev, sys_pwritev2, sys_writev},
+<a href=#98 id=98 data-nosnippet>98</a>    read::sys_read,
+<a href=#99 id=99 data-nosnippet>99</a>    readlink::{sys_readlink, sys_readlinkat},
+<a href=#100 id=100 data-nosnippet>100</a>    reboot::sys_reboot,
+<a href=#101 id=101 data-nosnippet>101</a>    recvfrom::sys_recvfrom,
+<a href=#102 id=102 data-nosnippet>102</a>    recvmsg::sys_recvmsg,
+<a href=#103 id=103 data-nosnippet>103</a>    removexattr::{sys_fremovexattr, sys_lremovexattr, sys_removexattr},
+<a href=#104 id=104 data-nosnippet>104</a>    rename::{sys_rename, sys_renameat, sys_renameat2},
+<a href=#105 id=105 data-nosnippet>105</a>    rmdir::sys_rmdir,
+<a href=#106 id=106 data-nosnippet>106</a>    rt_sigaction::sys_rt_sigaction,
+<a href=#107 id=107 data-nosnippet>107</a>    rt_sigpending::sys_rt_sigpending,
+<a href=#108 id=108 data-nosnippet>108</a>    rt_sigprocmask::sys_rt_sigprocmask,
+<a href=#109 id=109 data-nosnippet>109</a>    rt_sigreturn::sys_rt_sigreturn,
+<a href=#110 id=110 data-nosnippet>110</a>    rt_sigsuspend::sys_rt_sigsuspend,
+<a href=#111 id=111 data-nosnippet>111</a>    rt_sigtimedwait::sys_rt_sigtimedwait,
+<a href=#112 id=112 data-nosnippet>112</a>    sched_affinity::{sys_sched_getaffinity, sys_sched_setaffinity},
+<a href=#113 id=113 data-nosnippet>113</a>    sched_get_priority_max::sys_sched_get_priority_max,
+<a href=#114 id=114 data-nosnippet>114</a>    sched_get_priority_min::sys_sched_get_priority_min,
+<a href=#115 id=115 data-nosnippet>115</a>    sched_getattr::sys_sched_getattr,
+<a href=#116 id=116 data-nosnippet>116</a>    sched_getparam::sys_sched_getparam,
+<a href=#117 id=117 data-nosnippet>117</a>    sched_getscheduler::sys_sched_getscheduler,
+<a href=#118 id=118 data-nosnippet>118</a>    sched_setattr::sys_sched_setattr,
+<a href=#119 id=119 data-nosnippet>119</a>    sched_setparam::sys_sched_setparam,
+<a href=#120 id=120 data-nosnippet>120</a>    sched_setscheduler::sys_sched_setscheduler,
+<a href=#121 id=121 data-nosnippet>121</a>    sched_yield::sys_sched_yield,
+<a href=#122 id=122 data-nosnippet>122</a>    select::sys_select,
+<a href=#123 id=123 data-nosnippet>123</a>    semctl::sys_semctl,
+<a href=#124 id=124 data-nosnippet>124</a>    semget::sys_semget,
+<a href=#125 id=125 data-nosnippet>125</a>    semop::{sys_semop, sys_semtimedop},
+<a href=#126 id=126 data-nosnippet>126</a>    sendfile::sys_sendfile,
+<a href=#127 id=127 data-nosnippet>127</a>    sendmmsg::sys_sendmmsg,
+<a href=#128 id=128 data-nosnippet>128</a>    sendmsg::sys_sendmsg,
+<a href=#129 id=129 data-nosnippet>129</a>    sendto::sys_sendto,
+<a href=#130 id=130 data-nosnippet>130</a>    set_ioprio::sys_ioprio_set,
+<a href=#131 id=131 data-nosnippet>131</a>    set_priority::sys_set_priority,
+<a href=#132 id=132 data-nosnippet>132</a>    set_robust_list::sys_set_robust_list,
+<a href=#133 id=133 data-nosnippet>133</a>    set_tid_address::sys_set_tid_address,
+<a href=#134 id=134 data-nosnippet>134</a>    setdomainname::sys_setdomainname,
+<a href=#135 id=135 data-nosnippet>135</a>    setfsgid::sys_setfsgid,
+<a href=#136 id=136 data-nosnippet>136</a>    setfsuid::sys_setfsuid,
+<a href=#137 id=137 data-nosnippet>137</a>    setgid::sys_setgid,
+<a href=#138 id=138 data-nosnippet>138</a>    setgroups::sys_setgroups,
+<a href=#139 id=139 data-nosnippet>139</a>    sethostname::sys_sethostname,
+<a href=#140 id=140 data-nosnippet>140</a>    setitimer::{sys_getitimer, sys_setitimer},
+<a href=#141 id=141 data-nosnippet>141</a>    setns::sys_setns,
+<a href=#142 id=142 data-nosnippet>142</a>    setpgid::sys_setpgid,
+<a href=#143 id=143 data-nosnippet>143</a>    setregid::sys_setregid,
+<a href=#144 id=144 data-nosnippet>144</a>    setresgid::sys_setresgid,
+<a href=#145 id=145 data-nosnippet>145</a>    setresuid::sys_setresuid,
+<a href=#146 id=146 data-nosnippet>146</a>    setreuid::sys_setreuid,
+<a href=#147 id=147 data-nosnippet>147</a>    setsid::sys_setsid,
+<a href=#148 id=148 data-nosnippet>148</a>    setsockopt::sys_setsockopt,
+<a href=#149 id=149 data-nosnippet>149</a>    setuid::sys_setuid,
+<a href=#150 id=150 data-nosnippet>150</a>    setxattr::{sys_fsetxattr, sys_lsetxattr, sys_setxattr},
+<a href=#151 id=151 data-nosnippet>151</a>    shutdown::sys_shutdown,
+<a href=#152 id=152 data-nosnippet>152</a>    sigaltstack::sys_sigaltstack,
+<a href=#153 id=153 data-nosnippet>153</a>    signalfd::{sys_signalfd, sys_signalfd4},
+<a href=#154 id=154 data-nosnippet>154</a>    socket::sys_socket,
+<a href=#155 id=155 data-nosnippet>155</a>    socketpair::sys_socketpair,
+<a href=#156 id=156 data-nosnippet>156</a>    stat::{sys_fstat, sys_fstatat, sys_lstat, sys_stat},
+<a href=#157 id=157 data-nosnippet>157</a>    statfs::{sys_fstatfs, sys_statfs},
+<a href=#158 id=158 data-nosnippet>158</a>    statx::sys_statx,
+<a href=#159 id=159 data-nosnippet>159</a>    symlink::{sys_symlink, sys_symlinkat},
+<a href=#160 id=160 data-nosnippet>160</a>    sync::{sys_sync, sys_syncfs},
+<a href=#161 id=161 data-nosnippet>161</a>    sysinfo::sys_sysinfo,
+<a href=#162 id=162 data-nosnippet>162</a>    tgkill::sys_tgkill,
+<a href=#163 id=163 data-nosnippet>163</a>    time::sys_time,
+<a href=#164 id=164 data-nosnippet>164</a>    timer_create::{sys_timer_create, sys_timer_delete},
+<a href=#165 id=165 data-nosnippet>165</a>    timer_settime::{sys_timer_gettime, sys_timer_settime},
+<a href=#166 id=166 data-nosnippet>166</a>    timerfd_create::sys_timerfd_create,
+<a href=#167 id=167 data-nosnippet>167</a>    timerfd_gettime::sys_timerfd_gettime,
+<a href=#168 id=168 data-nosnippet>168</a>    timerfd_settime::sys_timerfd_settime,
+<a href=#169 id=169 data-nosnippet>169</a>    truncate::{sys_ftruncate, sys_truncate},
+<a href=#170 id=170 data-nosnippet>170</a>    umask::sys_umask,
+<a href=#171 id=171 data-nosnippet>171</a>    umount::sys_umount,
+<a href=#172 id=172 data-nosnippet>172</a>    uname::sys_uname,
+<a href=#173 id=173 data-nosnippet>173</a>    unlink::{sys_unlink, sys_unlinkat},
+<a href=#174 id=174 data-nosnippet>174</a>    unshare::sys_unshare,
+<a href=#175 id=175 data-nosnippet>175</a>    utimens::{sys_futimesat, sys_utime, sys_utimensat, sys_utimes},
+<a href=#176 id=176 data-nosnippet>176</a>    wait4::sys_wait4,
+<a href=#177 id=177 data-nosnippet>177</a>    waitid::sys_waitid,
+<a href=#178 id=178 data-nosnippet>178</a>    write::sys_write,
+<a href=#179 id=179 data-nosnippet>179</a>};
+<a href=#180 id=180 data-nosnippet>180</a>
+<a href=#181 id=181 data-nosnippet>181</a><span class="macro">impl_syscall_nums_and_dispatch_fn!</span> {
+<a href=#182 id=182 data-nosnippet>182</a>    SYS_READ = <span class="number">0               </span>=&gt; sys_read(args[..<span class="number">3</span>]);
+<a href=#183 id=183 data-nosnippet>183</a>    SYS_WRITE = <span class="number">1              </span>=&gt; sys_write(args[..<span class="number">3</span>]);
+<a href=#184 id=184 data-nosnippet>184</a>    SYS_OPEN = <span class="number">2               </span>=&gt; sys_open(args[..<span class="number">3</span>]);
+<a href=#185 id=185 data-nosnippet>185</a>    SYS_CLOSE = <span class="number">3              </span>=&gt; sys_close(args[..<span class="number">1</span>]);
+<a href=#186 id=186 data-nosnippet>186</a>    SYS_STAT = <span class="number">4               </span>=&gt; sys_stat(args[..<span class="number">2</span>]);
+<a href=#187 id=187 data-nosnippet>187</a>    SYS_FSTAT = <span class="number">5              </span>=&gt; sys_fstat(args[..<span class="number">2</span>]);
+<a href=#188 id=188 data-nosnippet>188</a>    SYS_LSTAT = <span class="number">6              </span>=&gt; sys_lstat(args[..<span class="number">2</span>]);
+<a href=#189 id=189 data-nosnippet>189</a>    SYS_POLL = <span class="number">7               </span>=&gt; sys_poll(args[..<span class="number">3</span>]);
+<a href=#190 id=190 data-nosnippet>190</a>    SYS_LSEEK = <span class="number">8              </span>=&gt; sys_lseek(args[..<span class="number">3</span>]);
+<a href=#191 id=191 data-nosnippet>191</a>    SYS_MMAP = <span class="number">9               </span>=&gt; sys_mmap(args[..<span class="number">6</span>]);
+<a href=#192 id=192 data-nosnippet>192</a>    SYS_MPROTECT = <span class="number">10          </span>=&gt; sys_mprotect(args[..<span class="number">3</span>]);
+<a href=#193 id=193 data-nosnippet>193</a>    SYS_MUNMAP = <span class="number">11            </span>=&gt; sys_munmap(args[..<span class="number">2</span>]);
+<a href=#194 id=194 data-nosnippet>194</a>    SYS_BRK = <span class="number">12               </span>=&gt; sys_brk(args[..<span class="number">1</span>]);
+<a href=#195 id=195 data-nosnippet>195</a>    SYS_RT_SIGACTION = <span class="number">13      </span>=&gt; sys_rt_sigaction(args[..<span class="number">4</span>]);
+<a href=#196 id=196 data-nosnippet>196</a>    SYS_RT_SIGPROCMASK = <span class="number">14    </span>=&gt; sys_rt_sigprocmask(args[..<span class="number">4</span>]);
+<a href=#197 id=197 data-nosnippet>197</a>    SYS_RT_SIGRETURN = <span class="number">15      </span>=&gt; sys_rt_sigreturn(args[..<span class="number">0</span>], <span class="kw-2">&amp;mut </span>user_ctx);
+<a href=#198 id=198 data-nosnippet>198</a>    SYS_IOCTL = <span class="number">16             </span>=&gt; sys_ioctl(args[..<span class="number">3</span>]);
+<a href=#199 id=199 data-nosnippet>199</a>    SYS_PREAD64 = <span class="number">17           </span>=&gt; sys_pread64(args[..<span class="number">4</span>]);
+<a href=#200 id=200 data-nosnippet>200</a>    SYS_PWRITE64 = <span class="number">18          </span>=&gt; sys_pwrite64(args[..<span class="number">4</span>]);
+<a href=#201 id=201 data-nosnippet>201</a>    SYS_READV = <span class="number">19             </span>=&gt; sys_readv(args[..<span class="number">3</span>]);
+<a href=#202 id=202 data-nosnippet>202</a>    SYS_WRITEV = <span class="number">20            </span>=&gt; sys_writev(args[..<span class="number">3</span>]);
+<a href=#203 id=203 data-nosnippet>203</a>    SYS_ACCESS = <span class="number">21            </span>=&gt; sys_access(args[..<span class="number">2</span>]);
+<a href=#204 id=204 data-nosnippet>204</a>    SYS_PIPE = <span class="number">22              </span>=&gt; sys_pipe(args[..<span class="number">1</span>]);
+<a href=#205 id=205 data-nosnippet>205</a>    SYS_SELECT = <span class="number">23            </span>=&gt; sys_select(args[..<span class="number">5</span>]);
+<a href=#206 id=206 data-nosnippet>206</a>    SYS_MREMAP = <span class="number">25            </span>=&gt; sys_mremap(args[..<span class="number">5</span>]);
+<a href=#207 id=207 data-nosnippet>207</a>    SYS_MSYNC = <span class="number">26             </span>=&gt; sys_msync(args[..<span class="number">3</span>]);
+<a href=#208 id=208 data-nosnippet>208</a>    SYS_SCHED_YIELD = <span class="number">24       </span>=&gt; sys_sched_yield(args[..<span class="number">0</span>]);
+<a href=#209 id=209 data-nosnippet>209</a>    SYS_MADVISE = <span class="number">28           </span>=&gt; sys_madvise(args[..<span class="number">3</span>]);
+<a href=#210 id=210 data-nosnippet>210</a>    SYS_DUP = <span class="number">32               </span>=&gt; sys_dup(args[..<span class="number">1</span>]);
+<a href=#211 id=211 data-nosnippet>211</a>    SYS_DUP2 = <span class="number">33              </span>=&gt; sys_dup2(args[..<span class="number">2</span>]);
+<a href=#212 id=212 data-nosnippet>212</a>    SYS_PAUSE = <span class="number">34             </span>=&gt; sys_pause(args[..<span class="number">0</span>]);
+<a href=#213 id=213 data-nosnippet>213</a>    SYS_NANOSLEEP = <span class="number">35         </span>=&gt; sys_nanosleep(args[..<span class="number">2</span>]);
+<a href=#214 id=214 data-nosnippet>214</a>    SYS_GETITIMER = <span class="number">36         </span>=&gt; sys_getitimer(args[..<span class="number">2</span>]);
+<a href=#215 id=215 data-nosnippet>215</a>    SYS_ALARM = <span class="number">37             </span>=&gt; sys_alarm(args[..<span class="number">1</span>]);
+<a href=#216 id=216 data-nosnippet>216</a>    SYS_SETITIMER = <span class="number">38         </span>=&gt; sys_setitimer(args[..<span class="number">3</span>]);
+<a href=#217 id=217 data-nosnippet>217</a>    SYS_GETPID = <span class="number">39            </span>=&gt; sys_getpid(args[..<span class="number">0</span>]);
+<a href=#218 id=218 data-nosnippet>218</a>    SYS_SENDFILE = <span class="number">40          </span>=&gt; sys_sendfile(args[..<span class="number">4</span>]);
+<a href=#219 id=219 data-nosnippet>219</a>    SYS_SOCKET = <span class="number">41            </span>=&gt; sys_socket(args[..<span class="number">3</span>]);
+<a href=#220 id=220 data-nosnippet>220</a>    SYS_CONNECT = <span class="number">42           </span>=&gt; sys_connect(args[..<span class="number">3</span>]);
+<a href=#221 id=221 data-nosnippet>221</a>    SYS_ACCEPT = <span class="number">43            </span>=&gt; sys_accept(args[..<span class="number">3</span>]);
+<a href=#222 id=222 data-nosnippet>222</a>    SYS_SENDTO = <span class="number">44            </span>=&gt; sys_sendto(args[..<span class="number">6</span>]);
+<a href=#223 id=223 data-nosnippet>223</a>    SYS_RECVFROM = <span class="number">45          </span>=&gt; sys_recvfrom(args[..<span class="number">6</span>]);
+<a href=#224 id=224 data-nosnippet>224</a>    SYS_SENDMSG = <span class="number">46           </span>=&gt; sys_sendmsg(args[..<span class="number">3</span>]);
+<a href=#225 id=225 data-nosnippet>225</a>    SYS_RECVMSG = <span class="number">47           </span>=&gt; sys_recvmsg(args[..<span class="number">3</span>]);
+<a href=#226 id=226 data-nosnippet>226</a>    SYS_SHUTDOWN = <span class="number">48          </span>=&gt; sys_shutdown(args[..<span class="number">2</span>]);
+<a href=#227 id=227 data-nosnippet>227</a>    SYS_BIND = <span class="number">49              </span>=&gt; sys_bind(args[..<span class="number">3</span>]);
+<a href=#228 id=228 data-nosnippet>228</a>    SYS_LISTEN = <span class="number">50            </span>=&gt; sys_listen(args[..<span class="number">2</span>]);
+<a href=#229 id=229 data-nosnippet>229</a>    SYS_GETSOCKNAME = <span class="number">51       </span>=&gt; sys_getsockname(args[..<span class="number">3</span>]);
+<a href=#230 id=230 data-nosnippet>230</a>    SYS_GETPEERNAME = <span class="number">52       </span>=&gt; sys_getpeername(args[..<span class="number">3</span>]);
+<a href=#231 id=231 data-nosnippet>231</a>    SYS_SOCKETPAIR = <span class="number">53        </span>=&gt; sys_socketpair(args[..<span class="number">4</span>]);
+<a href=#232 id=232 data-nosnippet>232</a>    SYS_SETSOCKOPT = <span class="number">54        </span>=&gt; sys_setsockopt(args[..<span class="number">5</span>]);
+<a href=#233 id=233 data-nosnippet>233</a>    SYS_GETSOCKOPT = <span class="number">55        </span>=&gt; sys_getsockopt(args[..<span class="number">5</span>]);
+<a href=#234 id=234 data-nosnippet>234</a>    SYS_CLONE = <span class="number">56             </span>=&gt; sys_clone(args[..<span class="number">5</span>], <span class="kw-2">&amp;</span>user_ctx);
+<a href=#235 id=235 data-nosnippet>235</a>    SYS_FORK = <span class="number">57              </span>=&gt; sys_fork(args[..<span class="number">0</span>], <span class="kw-2">&amp;</span>user_ctx);
+<a href=#236 id=236 data-nosnippet>236</a>    SYS_VFORK = <span class="number">58             </span>=&gt; sys_vfork(args[..<span class="number">0</span>], <span class="kw-2">&amp;</span>user_ctx);
+<a href=#237 id=237 data-nosnippet>237</a>    SYS_EXECVE = <span class="number">59            </span>=&gt; sys_execve(args[..<span class="number">3</span>], <span class="kw-2">&amp;mut </span>user_ctx);
+<a href=#238 id=238 data-nosnippet>238</a>    SYS_EXIT = <span class="number">60              </span>=&gt; sys_exit(args[..<span class="number">1</span>]);
+<a href=#239 id=239 data-nosnippet>239</a>    SYS_WAIT4 = <span class="number">61             </span>=&gt; sys_wait4(args[..<span class="number">4</span>]);
+<a href=#240 id=240 data-nosnippet>240</a>    SYS_KILL = <span class="number">62              </span>=&gt; sys_kill(args[..<span class="number">2</span>]);
+<a href=#241 id=241 data-nosnippet>241</a>    SYS_UNAME = <span class="number">63             </span>=&gt; sys_uname(args[..<span class="number">1</span>]);
+<a href=#242 id=242 data-nosnippet>242</a>    SYS_SEMGET = <span class="number">64            </span>=&gt; sys_semget(args[..<span class="number">3</span>]);
+<a href=#243 id=243 data-nosnippet>243</a>    SYS_SEMOP = <span class="number">65             </span>=&gt; sys_semop(args[..<span class="number">3</span>]);
+<a href=#244 id=244 data-nosnippet>244</a>    SYS_SEMCTL = <span class="number">66            </span>=&gt; sys_semctl(args[..<span class="number">4</span>]);
+<a href=#245 id=245 data-nosnippet>245</a>    SYS_FCNTL = <span class="number">72             </span>=&gt; sys_fcntl(args[..<span class="number">3</span>]);
+<a href=#246 id=246 data-nosnippet>246</a>    SYS_FLOCK = <span class="number">73             </span>=&gt; sys_flock(args[..<span class="number">2</span>]);
+<a href=#247 id=247 data-nosnippet>247</a>    SYS_FSYNC = <span class="number">74             </span>=&gt; sys_fsync(args[..<span class="number">1</span>]);
+<a href=#248 id=248 data-nosnippet>248</a>    SYS_FDATASYNC = <span class="number">75         </span>=&gt; sys_fdatasync(args[..<span class="number">1</span>]);
+<a href=#249 id=249 data-nosnippet>249</a>    SYS_TRUNCATE = <span class="number">76          </span>=&gt; sys_truncate(args[..<span class="number">2</span>]);
+<a href=#250 id=250 data-nosnippet>250</a>    SYS_FTRUNCATE = <span class="number">77         </span>=&gt; sys_ftruncate(args[..<span class="number">2</span>]);
+<a href=#251 id=251 data-nosnippet>251</a>    SYS_GETDENTS = <span class="number">78          </span>=&gt; sys_getdents(args[..<span class="number">3</span>]);
+<a href=#252 id=252 data-nosnippet>252</a>    SYS_GETCWD = <span class="number">79            </span>=&gt; sys_getcwd(args[..<span class="number">2</span>]);
+<a href=#253 id=253 data-nosnippet>253</a>    SYS_CHDIR = <span class="number">80             </span>=&gt; sys_chdir(args[..<span class="number">1</span>]);
+<a href=#254 id=254 data-nosnippet>254</a>    SYS_FCHDIR = <span class="number">81            </span>=&gt; sys_fchdir(args[..<span class="number">1</span>]);
+<a href=#255 id=255 data-nosnippet>255</a>    SYS_RENAME = <span class="number">82            </span>=&gt; sys_rename(args[..<span class="number">2</span>]);
+<a href=#256 id=256 data-nosnippet>256</a>    SYS_MKDIR = <span class="number">83             </span>=&gt; sys_mkdir(args[..<span class="number">2</span>]);
+<a href=#257 id=257 data-nosnippet>257</a>    SYS_RMDIR = <span class="number">84             </span>=&gt; sys_rmdir(args[..<span class="number">1</span>]);
+<a href=#258 id=258 data-nosnippet>258</a>    SYS_CREAT = <span class="number">85             </span>=&gt; sys_creat(args[..<span class="number">2</span>]);
+<a href=#259 id=259 data-nosnippet>259</a>    SYS_LINK = <span class="number">86              </span>=&gt; sys_link(args[..<span class="number">2</span>]);
+<a href=#260 id=260 data-nosnippet>260</a>    SYS_UNLINK = <span class="number">87            </span>=&gt; sys_unlink(args[..<span class="number">1</span>]);
+<a href=#261 id=261 data-nosnippet>261</a>    SYS_SYMLINK = <span class="number">88           </span>=&gt; sys_symlink(args[..<span class="number">2</span>]);
+<a href=#262 id=262 data-nosnippet>262</a>    SYS_READLINK = <span class="number">89          </span>=&gt; sys_readlink(args[..<span class="number">3</span>]);
+<a href=#263 id=263 data-nosnippet>263</a>    SYS_CHMOD = <span class="number">90             </span>=&gt; sys_chmod(args[..<span class="number">2</span>]);
+<a href=#264 id=264 data-nosnippet>264</a>    SYS_FCHMOD = <span class="number">91            </span>=&gt; sys_fchmod(args[..<span class="number">2</span>]);
+<a href=#265 id=265 data-nosnippet>265</a>    SYS_CHOWN = <span class="number">92             </span>=&gt; sys_chown(args[..<span class="number">3</span>]);
+<a href=#266 id=266 data-nosnippet>266</a>    SYS_FCHOWN = <span class="number">93            </span>=&gt; sys_fchown(args[..<span class="number">3</span>]);
+<a href=#267 id=267 data-nosnippet>267</a>    SYS_LCHOWN = <span class="number">94            </span>=&gt; sys_lchown(args[..<span class="number">3</span>]);
+<a href=#268 id=268 data-nosnippet>268</a>    SYS_UMASK = <span class="number">95             </span>=&gt; sys_umask(args[..<span class="number">1</span>]);
+<a href=#269 id=269 data-nosnippet>269</a>    SYS_GETTIMEOFDAY = <span class="number">96      </span>=&gt; sys_gettimeofday(args[..<span class="number">1</span>]);
+<a href=#270 id=270 data-nosnippet>270</a>    SYS_GETRLIMIT = <span class="number">97         </span>=&gt; sys_getrlimit(args[..<span class="number">2</span>]);
+<a href=#271 id=271 data-nosnippet>271</a>    SYS_GETRUSAGE = <span class="number">98         </span>=&gt; sys_getrusage(args[..<span class="number">2</span>]);
+<a href=#272 id=272 data-nosnippet>272</a>    SYS_SYSINFO = <span class="number">99           </span>=&gt; sys_sysinfo(args[..<span class="number">1</span>]);
+<a href=#273 id=273 data-nosnippet>273</a>    SYS_GETUID = <span class="number">102           </span>=&gt; sys_getuid(args[..<span class="number">0</span>]);
+<a href=#274 id=274 data-nosnippet>274</a>    SYS_GETGID = <span class="number">104           </span>=&gt; sys_getgid(args[..<span class="number">0</span>]);
+<a href=#275 id=275 data-nosnippet>275</a>    SYS_SETUID = <span class="number">105           </span>=&gt; sys_setuid(args[..<span class="number">1</span>]);
+<a href=#276 id=276 data-nosnippet>276</a>    SYS_SETGID = <span class="number">106           </span>=&gt; sys_setgid(args[..<span class="number">1</span>]);
+<a href=#277 id=277 data-nosnippet>277</a>    SYS_GETEUID = <span class="number">107          </span>=&gt; sys_geteuid(args[..<span class="number">0</span>]);
+<a href=#278 id=278 data-nosnippet>278</a>    SYS_GETEGID = <span class="number">108          </span>=&gt; sys_getegid(args[..<span class="number">0</span>]);
+<a href=#279 id=279 data-nosnippet>279</a>    SYS_SETPGID = <span class="number">109          </span>=&gt; sys_setpgid(args[..<span class="number">2</span>]);
+<a href=#280 id=280 data-nosnippet>280</a>    SYS_GETPPID = <span class="number">110          </span>=&gt; sys_getppid(args[..<span class="number">0</span>]);
+<a href=#281 id=281 data-nosnippet>281</a>    SYS_GETPGRP = <span class="number">111          </span>=&gt; sys_getpgrp(args[..<span class="number">0</span>]);
+<a href=#282 id=282 data-nosnippet>282</a>    SYS_SETSID = <span class="number">112           </span>=&gt; sys_setsid(args[..<span class="number">0</span>]);
+<a href=#283 id=283 data-nosnippet>283</a>    SYS_SETREUID = <span class="number">113         </span>=&gt; sys_setreuid(args[..<span class="number">2</span>]);
+<a href=#284 id=284 data-nosnippet>284</a>    SYS_SETREGID = <span class="number">114         </span>=&gt; sys_setregid(args[..<span class="number">2</span>]);
+<a href=#285 id=285 data-nosnippet>285</a>    SYS_GETGROUPS = <span class="number">115        </span>=&gt; sys_getgroups(args[..<span class="number">2</span>]);
+<a href=#286 id=286 data-nosnippet>286</a>    SYS_SETGROUPS = <span class="number">116        </span>=&gt; sys_setgroups(args[..<span class="number">2</span>]);
+<a href=#287 id=287 data-nosnippet>287</a>    SYS_SETRESUID = <span class="number">117        </span>=&gt; sys_setresuid(args[..<span class="number">3</span>]);
+<a href=#288 id=288 data-nosnippet>288</a>    SYS_GETRESUID = <span class="number">118        </span>=&gt; sys_getresuid(args[..<span class="number">3</span>]);
+<a href=#289 id=289 data-nosnippet>289</a>    SYS_SETRESGID = <span class="number">119        </span>=&gt; sys_setresgid(args[..<span class="number">3</span>]);
+<a href=#290 id=290 data-nosnippet>290</a>    SYS_GETRESGID = <span class="number">120        </span>=&gt; sys_getresgid(args[..<span class="number">3</span>]);
+<a href=#291 id=291 data-nosnippet>291</a>    SYS_GETPGID = <span class="number">121          </span>=&gt; sys_getpgid(args[..<span class="number">1</span>]);
+<a href=#292 id=292 data-nosnippet>292</a>    SYS_SETFSUID = <span class="number">122         </span>=&gt; sys_setfsuid(args[..<span class="number">1</span>]);
+<a href=#293 id=293 data-nosnippet>293</a>    SYS_SETFSGID = <span class="number">123         </span>=&gt; sys_setfsgid(args[..<span class="number">1</span>]);
+<a href=#294 id=294 data-nosnippet>294</a>    SYS_GETSID = <span class="number">124           </span>=&gt; sys_getsid(args[..<span class="number">1</span>]);
+<a href=#295 id=295 data-nosnippet>295</a>    SYS_CAPGET = <span class="number">125           </span>=&gt; sys_capget(args[..<span class="number">2</span>]);
+<a href=#296 id=296 data-nosnippet>296</a>    SYS_CAPSET = <span class="number">126           </span>=&gt; sys_capset(args[..<span class="number">2</span>]);
+<a href=#297 id=297 data-nosnippet>297</a>    SYS_RT_SIGPENDING = <span class="number">127    </span>=&gt; sys_rt_sigpending(args[..<span class="number">2</span>]);
+<a href=#298 id=298 data-nosnippet>298</a>    SYS_RT_SIGTIMEDWAIT = <span class="number">128  </span>=&gt; sys_rt_sigtimedwait(args[..<span class="number">4</span>]);
+<a href=#299 id=299 data-nosnippet>299</a>    SYS_RT_SIGSUSPEND = <span class="number">130    </span>=&gt; sys_rt_sigsuspend(args[..<span class="number">2</span>]);
+<a href=#300 id=300 data-nosnippet>300</a>    SYS_SIGALTSTACK = <span class="number">131      </span>=&gt; sys_sigaltstack(args[..<span class="number">2</span>], <span class="kw-2">&amp;</span>user_ctx);
+<a href=#301 id=301 data-nosnippet>301</a>    SYS_UTIME = <span class="number">132            </span>=&gt; sys_utime(args[..<span class="number">2</span>]);
+<a href=#302 id=302 data-nosnippet>302</a>    SYS_MKNOD = <span class="number">133            </span>=&gt; sys_mknod(args[..<span class="number">3</span>]);
+<a href=#303 id=303 data-nosnippet>303</a>    SYS_STATFS = <span class="number">137           </span>=&gt; sys_statfs(args[..<span class="number">2</span>]);
+<a href=#304 id=304 data-nosnippet>304</a>    SYS_FSTATFS = <span class="number">138          </span>=&gt; sys_fstatfs(args[..<span class="number">2</span>]);
+<a href=#305 id=305 data-nosnippet>305</a>    SYS_GET_PRIORITY = <span class="number">140     </span>=&gt; sys_get_priority(args[..<span class="number">2</span>]);
+<a href=#306 id=306 data-nosnippet>306</a>    SYS_SET_PRIORITY = <span class="number">141     </span>=&gt; sys_set_priority(args[..<span class="number">3</span>]);
+<a href=#307 id=307 data-nosnippet>307</a>    SYS_SCHED_SETPARAM = <span class="number">142   </span>=&gt; sys_sched_setparam(args[..<span class="number">2</span>]);
+<a href=#308 id=308 data-nosnippet>308</a>    SYS_SCHED_GETPARAM = <span class="number">143   </span>=&gt; sys_sched_getparam(args[..<span class="number">2</span>]);
+<a href=#309 id=309 data-nosnippet>309</a>    SYS_SCHED_SETSCHEDULER = <span class="number">144 </span>=&gt; sys_sched_setscheduler(args[..<span class="number">3</span>]);
+<a href=#310 id=310 data-nosnippet>310</a>    SYS_SCHED_GETSCHEDULER = <span class="number">145 </span>=&gt; sys_sched_getscheduler(args[..<span class="number">1</span>]);
+<a href=#311 id=311 data-nosnippet>311</a>    SYS_SCHED_GET_PRIORITY_MAX = <span class="number">146 </span>=&gt; sys_sched_get_priority_max(args[..<span class="number">1</span>]);
+<a href=#312 id=312 data-nosnippet>312</a>    SYS_SCHED_GET_PRIORITY_MIN = <span class="number">147 </span>=&gt; sys_sched_get_priority_min(args[..<span class="number">1</span>]);
+<a href=#313 id=313 data-nosnippet>313</a>    SYS_PIVOT_ROOT = <span class="number">155       </span>=&gt; sys_pivot_root(args[..<span class="number">2</span>]);
+<a href=#314 id=314 data-nosnippet>314</a>    SYS_PRCTL = <span class="number">157            </span>=&gt; sys_prctl(args[..<span class="number">5</span>]);
+<a href=#315 id=315 data-nosnippet>315</a>    SYS_ARCH_PRCTL = <span class="number">158       </span>=&gt; sys_arch_prctl(args[..<span class="number">2</span>], <span class="kw-2">&amp;mut </span>user_ctx);
+<a href=#316 id=316 data-nosnippet>316</a>    SYS_SETRLIMIT = <span class="number">160        </span>=&gt; sys_setrlimit(args[..<span class="number">2</span>]);
+<a href=#317 id=317 data-nosnippet>317</a>    SYS_CHROOT = <span class="number">161           </span>=&gt; sys_chroot(args[..<span class="number">1</span>]);
+<a href=#318 id=318 data-nosnippet>318</a>    SYS_SYNC = <span class="number">162             </span>=&gt; sys_sync(args[..<span class="number">0</span>]);
+<a href=#319 id=319 data-nosnippet>319</a>    SYS_MOUNT = <span class="number">165            </span>=&gt; sys_mount(args[..<span class="number">5</span>]);
+<a href=#320 id=320 data-nosnippet>320</a>    SYS_UMOUNT2 = <span class="number">166          </span>=&gt; sys_umount(args[..<span class="number">2</span>]);
+<a href=#321 id=321 data-nosnippet>321</a>    SYS_REBOOT = <span class="number">169           </span>=&gt; sys_reboot(args[..<span class="number">4</span>]);
+<a href=#322 id=322 data-nosnippet>322</a>    SYS_SETHOSTNAME = <span class="number">170      </span>=&gt; sys_sethostname(args[..<span class="number">2</span>]);
+<a href=#323 id=323 data-nosnippet>323</a>    SYS_SETDOMAINNAME = <span class="number">171    </span>=&gt; sys_setdomainname(args[..<span class="number">2</span>]);
+<a href=#324 id=324 data-nosnippet>324</a>    SYS_GETTID = <span class="number">186           </span>=&gt; sys_gettid(args[..<span class="number">0</span>]);
+<a href=#325 id=325 data-nosnippet>325</a>    SYS_SETXATTR = <span class="number">188         </span>=&gt; sys_setxattr(args[..<span class="number">5</span>]);
+<a href=#326 id=326 data-nosnippet>326</a>    SYS_LSETXATTR = <span class="number">189        </span>=&gt; sys_lsetxattr(args[..<span class="number">5</span>]);
+<a href=#327 id=327 data-nosnippet>327</a>    SYS_FSETXATTR = <span class="number">190        </span>=&gt; sys_fsetxattr(args[..<span class="number">5</span>]);
+<a href=#328 id=328 data-nosnippet>328</a>    SYS_GETXATTR = <span class="number">191         </span>=&gt; sys_getxattr(args[..<span class="number">4</span>]);
+<a href=#329 id=329 data-nosnippet>329</a>    SYS_LGETXATTR = <span class="number">192        </span>=&gt; sys_lgetxattr(args[..<span class="number">4</span>]);
+<a href=#330 id=330 data-nosnippet>330</a>    SYS_FGETXATTR = <span class="number">193        </span>=&gt; sys_fgetxattr(args[..<span class="number">4</span>]);
+<a href=#331 id=331 data-nosnippet>331</a>    SYS_LISTXATTR = <span class="number">194        </span>=&gt; sys_listxattr(args[..<span class="number">3</span>]);
+<a href=#332 id=332 data-nosnippet>332</a>    SYS_LLISTXATTR = <span class="number">195       </span>=&gt; sys_llistxattr(args[..<span class="number">3</span>]);
+<a href=#333 id=333 data-nosnippet>333</a>    SYS_FLISTXATTR = <span class="number">196       </span>=&gt; sys_flistxattr(args[..<span class="number">3</span>]);
+<a href=#334 id=334 data-nosnippet>334</a>    SYS_REMOVEXATTR = <span class="number">197      </span>=&gt; sys_removexattr(args[..<span class="number">2</span>]);
+<a href=#335 id=335 data-nosnippet>335</a>    SYS_LREMOVEXATTR = <span class="number">198     </span>=&gt; sys_lremovexattr(args[..<span class="number">2</span>]);
+<a href=#336 id=336 data-nosnippet>336</a>    SYS_FREMOVEXATTR = <span class="number">199     </span>=&gt; sys_fremovexattr(args[..<span class="number">2</span>]);
+<a href=#337 id=337 data-nosnippet>337</a>    SYS_TIME = <span class="number">201             </span>=&gt; sys_time(args[..<span class="number">1</span>]);
+<a href=#338 id=338 data-nosnippet>338</a>    SYS_FUTEX = <span class="number">202            </span>=&gt; sys_futex(args[..<span class="number">6</span>]);
+<a href=#339 id=339 data-nosnippet>339</a>    SYS_SCHED_SETAFFINITY = <span class="number">203 </span>=&gt; sys_sched_setaffinity(args[..<span class="number">3</span>]);
+<a href=#340 id=340 data-nosnippet>340</a>    SYS_SCHED_GETAFFINITY = <span class="number">204 </span>=&gt; sys_sched_getaffinity(args[..<span class="number">3</span>]);
+<a href=#341 id=341 data-nosnippet>341</a>    SYS_EPOLL_CREATE = <span class="number">213     </span>=&gt; sys_epoll_create(args[..<span class="number">1</span>]);
+<a href=#342 id=342 data-nosnippet>342</a>    SYS_GETDENTS64 = <span class="number">217       </span>=&gt; sys_getdents64(args[..<span class="number">3</span>]);
+<a href=#343 id=343 data-nosnippet>343</a>    SYS_SET_TID_ADDRESS = <span class="number">218  </span>=&gt; sys_set_tid_address(args[..<span class="number">1</span>]);
+<a href=#344 id=344 data-nosnippet>344</a>    SYS_SEMTIMEDOP = <span class="number">220       </span>=&gt; sys_semtimedop(args[..<span class="number">4</span>]);
+<a href=#345 id=345 data-nosnippet>345</a>    SYS_FADVISE64 = <span class="number">221        </span>=&gt; sys_fadvise64(args[..<span class="number">4</span>]);
+<a href=#346 id=346 data-nosnippet>346</a>    SYS_TIMER_CREATE = <span class="number">222     </span>=&gt; sys_timer_create(args[..<span class="number">3</span>]);
+<a href=#347 id=347 data-nosnippet>347</a>    SYS_TIMER_SETTIME = <span class="number">223    </span>=&gt; sys_timer_settime(args[..<span class="number">4</span>]);
+<a href=#348 id=348 data-nosnippet>348</a>    SYS_TIMER_GETTIME = <span class="number">224    </span>=&gt; sys_timer_gettime(args[..<span class="number">2</span>]);
+<a href=#349 id=349 data-nosnippet>349</a>    SYS_TIMER_DELETE = <span class="number">226     </span>=&gt; sys_timer_delete(args[..<span class="number">1</span>]);
+<a href=#350 id=350 data-nosnippet>350</a>    SYS_CLOCK_GETTIME = <span class="number">228    </span>=&gt; sys_clock_gettime(args[..<span class="number">2</span>]);
+<a href=#351 id=351 data-nosnippet>351</a>    SYS_CLOCK_NANOSLEEP = <span class="number">230  </span>=&gt; sys_clock_nanosleep(args[..<span class="number">4</span>]);
+<a href=#352 id=352 data-nosnippet>352</a>    SYS_EXIT_GROUP = <span class="number">231       </span>=&gt; sys_exit_group(args[..<span class="number">1</span>]);
+<a href=#353 id=353 data-nosnippet>353</a>    SYS_EPOLL_WAIT = <span class="number">232       </span>=&gt; sys_epoll_wait(args[..<span class="number">4</span>]);
+<a href=#354 id=354 data-nosnippet>354</a>    SYS_EPOLL_CTL = <span class="number">233        </span>=&gt; sys_epoll_ctl(args[..<span class="number">4</span>]);
+<a href=#355 id=355 data-nosnippet>355</a>    SYS_TGKILL = <span class="number">234           </span>=&gt; sys_tgkill(args[..<span class="number">3</span>]);
+<a href=#356 id=356 data-nosnippet>356</a>    SYS_UTIMES = <span class="number">235           </span>=&gt; sys_utimes(args[..<span class="number">2</span>]);
+<a href=#357 id=357 data-nosnippet>357</a>    SYS_WAITID = <span class="number">247           </span>=&gt; sys_waitid(args[..<span class="number">5</span>]);
+<a href=#358 id=358 data-nosnippet>358</a>    SYS_IOPRIO_SET = <span class="number">251       </span>=&gt; sys_ioprio_set(args[..<span class="number">3</span>]);
+<a href=#359 id=359 data-nosnippet>359</a>    SYS_IOPRIO_GET = <span class="number">252       </span>=&gt; sys_ioprio_get(args[..<span class="number">2</span>]);
+<a href=#360 id=360 data-nosnippet>360</a>    SYS_INOTIFY_INIT = <span class="number">253     </span>=&gt; sys_inotify_init(args[..<span class="number">0</span>]);
+<a href=#361 id=361 data-nosnippet>361</a>    SYS_INOTIFY_ADD_WATCH = <span class="number">254 </span>=&gt; sys_inotify_add_watch(args[..<span class="number">3</span>]);
+<a href=#362 id=362 data-nosnippet>362</a>    SYS_INOTIFY_RM_WATCH = <span class="number">255 </span>=&gt; sys_inotify_rm_watch(args[..<span class="number">2</span>]);
+<a href=#363 id=363 data-nosnippet>363</a>    SYS_OPENAT = <span class="number">257           </span>=&gt; sys_openat(args[..<span class="number">4</span>]);
+<a href=#364 id=364 data-nosnippet>364</a>    SYS_MKDIRAT = <span class="number">258          </span>=&gt; sys_mkdirat(args[..<span class="number">3</span>]);
+<a href=#365 id=365 data-nosnippet>365</a>    SYS_MKNODAT = <span class="number">259          </span>=&gt; sys_mknodat(args[..<span class="number">4</span>]);
+<a href=#366 id=366 data-nosnippet>366</a>    SYS_FCHOWNAT = <span class="number">260         </span>=&gt; sys_fchownat(args[..<span class="number">5</span>]);
+<a href=#367 id=367 data-nosnippet>367</a>    SYS_FUTIMESAT = <span class="number">261        </span>=&gt; sys_futimesat(args[..<span class="number">3</span>]);
+<a href=#368 id=368 data-nosnippet>368</a>    SYS_FSTATAT = <span class="number">262          </span>=&gt; sys_fstatat(args[..<span class="number">4</span>]);
+<a href=#369 id=369 data-nosnippet>369</a>    SYS_UNLINKAT = <span class="number">263         </span>=&gt; sys_unlinkat(args[..<span class="number">3</span>]);
+<a href=#370 id=370 data-nosnippet>370</a>    SYS_RENAMEAT = <span class="number">264         </span>=&gt; sys_renameat(args[..<span class="number">4</span>]);
+<a href=#371 id=371 data-nosnippet>371</a>    SYS_LINKAT = <span class="number">265           </span>=&gt; sys_linkat(args[..<span class="number">5</span>]);
+<a href=#372 id=372 data-nosnippet>372</a>    SYS_SYMLINKAT = <span class="number">266        </span>=&gt; sys_symlinkat(args[..<span class="number">3</span>]);
+<a href=#373 id=373 data-nosnippet>373</a>    SYS_READLINKAT = <span class="number">267       </span>=&gt; sys_readlinkat(args[..<span class="number">4</span>]);
+<a href=#374 id=374 data-nosnippet>374</a>    SYS_FCHMODAT = <span class="number">268         </span>=&gt; sys_fchmodat(args[..<span class="number">3</span>]);
+<a href=#375 id=375 data-nosnippet>375</a>    SYS_FACCESSAT = <span class="number">269        </span>=&gt; sys_faccessat(args[..<span class="number">3</span>]);
+<a href=#376 id=376 data-nosnippet>376</a>    SYS_PSELECT6 = <span class="number">270         </span>=&gt; sys_pselect6(args[..<span class="number">6</span>]);
+<a href=#377 id=377 data-nosnippet>377</a>    SYS_PPOLL = <span class="number">271            </span>=&gt; sys_ppoll(args[..<span class="number">5</span>]);
+<a href=#378 id=378 data-nosnippet>378</a>    SYS_UNSHARE = <span class="number">272          </span>=&gt; sys_unshare(args[..<span class="number">1</span>]);
+<a href=#379 id=379 data-nosnippet>379</a>    SYS_SET_ROBUST_LIST = <span class="number">273  </span>=&gt; sys_set_robust_list(args[..<span class="number">2</span>]);
+<a href=#380 id=380 data-nosnippet>380</a>    SYS_UTIMENSAT = <span class="number">280        </span>=&gt; sys_utimensat(args[..<span class="number">4</span>]);
+<a href=#381 id=381 data-nosnippet>381</a>    SYS_EPOLL_PWAIT = <span class="number">281      </span>=&gt; sys_epoll_pwait(args[..<span class="number">6</span>]);
+<a href=#382 id=382 data-nosnippet>382</a>    SYS_SIGNALFD = <span class="number">282         </span>=&gt; sys_signalfd(args[..<span class="number">3</span>]);
+<a href=#383 id=383 data-nosnippet>383</a>    SYS_TIMERFD_CREATE = <span class="number">283   </span>=&gt; sys_timerfd_create(args[..<span class="number">2</span>]);
+<a href=#384 id=384 data-nosnippet>384</a>    SYS_EVENTFD = <span class="number">284          </span>=&gt; sys_eventfd(args[..<span class="number">1</span>]);
+<a href=#385 id=385 data-nosnippet>385</a>    SYS_FALLOCATE = <span class="number">285        </span>=&gt; sys_fallocate(args[..<span class="number">4</span>]);
+<a href=#386 id=386 data-nosnippet>386</a>    SYS_TIMERFD_SETTIME = <span class="number">286 </span>=&gt; sys_timerfd_settime(args[..<span class="number">4</span>]);
+<a href=#387 id=387 data-nosnippet>387</a>    SYS_TIMERFD_GETTIME = <span class="number">287 </span>=&gt; sys_timerfd_gettime(args[..<span class="number">2</span>]);
+<a href=#388 id=388 data-nosnippet>388</a>    SYS_ACCEPT4 = <span class="number">288          </span>=&gt; sys_accept4(args[..<span class="number">4</span>]);
+<a href=#389 id=389 data-nosnippet>389</a>    SYS_SIGNALFD4 = <span class="number">289        </span>=&gt; sys_signalfd4(args[..<span class="number">4</span>]);
+<a href=#390 id=390 data-nosnippet>390</a>    SYS_EVENTFD2 = <span class="number">290         </span>=&gt; sys_eventfd2(args[..<span class="number">2</span>]);
+<a href=#391 id=391 data-nosnippet>391</a>    SYS_EPOLL_CREATE1 = <span class="number">291    </span>=&gt; sys_epoll_create1(args[..<span class="number">1</span>]);
+<a href=#392 id=392 data-nosnippet>392</a>    SYS_DUP3 = <span class="number">292             </span>=&gt; sys_dup3(args[..<span class="number">3</span>]);
+<a href=#393 id=393 data-nosnippet>393</a>    SYS_PIPE2 = <span class="number">293            </span>=&gt; sys_pipe2(args[..<span class="number">2</span>]);
+<a href=#394 id=394 data-nosnippet>394</a>    SYS_INOTIFY_INIT1 = <span class="number">294     </span>=&gt; sys_inotify_init1(args[..<span class="number">1</span>]);
+<a href=#395 id=395 data-nosnippet>395</a>    SYS_PREADV = <span class="number">295           </span>=&gt; sys_preadv(args[..<span class="number">5</span>]);
+<a href=#396 id=396 data-nosnippet>396</a>    SYS_PWRITEV = <span class="number">296          </span>=&gt; sys_pwritev(args[..<span class="number">5</span>]);
+<a href=#397 id=397 data-nosnippet>397</a>    SYS_PRLIMIT64 = <span class="number">302        </span>=&gt; sys_prlimit64(args[..<span class="number">4</span>]);
+<a href=#398 id=398 data-nosnippet>398</a>    SYS_SYNCFS = <span class="number">306           </span>=&gt; sys_syncfs(args[..<span class="number">1</span>]);
+<a href=#399 id=399 data-nosnippet>399</a>    SYS_SENDMMSG = <span class="number">307         </span>=&gt; sys_sendmmsg(args[..<span class="number">4</span>]);
+<a href=#400 id=400 data-nosnippet>400</a>    SYS_SETNS = <span class="number">308            </span>=&gt; sys_setns(args[..<span class="number">2</span>]);
+<a href=#401 id=401 data-nosnippet>401</a>    SYS_GETCPU = <span class="number">309           </span>=&gt; sys_getcpu(args[..<span class="number">3</span>]);
+<a href=#402 id=402 data-nosnippet>402</a>    SYS_SCHED_SETATTR = <span class="number">314    </span>=&gt; sys_sched_setattr(args[..<span class="number">3</span>]);
+<a href=#403 id=403 data-nosnippet>403</a>    SYS_SCHED_GETATTR = <span class="number">315    </span>=&gt; sys_sched_getattr(args[..<span class="number">4</span>]);
+<a href=#404 id=404 data-nosnippet>404</a>    SYS_RENAMEAT2 = <span class="number">316        </span>=&gt; sys_renameat2(args[..<span class="number">5</span>]);
+<a href=#405 id=405 data-nosnippet>405</a>    SYS_GETRANDOM = <span class="number">318        </span>=&gt; sys_getrandom(args[..<span class="number">3</span>]);
+<a href=#406 id=406 data-nosnippet>406</a>    SYS_MEMFD_CREATE = <span class="number">319     </span>=&gt; sys_memfd_create(args[..<span class="number">2</span>]);
+<a href=#407 id=407 data-nosnippet>407</a>    SYS_EXECVEAT = <span class="number">322         </span>=&gt; sys_execveat(args[..<span class="number">5</span>], <span class="kw-2">&amp;mut </span>user_ctx);
+<a href=#408 id=408 data-nosnippet>408</a>    SYS_PREADV2 = <span class="number">327          </span>=&gt; sys_preadv2(args[..<span class="number">6</span>]);
+<a href=#409 id=409 data-nosnippet>409</a>    SYS_PWRITEV2 = <span class="number">328         </span>=&gt; sys_pwritev2(args[..<span class="number">6</span>]);
+<a href=#410 id=410 data-nosnippet>410</a>    SYS_STATX = <span class="number">332            </span>=&gt; sys_statx(args[..<span class="number">5</span>]);
+<a href=#411 id=411 data-nosnippet>411</a>    SYS_PIDFD_SEND_SIGNAL = <span class="number">424 </span>=&gt; sys_pidfd_send_signal(args[..<span class="number">4</span>]);
+<a href=#412 id=412 data-nosnippet>412</a>    SYS_PIDFD_OPEN = <span class="number">434       </span>=&gt; sys_pidfd_open(args[..<span class="number">2</span>]);
+<a href=#413 id=413 data-nosnippet>413</a>    SYS_CLONE3 = <span class="number">435           </span>=&gt; sys_clone3(args[..<span class="number">2</span>], <span class="kw-2">&amp;</span>user_ctx);
+<a href=#414 id=414 data-nosnippet>414</a>    SYS_CLOSE_RANGE = <span class="number">436      </span>=&gt; sys_close_range(args[..<span class="number">3</span>]);
+<a href=#415 id=415 data-nosnippet>415</a>    SYS_PIDFD_GETFD = <span class="number">438      </span>=&gt; sys_pidfd_getfd(args[..<span class="number">3</span>]);
+<a href=#416 id=416 data-nosnippet>416</a>    SYS_FACCESSAT2 = <span class="number">439       </span>=&gt; sys_faccessat2(args[..<span class="number">4</span>]);
+<a href=#417 id=417 data-nosnippet>417</a>    SYS_EPOLL_PWAIT2 = <span class="number">441     </span>=&gt; sys_epoll_pwait2(args[..<span class="number">5</span>]);
+<a href=#418 id=418 data-nosnippet>418</a>    SYS_FCHMODAT2 = <span class="number">452        </span>=&gt; sys_fchmodat2(args[..<span class="number">4</span>]);
+<a href=#419 id=419 data-nosnippet>419</a>}
+</code></pre></div></section></main></body></html>

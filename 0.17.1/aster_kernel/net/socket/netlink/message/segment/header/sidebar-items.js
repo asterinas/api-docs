@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["AckFlags","CMsgSegHdr","DeleteRequestFlags","GetRequestFlags","NewRequestFlags","SegHdrCommonFlags"]};

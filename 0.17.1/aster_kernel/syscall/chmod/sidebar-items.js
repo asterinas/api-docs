@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["do_fchmodat","sys_chmod","sys_fchmod","sys_fchmodat","sys_fchmodat2"],"struct":["ChmodFlags"]};

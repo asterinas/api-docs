@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["RangedI16","RangedI32","RangedI8","RangedU16","RangedU32","RangedU8"]};

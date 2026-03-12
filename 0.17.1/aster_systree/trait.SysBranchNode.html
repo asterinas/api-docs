@@ -1,0 +1,66 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="A trait that represents a branching node in a `SysTree`."><title>SysBranchNode in aster_systree - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="aster_systree" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc trait"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">SysBranchNode</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../aster_systree/index.html">aster_<wbr>systree</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">SysBranch<wbr>Node</a></h2><h3><a href="#required-methods">Required Methods</a></h3><ul class="block"><li><a href="#tymethod.child" title="child">child</a></li><li><a href="#tymethod.visit_child_with" title="visit_child_with">visit_child_with</a></li><li><a href="#tymethod.visit_children_with" title="visit_children_with">visit_children_with</a></li></ul><h3><a href="#provided-methods">Provided Methods</a></h3><ul class="block"><li><a href="#method.children" title="children">children</a></li><li><a href="#method.count_children" title="count_children">count_children</a></li><li><a href="#method.create_child" title="create_child">create_child</a></li><li><a href="#method.remove_child" title="remove_child">remove_child</a></li></ul><h3><a href="#implementors">Implementors</a></h3></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="index.html">In crate aster_<wbr>systree</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">aster_systree</a></div><h1>Trait <span class="trait">SysBranch<wbr>Node</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/aster_systree/node.rs.html#38-123">Source</a> </span></div><pre class="rust item-decl"><code>pub trait SysBranchNode: <a class="trait" href="trait.SysNode.html" title="trait aster_systree::SysNode">SysNode</a> {
+    // Required methods
+    fn <a href="#tymethod.visit_child_with" class="fn">visit_child_with</a>(
+        &amp;self,
+        name: &amp;str,
+        f: &amp;mut dyn FnMut(Option&lt;&amp;Arc&lt;dyn <a class="trait" href="trait.SysObj.html" title="trait aster_systree::SysObj">SysObj</a>&gt;&gt;),
+    );
+<span class="item-spacer"></span>    fn <a href="#tymethod.visit_children_with" class="fn">visit_children_with</a>(
+        &amp;self,
+        min_id: u64,
+        f: &amp;mut dyn for&lt;'a&gt; FnMut(&amp;'a Arc&lt;dyn <a class="trait" href="trait.SysObj.html" title="trait aster_systree::SysObj">SysObj</a>&gt;) -&gt; Option&lt;()&gt;,
+    );
+<span class="item-spacer"></span>    fn <a href="#tymethod.child" class="fn">child</a>(&amp;self, name: &amp;str) -&gt; Option&lt;Arc&lt;dyn <a class="trait" href="trait.SysObj.html" title="trait aster_systree::SysObj">SysObj</a>&gt;&gt;;
+
+    // Provided methods
+    fn <a href="#method.children" class="fn">children</a>(&amp;self) -&gt; Vec&lt;Arc&lt;dyn <a class="trait" href="trait.SysObj.html" title="trait aster_systree::SysObj">SysObj</a>&gt;&gt; { ... }
+<span class="item-spacer"></span>    fn <a href="#method.count_children" class="fn">count_children</a>(&amp;self) -&gt; usize { ... }
+<span class="item-spacer"></span>    fn <a href="#method.create_child" class="fn">create_child</a>(&amp;self, _name: &amp;str) -&gt; <a class="type" href="type.Result.html" title="type aster_systree::Result">Result</a>&lt;Arc&lt;dyn <a class="trait" href="trait.SysObj.html" title="trait aster_systree::SysObj">SysObj</a>&gt;&gt; { ... }
+<span class="item-spacer"></span>    fn <a href="#method.remove_child" class="fn">remove_child</a>(&amp;self, _name: &amp;str) -&gt; <a class="type" href="type.Result.html" title="type aster_systree::Result">Result</a>&lt;Arc&lt;dyn <a class="trait" href="trait.SysObj.html" title="trait aster_systree::SysObj">SysObj</a>&gt;&gt; { ... }
+}</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>A trait that represents a branching node in a <code>SysTree</code>.</p>
+</div></details><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="tymethod.visit_child_with" class="method"><a class="src rightside" href="../src/aster_systree/node.rs.html#60">Source</a><h4 class="code-header">fn <a href="#tymethod.visit_child_with" class="fn">visit_child_with</a>(
+    &amp;self,
+    name: &amp;str,
+    f: &amp;mut dyn FnMut(Option&lt;&amp;Arc&lt;dyn <a class="trait" href="trait.SysObj.html" title="trait aster_systree::SysObj">SysObj</a>&gt;&gt;),
+)</h4></section></summary><div class="docblock"><p>Visits a child node with the given name using a closure.</p>
+<p>If the child with the given name exists,
+a reference to the child will be provided to the closure.
+Otherwise, the closure will be given a <code>None</code>.</p>
+<h5 id="efficiency"><a class="doc-anchor" href="#efficiency">§</a>Efficiency</h5>
+<p>This method is a more efficient, but less convenient version
+of the <code>child</code> method.
+The method does not require taking the ownership of the child node.
+So use this method when efficiency is a primary concern,
+while using the <code>child</code> method for the sake of convenience.</p>
+<h5 id="deadlock"><a class="doc-anchor" href="#deadlock">§</a>Deadlock</h5>
+<p>The implementation of this method depends on the concrete type
+and probably will hold an internal lock.
+So the caller should do as little as possible inside the closure.
+In particular, the caller should <em>not</em> invoke other methods
+on this object as this might cause deadlock.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="tymethod.visit_children_with" class="method"><a class="src rightside" href="../src/aster_systree/node.rs.html#83-87">Source</a><h4 class="code-header">fn <a href="#tymethod.visit_children_with" class="fn">visit_children_with</a>(
+    &amp;self,
+    min_id: u64,
+    f: &amp;mut dyn for&lt;'a&gt; FnMut(&amp;'a Arc&lt;dyn <a class="trait" href="trait.SysObj.html" title="trait aster_systree::SysObj">SysObj</a>&gt;) -&gt; Option&lt;()&gt;,
+)</h4></section></summary><div class="docblock"><p>Visits child nodes with a minimum ID using a closure.</p>
+<p>This method iterates over the child nodes
+whose IDs are no less than a specified minimum value.
+and provide them to the given closure one at a time.</p>
+<p>The iteration terminates until there are no unvisited children
+or the closure returns a <code>None</code>.</p>
+<h5 id="efficiency-1"><a class="doc-anchor" href="#efficiency-1">§</a>Efficiency</h5>
+<p>This method is a more efficient, but less convenient version
+of the <code>children</code> method.
+The method require neither taking the ownership of the child nodes
+nor doing heap allocations.
+So use this method when efficiency is a primary concern,
+while using the <code>children</code> method for the sake of convenience.</p>
+<h5 id="deadlock-1"><a class="doc-anchor" href="#deadlock-1">§</a>Deadlock</h5>
+<p>Same as the <code>visit_child_with</code> method.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="tymethod.child" class="method"><a class="src rightside" href="../src/aster_systree/node.rs.html#90">Source</a><h4 class="code-header">fn <a href="#tymethod.child" class="fn">child</a>(&amp;self, name: &amp;str) -&gt; Option&lt;Arc&lt;dyn <a class="trait" href="trait.SysObj.html" title="trait aster_systree::SysObj">SysObj</a>&gt;&gt;</h4></section></summary><div class="docblock"><p>Returns a child with a specified name.</p>
+</div></details></div><h2 id="provided-methods" class="section-header">Provided Methods<a href="#provided-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="method.children" class="method"><a class="src rightside" href="../src/aster_systree/node.rs.html#93-100">Source</a><h4 class="code-header">fn <a href="#method.children" class="fn">children</a>(&amp;self) -&gt; Vec&lt;Arc&lt;dyn <a class="trait" href="trait.SysObj.html" title="trait aster_systree::SysObj">SysObj</a>&gt;&gt;</h4></section></summary><div class="docblock"><p>Collects all children into a <code>Vec</code>.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.count_children" class="method"><a class="src rightside" href="../src/aster_systree/node.rs.html#103-110">Source</a><h4 class="code-header">fn <a href="#method.count_children" class="fn">count_children</a>(&amp;self) -&gt; usize</h4></section></summary><div class="docblock"><p>Counts the number of children.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.create_child" class="method"><a class="src rightside" href="../src/aster_systree/node.rs.html#115-117">Source</a><h4 class="code-header">fn <a href="#method.create_child" class="fn">create_child</a>(&amp;self, _name: &amp;str) -&gt; <a class="type" href="type.Result.html" title="type aster_systree::Result">Result</a>&lt;Arc&lt;dyn <a class="trait" href="trait.SysObj.html" title="trait aster_systree::SysObj">SysObj</a>&gt;&gt;</h4></section></summary><div class="docblock"><p>Creates a new child node with the given name.</p>
+<p>This new child will be added to this branch node.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.remove_child" class="method"><a class="src rightside" href="../src/aster_systree/node.rs.html#120-122">Source</a><h4 class="code-header">fn <a href="#method.remove_child" class="fn">remove_child</a>(&amp;self, _name: &amp;str) -&gt; <a class="type" href="type.Result.html" title="type aster_systree::Result">Result</a>&lt;Arc&lt;dyn <a class="trait" href="trait.SysObj.html" title="trait aster_systree::SysObj">SysObj</a>&gt;&gt;</h4></section></summary><div class="docblock"><p>Removes a child node with the given name.</p>
+</div></details></div><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"></div><script src="../trait.impl/aster_systree/node/trait.SysBranchNode.js" async></script></section></div></main></body></html>

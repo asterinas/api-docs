@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["AT_FDCWD"],"enum":["AbsPathResult","FsPathInner","LookupResult"],"struct":["FsPath","LookupParentResult","PathResolver"],"trait":["SplitPath"]};

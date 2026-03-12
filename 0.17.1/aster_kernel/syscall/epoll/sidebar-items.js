@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EP_MAX_EVENTS"],"fn":["do_epoll_pwait2","restore_signal_mask","set_signal_mask","sys_epoll_create","sys_epoll_create1","sys_epoll_ctl","sys_epoll_pwait","sys_epoll_pwait2","sys_epoll_wait"],"struct":["c_epoll_event"]};

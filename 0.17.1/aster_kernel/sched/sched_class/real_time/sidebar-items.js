@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_BASE_SLICE_FACTOR"],"enum":["RealTimePolicy"],"struct":["PrioArray","RealTimeAttr","RealTimeClassRq"],"type":["RealTimePriority"]};

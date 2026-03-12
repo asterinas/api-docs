@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SYSOBJ_ACTION_STRS"],"enum":["SysObjAction"],"static":["SEQ_NUM_ALLOCATOR"],"struct":["Uevent"]};

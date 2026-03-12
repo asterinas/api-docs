@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["check_signal_perm","kill","kill_all","kill_group","kill_process","tgkill"]};

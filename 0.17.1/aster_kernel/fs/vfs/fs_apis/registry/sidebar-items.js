@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["init","look_up","register","with_iter"],"static":["FS_REGISTRY"],"struct":["FsProperties","FsRegistry"],"trait":["FsType"]};

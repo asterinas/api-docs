@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["ATTR_ID_BITS"],"fn":["from_dir_ino_and_attr_id","from_node_kind","from_sysnode_id"]};

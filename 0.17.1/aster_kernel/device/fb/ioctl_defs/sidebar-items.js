@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"type":["Blank","GetColorMap","GetFixScreenInfo","GetVarScreenInfo","PanDisplay","PutColorMap","PutVarScreenInfo"]};

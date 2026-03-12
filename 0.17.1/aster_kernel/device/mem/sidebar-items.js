@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["init_in_first_kthread"],"mod":["file"],"static":["MEM_MAJOR"],"struct":["MemDevice"]};

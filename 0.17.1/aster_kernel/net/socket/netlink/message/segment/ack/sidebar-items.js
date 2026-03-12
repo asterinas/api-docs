@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["error_to_error_code"],"struct":["DoneSegmentBody","ErrorSegmentBody"],"type":["DoneSegment","ErrorSegment"]};

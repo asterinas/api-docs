@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EVDEV_BUFFER_SIZE"],"enum":["EvdevClock"],"fn":["handle_get_bit","is_syn_dropped_event","is_syn_report_event","write_bytes_and_zeros_to_userspace"],"mod":["ioctl_defs"],"struct":["AtomicEvdevClock","EvdevEvent","EvdevFile","EvdevFileInner"]};

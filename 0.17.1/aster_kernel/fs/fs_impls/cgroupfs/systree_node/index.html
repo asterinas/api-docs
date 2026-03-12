@@ -1,0 +1,52 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Implements the cgroup nodes for the unified cgroup hierarchy (cgroup v2)."><title>aster_kernel::fs::fs_impls::cgroupfs::systree_node - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../../" data-static-root-path="../../../../../static.files/" data-current-crate="aster_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module systree_node</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../../aster_kernel/index.html">aster_<wbr>kernel</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module systree_<wbr>node</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#locks-and-lock-ordering" title="Locks and Lock Ordering">Locks and Lock Ordering</a><ul><li><a href="#lock-types" title="Lock Types">Lock Types</a></li><li><a href="#locking-rules" title="Locking Rules">Locking Rules</a></li></ul></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#traits" title="Traits">Traits</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In aster_<wbr>kernel::<wbr>fs::<wbr>fs_<wbr>impls::<wbr>cgroupfs</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../../index.html">aster_kernel</a>::<wbr><a href="../../../index.html">fs</a>::<wbr><a href="../../index.html">fs_impls</a>::<wbr><a href="../index.html">cgroupfs</a></div><h1>Module <span>systree_<wbr>node</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../../src/aster_kernel/fs/fs_impls/cgroupfs/systree_node.rs.html#3-801">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Implements the cgroup nodes for the unified cgroup hierarchy (cgroup v2).</p>
+<p>This module defines the structures for cgroup nodes (<a href="struct.CgroupNode.html" title="struct aster_kernel::fs::fs_impls::cgroupfs::systree_node::CgroupNode"><code>CgroupNode</code></a>) and the cgroup
+root (<a href="struct.CgroupSystem.html" title="struct aster_kernel::fs::fs_impls::cgroupfs::systree_node::CgroupSystem"><code>CgroupSystem</code></a>), integrating them into the <code>systree</code>. It handles process
+management within cgroups and the logic for reading and writing cgroup attributes.</p>
+<h3 id="locks-and-lock-ordering"><a class="doc-anchor" href="#locks-and-lock-ordering">§</a>Locks and Lock Ordering</h3>
+<p>To ensure thread safety during concurrent operations, this module uses several
+locks within the cgroup nodes. Adhering to the correct lock ordering is crucial
+to prevent deadlocks.</p>
+<h4 id="lock-types"><a class="doc-anchor" href="#lock-types">§</a>Lock Types</h4>
+<ol>
+<li>
+<p><strong>Controller Lock</strong>: Each cgroup node (including the root) has a <a href="../controller/struct.Controller.html" title="struct aster_kernel::fs::fs_impls::cgroupfs::controller::Controller"><code>Controller</code></a>
+that contains a <code>Mutex</code>. This lock protects the activation state of the sub-controllers
+for its children (e.g., <code>memory</code>, <code>pids</code>).</p>
+</li>
+<li>
+<p><strong>Inner Lock</strong>: Each non-root <a href="struct.CgroupNode.html" title="struct aster_kernel::fs::fs_impls::cgroupfs::systree_node::CgroupNode"><code>CgroupNode</code></a> has an <code>RwMutex</code> that protects its
+<code>inner</code> data.</p>
+</li>
+<li>
+<p><strong>Children Lock</strong>: Each cgroup node (<a href="struct.CgroupNode.html" title="struct aster_kernel::fs::fs_impls::cgroupfs::systree_node::CgroupNode"><code>CgroupNode</code></a> and <a href="struct.CgroupSystem.html" title="struct aster_kernel::fs::fs_impls::cgroupfs::systree_node::CgroupSystem"><code>CgroupSystem</code></a>) inherits
+an <code>RwMutex</code> from <code>BranchNodeFields</code>. This lock protects access to and
+modification of the list of child cgroup nodes.</p>
+</li>
+<li>
+<p><strong>Cgroup Membership Lock</strong>: A global <code>Mutex</code> managed by <a href="struct.CgroupMembership.html" title="struct aster_kernel::fs::fs_impls::cgroupfs::systree_node::CgroupMembership"><code>CgroupMembership</code></a> that
+serializes modifications to process cgroup memberships across the entire system.</p>
+</li>
+</ol>
+<h4 id="locking-rules"><a class="doc-anchor" href="#locking-rules">§</a>Locking Rules</h4>
+<p>To avoid deadlocks, the following lock ordering must be strictly followed:</p>
+<ol>
+<li>
+<p><strong>Parent Before Child</strong>:
+When operating on both a parent and a child node, the lock on the parent
+node must be acquired before the lock on the child node.</p>
+</li>
+<li>
+<p><strong>Order Within a Single Node</strong>:
+When multiple locks are needed on the same cgroup node, they must be
+acquired in this specific order:
+<code>Controller Lock</code> -&gt; <code>Inner Lock</code> -&gt; <code>Children Lock</code></p>
+</li>
+<li>
+<p><strong>Global Lock First</strong>:
+When acquiring the <code>Cgroup Membership Lock</code> along with any other cgroup locks,
+the <code>Cgroup Membership Lock</code> must be acquired first.</p>
+</li>
+</ol>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.CgroupMembership.html" title="struct aster_kernel::fs::fs_impls::cgroupfs::systree_node::CgroupMembership">Cgroup<wbr>Membership</a></dt><dd>A type that provides exclusive, synchronized access to modify cgroup membership.</dd><dt><a class="struct" href="struct.CgroupNode.html" title="struct aster_kernel::fs::fs_impls::cgroupfs::systree_node::CgroupNode">Cgroup<wbr>Node</a></dt><dd>A control group node in the cgroup systree.</dd><dt><a class="struct" href="struct.CgroupSystem.html" title="struct aster_kernel::fs::fs_impls::cgroupfs::systree_node::CgroupSystem">Cgroup<wbr>System</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>The root of a cgroup hierarchy, serving as the entry point to
+the entire cgroup control system.</dd><dt><a class="struct" href="struct.Inner.html" title="struct aster_kernel::fs::fs_impls::cgroupfs::systree_node::Inner">Inner</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.CgroupSysNode.html" title="trait aster_kernel::fs::fs_impls::cgroupfs::systree_node::CgroupSysNode">Cgroup<wbr>SysNode</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>A trait that abstracts over different types of cgroup nodes (<code>CgroupNode</code>, <code>CgroupSystem</code>)
+to provide a common API for controller logics.</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.read_subtree_control_from_reader.html" title="fn aster_kernel::fs::fs_impls::cgroupfs::systree_node::read_subtree_control_from_reader">read_<wbr>subtree_<wbr>control_<wbr>from_<wbr>reader</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Reads the actions for sub-control from the given reader.</dd><dt><a class="fn" href="fn.with_process_cgroup_locked.html" title="fn aster_kernel::fs::fs_impls::cgroupfs::systree_node::with_process_cgroup_locked">with_<wbr>process_<wbr>cgroup_<wbr>locked</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>A helper function to safely perform an operation on a process’s cgroup.</dd></dl></section></div></main></body></html>

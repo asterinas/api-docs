@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["FuncId","KeySym","SpecialHandler"],"fn":["get_keysym","init"],"static":["FUNC_TABLE","KEYMAPS"],"struct":["KeyMaps"],"type":["KeyBind"]};

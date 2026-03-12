@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["SysTreeNodeKind"],"mod":["ino"],"struct":["AttrDentryIter","Dentry","NodeDentryIter","ThisAndParentDentryIter"],"trait":["SysTreeInodeTy"],"type":["Ino"]};

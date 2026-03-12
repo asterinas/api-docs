@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["NLMSG_ALIGN"],"mod":["attr","result","segment"],"struct":["Message"],"trait":["ProtocolSegment"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["load_total_free_size"],"macro":["fast_smp_counter"],"static":["TOTAL_FREE_SIZE"],"struct":["FrameAllocator"]};

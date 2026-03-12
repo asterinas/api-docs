@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PidEvent"],"fn":["contain_process_group","get_process","get_process_group","get_session","group_table_mut","process_num","process_table_mut","register_observer","session_table_mut","unregister_observer"],"static":["PROCESS_GROUP_TABLE","PROCESS_TABLE","SESSION_TABLE"],"struct":["ProcessTable","ProcessTableIter"]};

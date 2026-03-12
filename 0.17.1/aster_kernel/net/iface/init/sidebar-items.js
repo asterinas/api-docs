@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["VIRTIO_DEVICE_NAME"],"fn":["init","iter_all_ifaces","loopback_iface","new_loopback","new_virtio","virtio_iface"],"static":["IFACES"]};

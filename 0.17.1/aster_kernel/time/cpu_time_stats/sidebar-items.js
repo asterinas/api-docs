@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["init","init_on_each_cpu","is_idle","update_cpu_statistics"],"static":["SINGLETON"],"struct":["CpuTimeStats","CpuTimeStatsManager"]};

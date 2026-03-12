@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["AtomicTFDFlags","AtomicTFDSetTimeFlags","TFDFlags","TFDSetTimeFlags","TimerfdFile"]};

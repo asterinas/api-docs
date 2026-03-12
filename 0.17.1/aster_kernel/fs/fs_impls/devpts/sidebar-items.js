@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BLOCK_SIZE","DEVPTS_MAGIC","FIRST_SLAVE_INO","MAX_PTY_NUM","PTMX_INO","ROOT_INO"],"fn":["init"],"mod":["ptmx","slave"],"struct":["DevPts","DevPtsType","RootInode"]};

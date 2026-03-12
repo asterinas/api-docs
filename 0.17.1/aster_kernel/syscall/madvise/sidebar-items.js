@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DUMMY_MADVISE"],"enum":["MadviseBehavior"],"fn":["sys_madvise"]};

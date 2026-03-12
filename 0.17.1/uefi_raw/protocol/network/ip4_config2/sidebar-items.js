@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Ip4Config2DataType","Ip4Config2InterfaceInfo","Ip4Config2ManualAddress","Ip4Config2Policy","Ip4Config2Protocol"]};

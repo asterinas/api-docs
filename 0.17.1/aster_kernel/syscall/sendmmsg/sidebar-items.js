@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["send_mmsg_hdrs","sys_sendmmsg"],"struct":["CMmsgHdr"]};

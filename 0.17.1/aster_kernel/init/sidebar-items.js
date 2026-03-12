@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["ap_idle_loop","ap_init","bsp_idle_loop","first_kthread","init","init_in_first_kthread","init_on_each_cpu","main","on_first_process_startup","print_banner"],"static":["INIT_PROCESS"]};

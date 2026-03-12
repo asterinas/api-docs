@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["init"],"mod":["file_system","inode","inode_ext","registry","xattr"]};

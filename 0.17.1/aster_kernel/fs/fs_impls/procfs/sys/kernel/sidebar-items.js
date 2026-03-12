@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["cap_last_cap","pid_max"],"struct":["KernelDirOps"]};

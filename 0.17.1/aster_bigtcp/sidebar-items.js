@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":["define_boolean_value"],"mod":["boolean_value","device","errors","ext","iface","socket","socket_table","time","wire"]};

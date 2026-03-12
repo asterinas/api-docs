@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["get_current_xattr_namespace","listxattr","sys_flistxattr","sys_listxattr","sys_llistxattr"]};

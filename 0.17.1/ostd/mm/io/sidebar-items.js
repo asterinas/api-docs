@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Fallible","Infallible"],"struct":["VmReader","VmWriter"],"trait":["FallibleVmRead","FallibleVmWrite","PodAtomic","PodOnce","VmIo","VmIoFill","VmIoOnce"]};

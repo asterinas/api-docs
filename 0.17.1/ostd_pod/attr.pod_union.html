@@ -1,0 +1,64 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="An attribute macro that enables safe usage of unions as POD types."><title>pod_union in ostd_pod - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="ostd_pod" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc attr"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">pod_union</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../ostd_pod/index.html">ostd_<wbr>pod</a><span class="version">0.4.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">pod_<wbr>union</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#implementation-details" title="Implementation details">Implementation details</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="index.html">In crate ostd_<wbr>pod</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">ostd_pod</a></div><h1>Attribute Macro <span class="attr">pod_<wbr>union</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"></span></div><pre class="rust item-decl"><code>#[pod_union]</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>An attribute macro that enables safe usage of unions as POD types.</p>
+<p>Rust’s built-in unions cannot directly derive <code>zerocopy::IntoBytes</code> because unions require
+field-by-field initialization and access. The <code>#[pod_union]</code> macro solves this by
+transforming a union into a safe wrapper struct.</p>
+<h2 id="implementation-details"><a class="doc-anchor" href="#implementation-details">§</a>Implementation details</h2>
+<p>When you write:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>ostd_pod_macros::pod_union;
+
+<span class="attr">#[repr(C)]
+#[pod_union]
+#[derive(Clone, Copy)]
+</span><span class="kw">pub union </span>Data {
+    value: u64,
+    bytes: [u8; <span class="number">4</span>],
+}</code></pre></div>
+<p>The <code>#[pod_union]</code> macro internally generates something equivalent to:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>ostd_pod::array_helper::{ArrayFactory, ArrayManufacture, U64Array};
+<span class="kw">use </span>ostd_pod::{FromBytes, FromZeros, Immutable, IntoBytes, KnownLayout, Pod};
+
+<span class="comment">// Internal private union
+</span><span class="attr">#[repr(C)]
+#[derive(FromBytes, KnownLayout, Immutable)]
+</span><span class="kw">union </span>__Data__ {
+    value: u64,
+    bytes: [u8; <span class="number">4</span>],
+}
+
+<span class="comment">// Public wrapper struct that provides safe access
+</span><span class="attr">#[repr(transparent)]
+#[derive(FromBytes, KnownLayout, Immutable, IntoBytes)]
+</span><span class="kw">pub struct </span>Data(&lt;ArrayFactory&lt;
+       { align_of::&lt;__Data__&gt;() },
+       { size_of::&lt;__Data__&gt;() / (align_of::&lt;__Data__&gt;()) },
+   &gt; <span class="kw">as </span>ArrayManufacture&gt;::Array);
+
+<span class="kw">impl </span>Data {
+    <span class="comment">// Field accessor methods
+    </span><span class="kw">pub fn </span>value(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>u64 {
+        u64::ref_from_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.as_bytes()[..<span class="number">8</span>]).unwrap()
+    }
+    <span class="kw">pub fn </span>value_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>u64 {
+        u64::mut_from_bytes(<span class="kw-2">&amp;mut </span><span class="self">self</span>.<span class="number">0</span>.as_mut_bytes()[..<span class="number">8</span>]).unwrap()
+    }
+    <span class="kw">pub fn </span>bytes(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[u8; <span class="number">4</span>] {
+        &lt;[u8; <span class="number">4</span>]&gt;::ref_from_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.as_bytes()[..<span class="number">4</span>]).unwrap()
+    }
+    <span class="kw">pub fn </span>bytes_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>[u8; <span class="number">4</span>] {
+        &lt;[u8; <span class="number">4</span>]&gt;::mut_from_bytes(<span class="kw-2">&amp;mut </span><span class="self">self</span>.<span class="number">0</span>.as_mut_bytes()[..<span class="number">4</span>]).unwrap()
+    }
+
+    <span class="comment">// Initializer methods
+    </span><span class="kw">pub fn </span>new_value(value: u64) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span><span class="kw-2">mut </span>slf = <span class="self">Self</span>::new_zeroed();
+        <span class="kw-2">*</span>slf.value_mut() = value;
+        slf
+    }
+    <span class="kw">pub fn </span>new_bytes(bytes: [u8; <span class="number">4</span>]) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span><span class="kw-2">mut </span>slf = <span class="self">Self</span>::new_zeroed();
+        <span class="kw-2">*</span>slf.bytes_mut() = bytes;
+        slf
+    }
+}</code></pre></div></div></details></section></div></main></body></html>

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["has_pending_signal"],"trait":["HandlePendingSignal"]};

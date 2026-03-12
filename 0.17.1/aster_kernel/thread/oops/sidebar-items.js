@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_OOPS_COUNT"],"fn":["__ostd_panic_handler","catch_panics_as_oops","panic_handler"],"static":["OOPS_COUNT","PANIC_ON_OOPS"],"struct":["OopsInfo"]};

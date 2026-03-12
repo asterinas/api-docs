@@ -1,0 +1,134 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="ostd-pod"><title>ostd_pod - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="ostd_pod" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate ostd_pod</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../ostd_pod/index.html">ostd_<wbr>pod</a><span class="version">0.4.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#ostd-pod" title="ostd-pod">ostd-pod</a><ul><li><a href="#features" title="Features">Features</a></li><li><a href="#what-is-a-pod-type" title="What is a POD Type?">What is a POD Type?</a></li><li><a href="#quick-start" title="Quick Start">Quick Start</a></li><li><a href="#advanced-usage" title="Advanced Usage">Advanced Usage</a></li><li><a href="#license" title="License">License</a></li></ul></li></ul><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#traits" title="Traits">Traits</a></li><li><a href="#attributes" title="Attribute Macros">Attribute Macros</a></li><li><a href="#derives" title="Derive Macros">Derive Macros</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>ostd_<wbr>pod</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/ostd_pod/lib.rs.html#3-50">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><!--
+To promote a "single source of truth", the content of `README.md` is also included in `lib.rs`
+as the crate-level documentation. So when writing this README, bear in mind that its content
+should be recognized correctly by both a Markdown renderer and the rustdoc tool.
+-->
+<h2 id="ostd-pod"><a class="doc-anchor" href="#ostd-pod">§</a>ostd-pod</h2>
+<p>A trait and macros for Plain Old Data (POD) types.</p>
+<p>This crate provides the <a href="https://docs.rs/ostd-pod/0.4.0/trait.Pod.html"><code>Pod</code></a> trait,
+which marks types that can be safely converted to and from arbitrary byte sequences.
+It’s built on top of the mature <a href="https://docs.rs/zerocopy/">zerocopy</a> crate to ensure type safety.</p>
+<h3 id="features"><a class="doc-anchor" href="#features">§</a>Features</h3>
+<ul>
+<li><strong>Safe Byte Conversion</strong>: POD types can be safely converted to byte sequences and created from
+byte sequences.</li>
+<li><strong>Based on zerocopy</strong>: Built on top of the <a href="https://docs.rs/zerocopy/">zerocopy</a> crate for type safety guarantees.</li>
+<li><strong>Derive Macro Support</strong>: Provides <code>#[derive(Pod)]</code> to simplify POD type definitions.</li>
+<li><strong>Union Support</strong>: Supports union types via the <code>#[pod_union]</code> macro.</li>
+<li><strong>Automatic Padding Management</strong>: Automatically handles padding bytes through the
+<code>#[padding_struct]</code> macro.</li>
+</ul>
+<h3 id="what-is-a-pod-type"><a class="doc-anchor" href="#what-is-a-pod-type">§</a>What is a POD Type?</h3>
+<p>A POD (Plain Old Data) type is a type
+that can be safely converted to and from an arbitrary byte sequence.
+For example, primitive types like <code>u8</code> and <code>i16</code> are POD types;
+yet, <code>bool</code> is not a POD type.
+A struct whose fields are POD types is also considered a POD.
+A union whose fields are all POD types is also a POD.
+The memory layout of any POD type is <code>#[repr(C)]</code>.</p>
+<h3 id="quick-start"><a class="doc-anchor" href="#quick-start">§</a>Quick Start</h3><h4 id="step-1-edit-your-cargotoml"><a class="doc-anchor" href="#step-1-edit-your-cargotoml">§</a>Step 1: Edit your <code>Cargo.toml</code></h4>
+<p>Add these dependencies to your <code>Cargo.toml</code>.</p>
+<div class="example-wrap"><pre class="language-toml"><code>[dependencies]
+ostd-pod = &quot;0.4.0&quot;
+zerocopy = { version = &quot;0.8.34&quot;, features = [&quot;derive&quot; ] }</code></pre></div>
+<p><code>zerocopy</code> must be explicitly specified as a dependency
+because <code>ostd-pod</code> relies on its procedural macros,
+which expand to compile-time checks that reference internal <code>zerocopy</code>
+types hardcoded to the <code>zerocopy</code> crate name.</p>
+<h4 id="step-2-edit-your-librs-or-mainrs"><a class="doc-anchor" href="#step-2-edit-your-librs-or-mainrs">§</a>Step 2: Edit your <code>lib.rs</code> (or <code>main.rs</code>)</h4>
+<p>Insert the following lines to your <code>lib.rs</code> or <code>main.rs</code>:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[macro_use]
+</span><span class="kw">extern crate </span>ostd_pod;</code></pre></div>
+<p>We import the <code>ostd_pod</code> crate with <code>extern</code> and <code>#[macro_use]</code>
+for the convenience of having Rust’s built-in <code>derive</code> attribute macro
+globally overridden by the custom <code>derive</code> attribute macro provided by this crate.
+This custom <code>derive</code> macro is needed
+because the <code>Pod</code> trait cannot be derived in the regular way as other traits.</p>
+<h4 id="step-3-define-your-first-pod-type"><a class="doc-anchor" href="#step-3-define-your-first-pod-type">§</a>Step 3: Define your first POD type</h4>
+<p>Now we can define a POD struct that
+can be converted to and from any byte sequence of the same size.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[macro_use]
+</span><span class="kw">extern crate </span>ostd_pod;
+<span class="kw">use </span>ostd_pod::{IntoBytes, FromBytes, Pod};
+
+<span class="attr">#[repr(C)]
+#[derive(Pod, Clone, Copy, Debug, PartialEq)]
+</span><span class="kw">struct </span>Point {
+    x: i32,
+    y: i32,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="kw">let </span>point = Point { x: <span class="number">10</span>, y: <span class="number">20 </span>};
+
+    <span class="comment">// Convert to bytes
+    </span><span class="kw">let </span>bytes = point.as_bytes();
+    <span class="macro">assert_eq!</span>(bytes, <span class="kw-2">&amp;</span>[<span class="number">10</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">20</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>]);
+
+    <span class="comment">// Create from bytes
+    </span><span class="kw">let </span>point2 = Point::from_bytes(bytes);
+    <span class="macro">assert_eq!</span>(point, point2);
+}</code></pre></div><h3 id="advanced-usage"><a class="doc-anchor" href="#advanced-usage">§</a>Advanced Usage</h3><h4 id="use-pod-unions"><a class="doc-anchor" href="#use-pod-unions">§</a>Use POD Unions</h4>
+<p>Union fields cannot be accessed safely because we cannot know which variant is currently active.
+To address this, we provide a <a href="https://docs.rs/ostd-pod/0.4.0/attr.pod_union.html"><code>pod_union</code></a> macro
+that enables safe access to union fields.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[macro_use]
+</span><span class="kw">extern crate </span>ostd_pod;
+<span class="kw">use </span>ostd_pod::{FromZeros, IntoBytes};
+
+<span class="attr">#[pod_union]
+#[derive(Copy, Clone)]
+#[repr(C)]
+</span><span class="kw">union </span>Data {
+    value: u64,
+    bytes: [u8; <span class="number">4</span>],
+}
+
+<span class="kw">fn </span>main() {
+    <span class="kw">let </span><span class="kw-2">mut </span>data = Data::new_value(<span class="number">0x1234567890ABCDEF</span>);
+
+    <span class="comment">// Access the same memory through different fields
+    </span><span class="macro">assert_eq!</span>(<span class="kw-2">*</span>data.value(), <span class="number">0x1234567890ABCDEF</span>);
+    <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>data.bytes(), [<span class="number">0xEF</span>, <span class="number">0xCD</span>, <span class="number">0xAB</span>, <span class="number">0x90</span>]);
+}</code></pre></div><h4 id="automatic-padding-handling"><a class="doc-anchor" href="#automatic-padding-handling">§</a>Automatic Padding Handling</h4>
+<p>When a struct has fields with different sizes,
+there may be implicit padding bytes between fields.
+The <a href="https://docs.rs/ostd-pod/0.4.0/attr.padding_struct.html"><code>padding_struct</code></a> macro automatically inserts explicit padding fields
+so the struct can be safely used as a POD type.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[macro_use]
+</span><span class="kw">extern crate </span>ostd_pod;
+<span class="kw">use </span>ostd_pod::IntoBytes;
+
+<span class="attr">#[repr(C)]
+#[padding_struct]
+#[derive(Pod, Clone, Copy, Debug, Default)]
+</span><span class="kw">struct </span>PackedData {
+    a: u8,
+    <span class="comment">// `padding_struct` automatically inserts 3 bytes of padding here
+    </span>b: u32,
+    c: u16,
+    <span class="comment">// `padding_struct` automatically inserts 2 bytes of padding here
+</span>}
+
+<span class="kw">fn </span>main() {
+    <span class="kw">let </span>data = PackedData {
+        a: <span class="number">1</span>,
+        b: <span class="number">2</span>,
+        c: <span class="number">3</span>,
+        ..Default::default()
+    };
+
+    <span class="comment">// Can safely convert to bytes, padding bytes are explicitly handled
+    </span><span class="kw">let </span>bytes = data.as_bytes();
+    <span class="macro">assert_eq!</span>(bytes.len(), <span class="number">12</span>);
+    <span class="macro">assert_eq!</span>(bytes, [<span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">2</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">3</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>]);
+}</code></pre></div><h3 id="license"><a class="doc-anchor" href="#license">§</a>License</h3>
+<p>This project is licensed under MPL-2.0.</p>
+<!--
+External links.
+-->
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="array_helper/index.html" title="mod ostd_pod::array_helper">array_<wbr>helper</a></dt><dd>Aligned array helpers for Pod types.</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.FromBytes.html" title="trait ostd_pod::FromBytes">From<wbr>Bytes</a></dt><dd>Types for which any bit pattern is valid.</dd><dt><a class="trait" href="trait.FromZeros.html" title="trait ostd_pod::FromZeros">From<wbr>Zeros</a></dt><dd>Types for which a sequence of <code>0</code> bytes is a valid instance.</dd><dt><a class="trait" href="trait.Immutable.html" title="trait ostd_pod::Immutable">Immutable</a></dt><dd>Types which are free from interior mutability.</dd><dt><a class="trait" href="trait.IntoBytes.html" title="trait ostd_pod::IntoBytes">Into<wbr>Bytes</a></dt><dd>Types that can be converted to an immutable slice of initialized bytes.</dd><dt><a class="trait" href="trait.KnownLayout.html" title="trait ostd_pod::KnownLayout">Known<wbr>Layout</a></dt><dd>Indicates that zerocopy can reason about certain aspects of a type’s layout.</dd><dt><a class="trait" href="trait.Pod.html" title="trait ostd_pod::Pod">Pod</a></dt><dd>A trait for plain old data (POD).</dd></dl><h2 id="attributes" class="section-header">Attribute Macros<a href="#attributes" class="anchor">§</a></h2><dl class="item-table"><dt><a class="attr" href="attr.derive.html" title="attr ostd_pod::derive">derive</a></dt><dd>An attribute macro that replaces <code>#[derive(Pod)]</code> with the corresponding zerocopy traits.</dd><dt><a class="attr" href="attr.padding_struct.html" title="attr ostd_pod::padding_struct">padding_<wbr>struct</a></dt><dd>Procedural macro to automatically add padding fields to a <code>#[repr(C)]</code> struct.</dd><dt><a class="attr" href="attr.pod_union.html" title="attr ostd_pod::pod_union">pod_<wbr>union</a></dt><dd>An attribute macro that enables safe usage of unions as POD types.</dd></dl><h2 id="derives" class="section-header">Derive Macros<a href="#derives" class="anchor">§</a></h2><dl class="item-table"><dt><a class="derive" href="derive.FromBytes.html" title="derive ostd_pod::FromBytes">From<wbr>Bytes</a></dt><dt><a class="derive" href="derive.FromZeros.html" title="derive ostd_pod::FromZeros">From<wbr>Zeros</a></dt><dt><a class="derive" href="derive.Immutable.html" title="derive ostd_pod::Immutable">Immutable</a></dt><dt><a class="derive" href="derive.IntoBytes.html" title="derive ostd_pod::IntoBytes">Into<wbr>Bytes</a></dt><dt><a class="derive" href="derive.KnownLayout.html" title="derive ostd_pod::KnownLayout">Known<wbr>Layout</a></dt></dl></section></div></main></body></html>

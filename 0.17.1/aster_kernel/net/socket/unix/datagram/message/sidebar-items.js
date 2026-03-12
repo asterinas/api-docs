@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["UNIX_DATAGRAM_DEFAULT_BUF_SIZE"],"static":["QUEUE_TABLE"],"struct":["Inner","Message","MessageQueue","MessageReceiver","QueueTable"]};

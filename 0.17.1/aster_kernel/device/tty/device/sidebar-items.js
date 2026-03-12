@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["init_in_first_process"],"struct":["SystemConsole","Tty0Device","TtyDevice"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["CowFiles","PollerResult"],"fn":["do_poll","do_sys_poll","sys_poll"],"struct":["PollFd","PollFiles","c_pollfd"]};

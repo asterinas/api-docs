@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EXT2_XATTR_MAGIC","XATTR_ALIGN","XATTR_ENTRY_SIZE","XATTR_ENTRY_VALUE_GAP","XATTR_HEADER_SIZE","XATTR_NBLOCKS"],"struct":["Xattr","XattrCache","XattrEntry","XattrHeader"]};

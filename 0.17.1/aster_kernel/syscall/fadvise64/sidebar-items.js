@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["FadviseBehavior"],"fn":["sys_fadvise64"]};

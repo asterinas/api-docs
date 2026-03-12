@@ -1,0 +1,444 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `kernel/src/sched/sched_class/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="aster_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../static.files/storage-e2aeef58.js"></script><script defer src="../../../../static.files/src-script-813739b1.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">aster_kernel/sched/sched_class/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="comment">// SPDX-License-Identifier: MPL-2.0
+<a href=#2 id=2 data-nosnippet>2</a>
+<a href=#3 id=3 data-nosnippet>3</a></span><span class="doccomment">//! Completely Fair Scheduler (CFS).
+<a href=#4 id=4 data-nosnippet>4</a>
+<a href=#5 id=5 data-nosnippet>5</a></span><span class="attr">#![warn(unused)]
+<a href=#6 id=6 data-nosnippet>6</a>
+<a href=#7 id=7 data-nosnippet>7</a></span><span class="kw">use </span>alloc::{boxed::Box, sync::Arc};
+<a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>core::{fmt, ops::Bound, sync::atomic::Ordering};
+<a href=#9 id=9 data-nosnippet>9</a>
+<a href=#10 id=10 data-nosnippet>10</a><span class="kw">use </span>ostd::{
+<a href=#11 id=11 data-nosnippet>11</a>    arch::read_tsc <span class="kw">as </span>sched_clock,
+<a href=#12 id=12 data-nosnippet>12</a>    cpu::{CpuId, CpuSet, PinCurrentCpu, all_cpus},
+<a href=#13 id=13 data-nosnippet>13</a>    irq::disable_local,
+<a href=#14 id=14 data-nosnippet>14</a>    sync::{LocalIrqDisabled, SpinLock},
+<a href=#15 id=15 data-nosnippet>15</a>    task::{
+<a href=#16 id=16 data-nosnippet>16</a>        AtomicCpuId, Task,
+<a href=#17 id=17 data-nosnippet>17</a>        scheduler::{
+<a href=#18 id=18 data-nosnippet>18</a>            EnqueueFlags, LocalRunQueue, Scheduler, UpdateFlags, enable_preemption_on_cpu,
+<a href=#19 id=19 data-nosnippet>19</a>            info::CommonSchedInfo, inject_scheduler,
+<a href=#20 id=20 data-nosnippet>20</a>        },
+<a href=#21 id=21 data-nosnippet>21</a>    },
+<a href=#22 id=22 data-nosnippet>22</a>    util::id_set::Id,
+<a href=#23 id=23 data-nosnippet>23</a>};
+<a href=#24 id=24 data-nosnippet>24</a>
+<a href=#25 id=25 data-nosnippet>25</a><span class="kw">use super</span>::{
+<a href=#26 id=26 data-nosnippet>26</a>    nice::Nice,
+<a href=#27 id=27 data-nosnippet>27</a>    stats::{SchedulerStats, set_stats_from_scheduler},
+<a href=#28 id=28 data-nosnippet>28</a>};
+<a href=#29 id=29 data-nosnippet>29</a><span class="kw">use </span><span class="kw">crate</span>::thread::{AsThread, Thread};
+<a href=#30 id=30 data-nosnippet>30</a>
+<a href=#31 id=31 data-nosnippet>31</a><span class="kw">mod </span>policy;
+<a href=#32 id=32 data-nosnippet>32</a><span class="kw">mod </span>time;
+<a href=#33 id=33 data-nosnippet>33</a>
+<a href=#34 id=34 data-nosnippet>34</a><span class="kw">mod </span>fair;
+<a href=#35 id=35 data-nosnippet>35</a><span class="kw">mod </span>idle;
+<a href=#36 id=36 data-nosnippet>36</a><span class="kw">mod </span>real_time;
+<a href=#37 id=37 data-nosnippet>37</a><span class="kw">mod </span>stop;
+<a href=#38 id=38 data-nosnippet>38</a>
+<a href=#39 id=39 data-nosnippet>39</a><span class="kw">use </span><span class="self">self</span>::policy::{SchedPolicyKind, SchedPolicyState};
+<a href=#40 id=40 data-nosnippet>40</a><span class="kw">pub use </span><span class="self">self</span>::{
+<a href=#41 id=41 data-nosnippet>41</a>    policy::SchedPolicy,
+<a href=#42 id=42 data-nosnippet>42</a>    real_time::{RealTimePolicy, RealTimePriority},
+<a href=#43 id=43 data-nosnippet>43</a>};
+<a href=#44 id=44 data-nosnippet>44</a>
+<a href=#45 id=45 data-nosnippet>45</a><span class="kw">type </span>SchedEntity = (Arc&lt;Task&gt;, Arc&lt;Thread&gt;);
+<a href=#46 id=46 data-nosnippet>46</a>
+<a href=#47 id=47 data-nosnippet>47</a><span class="kw">pub fn </span>init() {
+<a href=#48 id=48 data-nosnippet>48</a>    <span class="kw">let </span>scheduler = Box::leak(Box::new(ClassScheduler::new()));
+<a href=#49 id=49 data-nosnippet>49</a>
+<a href=#50 id=50 data-nosnippet>50</a>    <span class="comment">// Inject the scheduler into the ostd for actual scheduling work.
+<a href=#51 id=51 data-nosnippet>51</a>    </span>inject_scheduler(scheduler);
+<a href=#52 id=52 data-nosnippet>52</a>
+<a href=#53 id=53 data-nosnippet>53</a>    <span class="comment">// Set the scheduler into the system for statistics.
+<a href=#54 id=54 data-nosnippet>54</a>    // We set this after injecting the scheduler into ostd,
+<a href=#55 id=55 data-nosnippet>55</a>    // so that the loadavg statistics are updated after the scheduler is used.
+<a href=#56 id=56 data-nosnippet>56</a>    </span>set_stats_from_scheduler(scheduler);
+<a href=#57 id=57 data-nosnippet>57</a>}
+<a href=#58 id=58 data-nosnippet>58</a>
+<a href=#59 id=59 data-nosnippet>59</a><span class="kw">pub fn </span>init_on_each_cpu() {
+<a href=#60 id=60 data-nosnippet>60</a>    enable_preemption_on_cpu();
+<a href=#61 id=61 data-nosnippet>61</a>}
+<a href=#62 id=62 data-nosnippet>62</a>
+<a href=#63 id=63 data-nosnippet>63</a><span class="doccomment">/// Represents the middle layer between scheduling classes and generic scheduler
+<a href=#64 id=64 data-nosnippet>64</a>/// traits. It consists of all the sets of run queues for CPU cores. Other global
+<a href=#65 id=65 data-nosnippet>65</a>/// information may also be stored here.
+<a href=#66 id=66 data-nosnippet>66</a></span><span class="kw">pub struct </span>ClassScheduler {
+<a href=#67 id=67 data-nosnippet>67</a>    <span class="doccomment">/// The per-CPU runqueues.
+<a href=#68 id=68 data-nosnippet>68</a>    ///
+<a href=#69 id=69 data-nosnippet>69</a>    /// We use the `LocalIrqDisabled` marker for this spinlock to ensure local IRQs are always disabled,
+<a href=#70 id=70 data-nosnippet>70</a>    /// preventing potential deadlocks due to the fact that
+<a href=#71 id=71 data-nosnippet>71</a>    /// the runqueues may be accessed in both the task and interrupt context (L1 and L2).
+<a href=#72 id=72 data-nosnippet>72</a>    </span>rqs: Box&lt;[SpinLock&lt;PerCpuClassRqSet, LocalIrqDisabled&gt;]&gt;,
+<a href=#73 id=73 data-nosnippet>73</a>    last_chosen_cpu: AtomicCpuId,
+<a href=#74 id=74 data-nosnippet>74</a>}
+<a href=#75 id=75 data-nosnippet>75</a>
+<a href=#76 id=76 data-nosnippet>76</a><span class="doccomment">/// Represents the run queue for each CPU core. It stores a list of run queues for
+<a href=#77 id=77 data-nosnippet>77</a>/// scheduling classes in its corresponding CPU core. The current task of this CPU
+<a href=#78 id=78 data-nosnippet>78</a>/// core is also stored in this structure.
+<a href=#79 id=79 data-nosnippet>79</a></span><span class="kw">struct </span>PerCpuClassRqSet {
+<a href=#80 id=80 data-nosnippet>80</a>    stop: stop::StopClassRq,
+<a href=#81 id=81 data-nosnippet>81</a>    real_time: real_time::RealTimeClassRq,
+<a href=#82 id=82 data-nosnippet>82</a>    fair: fair::FairClassRq,
+<a href=#83 id=83 data-nosnippet>83</a>    idle: idle::IdleClassRq,
+<a href=#84 id=84 data-nosnippet>84</a>    current: <span class="prelude-ty">Option</span>&lt;(SchedEntity, CurrentRuntime)&gt;,
+<a href=#85 id=85 data-nosnippet>85</a>}
+<a href=#86 id=86 data-nosnippet>86</a>
+<a href=#87 id=87 data-nosnippet>87</a><span class="doccomment">/// Stores the runtime information of the current task.
+<a href=#88 id=88 data-nosnippet>88</a>///
+<a href=#89 id=89 data-nosnippet>89</a>/// This is used to calculate the time slice of the current task.
+<a href=#90 id=90 data-nosnippet>90</a>///
+<a href=#91 id=91 data-nosnippet>91</a>/// This struct is independent of the current `Arc&lt;Task&gt;` instead encapsulating the
+<a href=#92 id=92 data-nosnippet>92</a>/// task, because the scheduling class implementations use `CurrentRuntime` and
+<a href=#93 id=93 data-nosnippet>93</a>/// `SchedAttr` only.
+<a href=#94 id=94 data-nosnippet>94</a></span><span class="kw">struct </span>CurrentRuntime {
+<a href=#95 id=95 data-nosnippet>95</a>    start: u64,
+<a href=#96 id=96 data-nosnippet>96</a>    delta: u64,
+<a href=#97 id=97 data-nosnippet>97</a>    period_delta: u64,
+<a href=#98 id=98 data-nosnippet>98</a>}
+<a href=#99 id=99 data-nosnippet>99</a>
+<a href=#100 id=100 data-nosnippet>100</a><span class="kw">impl </span>CurrentRuntime {
+<a href=#101 id=101 data-nosnippet>101</a>    <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
+<a href=#102 id=102 data-nosnippet>102</a>        CurrentRuntime {
+<a href=#103 id=103 data-nosnippet>103</a>            start: sched_clock(),
+<a href=#104 id=104 data-nosnippet>104</a>            delta: <span class="number">0</span>,
+<a href=#105 id=105 data-nosnippet>105</a>            period_delta: <span class="number">0</span>,
+<a href=#106 id=106 data-nosnippet>106</a>        }
+<a href=#107 id=107 data-nosnippet>107</a>    }
+<a href=#108 id=108 data-nosnippet>108</a>
+<a href=#109 id=109 data-nosnippet>109</a>    <span class="kw">fn </span>update(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#110 id=110 data-nosnippet>110</a>        <span class="kw">let </span>now = sched_clock();
+<a href=#111 id=111 data-nosnippet>111</a>        <span class="self">self</span>.delta = now - core::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.start, now);
+<a href=#112 id=112 data-nosnippet>112</a>        <span class="self">self</span>.period_delta += <span class="self">self</span>.delta;
+<a href=#113 id=113 data-nosnippet>113</a>    }
+<a href=#114 id=114 data-nosnippet>114</a>}
+<a href=#115 id=115 data-nosnippet>115</a>
+<a href=#116 id=116 data-nosnippet>116</a><span class="doccomment">/// The run queue for scheduling classes (the main trait). Scheduling classes
+<a href=#117 id=117 data-nosnippet>117</a>/// should implement this trait to function as expected.
+<a href=#118 id=118 data-nosnippet>118</a></span><span class="kw">trait </span>SchedClassRq: Send + fmt::Debug {
+<a href=#119 id=119 data-nosnippet>119</a>    <span class="doccomment">/// Enqueues a task into the run queue.
+<a href=#120 id=120 data-nosnippet>120</a>    </span><span class="kw">fn </span>enqueue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, task: Arc&lt;Task&gt;, flags: <span class="prelude-ty">Option</span>&lt;EnqueueFlags&gt;);
+<a href=#121 id=121 data-nosnippet>121</a>
+<a href=#122 id=122 data-nosnippet>122</a>    <span class="doccomment">/// Returns the number of threads in the run queue.
+<a href=#123 id=123 data-nosnippet>123</a>    </span><span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize;
+<a href=#124 id=124 data-nosnippet>124</a>
+<a href=#125 id=125 data-nosnippet>125</a>    <span class="doccomment">/// Checks if the run queue is empty.
+<a href=#126 id=126 data-nosnippet>126</a>    </span><span class="kw">fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#127 id=127 data-nosnippet>127</a>        <span class="self">self</span>.len() == <span class="number">0
+<a href=#128 id=128 data-nosnippet>128</a>    </span>}
+<a href=#129 id=129 data-nosnippet>129</a>
+<a href=#130 id=130 data-nosnippet>130</a>    <span class="doccomment">/// Picks the next task for running.
+<a href=#131 id=131 data-nosnippet>131</a>    </span><span class="kw">fn </span>pick_next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Arc&lt;Task&gt;&gt;;
+<a href=#132 id=132 data-nosnippet>132</a>
+<a href=#133 id=133 data-nosnippet>133</a>    <span class="doccomment">/// Update the information of the current task.
+<a href=#134 id=134 data-nosnippet>134</a>    ///
+<a href=#135 id=135 data-nosnippet>135</a>    /// The return value of this method indicates whether there is another task
+<a href=#136 id=136 data-nosnippet>136</a>    /// **in this run queue** to replace the current one.
+<a href=#137 id=137 data-nosnippet>137</a>    </span><span class="kw">fn </span>update_current(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rt: <span class="kw-2">&amp;</span>CurrentRuntime, attr: <span class="kw-2">&amp;</span>SchedAttr, flags: UpdateFlags)
+<a href=#138 id=138 data-nosnippet>138</a>    -&gt; bool;
+<a href=#139 id=139 data-nosnippet>139</a>}
+<a href=#140 id=140 data-nosnippet>140</a>
+<a href=#141 id=141 data-nosnippet>141</a><span class="doccomment">/// The scheduling attribute for a thread.
+<a href=#142 id=142 data-nosnippet>142</a>///
+<a href=#143 id=143 data-nosnippet>143</a>/// This is used to store the scheduling policy and runtime parameters for each
+<a href=#144 id=144 data-nosnippet>144</a>/// scheduling class.
+<a href=#145 id=145 data-nosnippet>145</a></span><span class="attr">#[derive(Debug)]
+<a href=#146 id=146 data-nosnippet>146</a></span><span class="kw">pub struct </span>SchedAttr {
+<a href=#147 id=147 data-nosnippet>147</a>    policy: SchedPolicyState,
+<a href=#148 id=148 data-nosnippet>148</a>    last_cpu: AtomicCpuId,
+<a href=#149 id=149 data-nosnippet>149</a>    real_time: real_time::RealTimeAttr,
+<a href=#150 id=150 data-nosnippet>150</a>    fair: fair::FairAttr,
+<a href=#151 id=151 data-nosnippet>151</a>}
+<a href=#152 id=152 data-nosnippet>152</a>
+<a href=#153 id=153 data-nosnippet>153</a><span class="kw">impl </span>SchedAttr {
+<a href=#154 id=154 data-nosnippet>154</a>    <span class="doccomment">/// Constructs a new `SchedAttr` with the given scheduling policy.
+<a href=#155 id=155 data-nosnippet>155</a>    </span><span class="kw">pub fn </span>new(policy: SchedPolicy) -&gt; <span class="self">Self </span>{
+<a href=#156 id=156 data-nosnippet>156</a>        <span class="self">Self </span>{
+<a href=#157 id=157 data-nosnippet>157</a>            policy: SchedPolicyState::new(policy),
+<a href=#158 id=158 data-nosnippet>158</a>            last_cpu: AtomicCpuId::default(),
+<a href=#159 id=159 data-nosnippet>159</a>            real_time: {
+<a href=#160 id=160 data-nosnippet>160</a>                <span class="kw">let </span>(prio, policy) = <span class="kw">match </span>policy {
+<a href=#161 id=161 data-nosnippet>161</a>                    SchedPolicy::RealTime { rt_prio, rt_policy } =&gt; (rt_prio.get(), rt_policy),
+<a href=#162 id=162 data-nosnippet>162</a>                    <span class="kw">_ </span>=&gt; (real_time::RealTimePriority::MAX.get(), Default::default()),
+<a href=#163 id=163 data-nosnippet>163</a>                };
+<a href=#164 id=164 data-nosnippet>164</a>                real_time::RealTimeAttr::new(prio, policy)
+<a href=#165 id=165 data-nosnippet>165</a>            },
+<a href=#166 id=166 data-nosnippet>166</a>            fair: fair::FairAttr::new(<span class="kw">match </span>policy {
+<a href=#167 id=167 data-nosnippet>167</a>                SchedPolicy::Fair(nice) =&gt; nice,
+<a href=#168 id=168 data-nosnippet>168</a>                <span class="kw">_ </span>=&gt; Nice::default(),
+<a href=#169 id=169 data-nosnippet>169</a>            }),
+<a href=#170 id=170 data-nosnippet>170</a>        }
+<a href=#171 id=171 data-nosnippet>171</a>    }
+<a href=#172 id=172 data-nosnippet>172</a>
+<a href=#173 id=173 data-nosnippet>173</a>    <span class="doccomment">/// Retrieves the current scheduling policy of the thread.
+<a href=#174 id=174 data-nosnippet>174</a>    </span><span class="kw">pub fn </span>policy(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SchedPolicy {
+<a href=#175 id=175 data-nosnippet>175</a>        <span class="self">self</span>.policy.get()
+<a href=#176 id=176 data-nosnippet>176</a>    }
+<a href=#177 id=177 data-nosnippet>177</a>
+<a href=#178 id=178 data-nosnippet>178</a>    <span class="kw">fn </span>policy_kind(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SchedPolicyKind {
+<a href=#179 id=179 data-nosnippet>179</a>        <span class="self">self</span>.policy.kind()
+<a href=#180 id=180 data-nosnippet>180</a>    }
+<a href=#181 id=181 data-nosnippet>181</a>
+<a href=#182 id=182 data-nosnippet>182</a>    <span class="doccomment">/// Updates the scheduling policy of the thread.
+<a href=#183 id=183 data-nosnippet>183</a>    ///
+<a href=#184 id=184 data-nosnippet>184</a>    /// Specifically for real-time policies, if the new policy doesn't
+<a href=#185 id=185 data-nosnippet>185</a>    /// specify a base slice factor for RR, the old one will be kept.
+<a href=#186 id=186 data-nosnippet>186</a>    </span><span class="kw">pub fn </span>set_policy(<span class="kw-2">&amp;</span><span class="self">self</span>, policy: SchedPolicy) {
+<a href=#187 id=187 data-nosnippet>187</a>        <span class="self">self</span>.policy.set(policy, |policy| <span class="kw">match </span>policy {
+<a href=#188 id=188 data-nosnippet>188</a>            SchedPolicy::RealTime { rt_prio, rt_policy } =&gt; {
+<a href=#189 id=189 data-nosnippet>189</a>                <span class="self">self</span>.real_time.update(rt_prio.get(), rt_policy);
+<a href=#190 id=190 data-nosnippet>190</a>            }
+<a href=#191 id=191 data-nosnippet>191</a>            SchedPolicy::Fair(nice) =&gt; <span class="self">self</span>.fair.update(nice),
+<a href=#192 id=192 data-nosnippet>192</a>            <span class="kw">_ </span>=&gt; {}
+<a href=#193 id=193 data-nosnippet>193</a>        });
+<a href=#194 id=194 data-nosnippet>194</a>    }
+<a href=#195 id=195 data-nosnippet>195</a>
+<a href=#196 id=196 data-nosnippet>196</a>    <span class="kw">pub fn </span>update_policy&lt;T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>SchedPolicy) -&gt; T) -&gt; T {
+<a href=#197 id=197 data-nosnippet>197</a>        <span class="self">self</span>.policy.update(|policy| {
+<a href=#198 id=198 data-nosnippet>198</a>            <span class="kw">let </span>ret = f(policy);
+<a href=#199 id=199 data-nosnippet>199</a>            <span class="kw">match </span><span class="kw-2">*</span>policy {
+<a href=#200 id=200 data-nosnippet>200</a>                SchedPolicy::RealTime { rt_prio, rt_policy } =&gt; {
+<a href=#201 id=201 data-nosnippet>201</a>                    <span class="self">self</span>.real_time.update(rt_prio.get(), rt_policy);
+<a href=#202 id=202 data-nosnippet>202</a>                }
+<a href=#203 id=203 data-nosnippet>203</a>                SchedPolicy::Fair(nice) =&gt; <span class="self">self</span>.fair.update(nice),
+<a href=#204 id=204 data-nosnippet>204</a>                <span class="kw">_ </span>=&gt; {}
+<a href=#205 id=205 data-nosnippet>205</a>            }
+<a href=#206 id=206 data-nosnippet>206</a>            ret
+<a href=#207 id=207 data-nosnippet>207</a>        })
+<a href=#208 id=208 data-nosnippet>208</a>    }
+<a href=#209 id=209 data-nosnippet>209</a>
+<a href=#210 id=210 data-nosnippet>210</a>    <span class="kw">fn </span>last_cpu(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;CpuId&gt; {
+<a href=#211 id=211 data-nosnippet>211</a>        <span class="self">self</span>.last_cpu.get()
+<a href=#212 id=212 data-nosnippet>212</a>    }
+<a href=#213 id=213 data-nosnippet>213</a>
+<a href=#214 id=214 data-nosnippet>214</a>    <span class="kw">fn </span>set_last_cpu(<span class="kw-2">&amp;</span><span class="self">self</span>, cpu_id: CpuId) {
+<a href=#215 id=215 data-nosnippet>215</a>        <span class="self">self</span>.last_cpu.set_anyway(cpu_id);
+<a href=#216 id=216 data-nosnippet>216</a>    }
+<a href=#217 id=217 data-nosnippet>217</a>}
+<a href=#218 id=218 data-nosnippet>218</a>
+<a href=#219 id=219 data-nosnippet>219</a><span class="kw">impl </span>Scheduler <span class="kw">for </span>ClassScheduler {
+<a href=#220 id=220 data-nosnippet>220</a>    <span class="kw">fn </span>enqueue(<span class="kw-2">&amp;</span><span class="self">self</span>, task: Arc&lt;Task&gt;, flags: EnqueueFlags) -&gt; <span class="prelude-ty">Option</span>&lt;CpuId&gt; {
+<a href=#221 id=221 data-nosnippet>221</a>        <span class="kw">let </span>thread = task.as_thread()<span class="question-mark">?</span>.clone();
+<a href=#222 id=222 data-nosnippet>222</a>
+<a href=#223 id=223 data-nosnippet>223</a>        <span class="kw">let </span>(still_in_rq, cpu) = {
+<a href=#224 id=224 data-nosnippet>224</a>            <span class="kw">let </span>selected_cpu_id = <span class="self">self</span>.select_cpu(<span class="kw-2">&amp;</span>thread, flags);
+<a href=#225 id=225 data-nosnippet>225</a>
+<a href=#226 id=226 data-nosnippet>226</a>            <span class="kw">if let </span><span class="prelude-val">Err</span>(task_cpu_id) = task.cpu().set_if_is_none(selected_cpu_id) {
+<a href=#227 id=227 data-nosnippet>227</a>                <span class="macro">debug_assert!</span>(<span class="macro">flags !</span>= EnqueueFlags::Spawn);
+<a href=#228 id=228 data-nosnippet>228</a>                (<span class="bool-val">true</span>, task_cpu_id)
+<a href=#229 id=229 data-nosnippet>229</a>            } <span class="kw">else </span>{
+<a href=#230 id=230 data-nosnippet>230</a>                (<span class="bool-val">false</span>, selected_cpu_id)
+<a href=#231 id=231 data-nosnippet>231</a>            }
+<a href=#232 id=232 data-nosnippet>232</a>        };
+<a href=#233 id=233 data-nosnippet>233</a>
+<a href=#234 id=234 data-nosnippet>234</a>        <span class="kw">let </span><span class="kw-2">mut </span>rq = <span class="self">self</span>.rqs[cpu.as_usize()].lock();
+<a href=#235 id=235 data-nosnippet>235</a>
+<a href=#236 id=236 data-nosnippet>236</a>        <span class="comment">// Note: call set_if_is_none again to prevent a race condition.
+<a href=#237 id=237 data-nosnippet>237</a>        </span><span class="kw">if </span>still_in_rq &amp;&amp; task.cpu().set_if_is_none(cpu).is_err() {
+<a href=#238 id=238 data-nosnippet>238</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#239 id=239 data-nosnippet>239</a>        }
+<a href=#240 id=240 data-nosnippet>240</a>
+<a href=#241 id=241 data-nosnippet>241</a>        <span class="comment">// Preempt if the new task has a higher priority.
+<a href=#242 id=242 data-nosnippet>242</a>        </span><span class="kw">let </span>should_preempt = rq
+<a href=#243 id=243 data-nosnippet>243</a>            .current
+<a href=#244 id=244 data-nosnippet>244</a>            .as_ref()
+<a href=#245 id=245 data-nosnippet>245</a>            .is_none_or(|((<span class="kw">_</span>, rq_current_thread), <span class="kw">_</span>)| {
+<a href=#246 id=246 data-nosnippet>246</a>                thread.sched_attr().policy() &lt; rq_current_thread.sched_attr().policy()
+<a href=#247 id=247 data-nosnippet>247</a>            });
+<a href=#248 id=248 data-nosnippet>248</a>
+<a href=#249 id=249 data-nosnippet>249</a>        thread.sched_attr().set_last_cpu(cpu);
+<a href=#250 id=250 data-nosnippet>250</a>        rq.enqueue_entity((task, thread), <span class="prelude-val">Some</span>(flags));
+<a href=#251 id=251 data-nosnippet>251</a>
+<a href=#252 id=252 data-nosnippet>252</a>        should_preempt.then_some(cpu)
+<a href=#253 id=253 data-nosnippet>253</a>    }
+<a href=#254 id=254 data-nosnippet>254</a>
+<a href=#255 id=255 data-nosnippet>255</a>    <span class="kw">fn </span>mut_local_rq_with(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>FnMut(<span class="kw-2">&amp;mut </span><span class="kw">dyn </span>LocalRunQueue)) {
+<a href=#256 id=256 data-nosnippet>256</a>        <span class="kw">let </span>guard = disable_local();
+<a href=#257 id=257 data-nosnippet>257</a>        <span class="kw">let </span><span class="kw-2">mut </span>lock = <span class="self">self</span>.rqs[guard.current_cpu().as_usize()].lock();
+<a href=#258 id=258 data-nosnippet>258</a>        f(<span class="kw-2">&amp;mut *</span>lock)
+<a href=#259 id=259 data-nosnippet>259</a>    }
+<a href=#260 id=260 data-nosnippet>260</a>
+<a href=#261 id=261 data-nosnippet>261</a>    <span class="kw">fn </span>local_rq_with(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>FnMut(<span class="kw-2">&amp;</span><span class="kw">dyn </span>LocalRunQueue)) {
+<a href=#262 id=262 data-nosnippet>262</a>        <span class="kw">let </span>guard = disable_local();
+<a href=#263 id=263 data-nosnippet>263</a>        f(<span class="kw-2">&amp;*</span><span class="self">self</span>.rqs[guard.current_cpu().as_usize()].lock())
+<a href=#264 id=264 data-nosnippet>264</a>    }
+<a href=#265 id=265 data-nosnippet>265</a>}
+<a href=#266 id=266 data-nosnippet>266</a>
+<a href=#267 id=267 data-nosnippet>267</a><span class="kw">impl </span>ClassScheduler {
+<a href=#268 id=268 data-nosnippet>268</a>    <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
+<a href=#269 id=269 data-nosnippet>269</a>        <span class="kw">let </span>class_rq = |cpu| {
+<a href=#270 id=270 data-nosnippet>270</a>            SpinLock::new(PerCpuClassRqSet {
+<a href=#271 id=271 data-nosnippet>271</a>                stop: stop::StopClassRq::new(),
+<a href=#272 id=272 data-nosnippet>272</a>                real_time: real_time::RealTimeClassRq::new(cpu),
+<a href=#273 id=273 data-nosnippet>273</a>                fair: fair::FairClassRq::new(cpu),
+<a href=#274 id=274 data-nosnippet>274</a>                idle: idle::IdleClassRq::new(),
+<a href=#275 id=275 data-nosnippet>275</a>                current: <span class="prelude-val">None</span>,
+<a href=#276 id=276 data-nosnippet>276</a>            })
+<a href=#277 id=277 data-nosnippet>277</a>        };
+<a href=#278 id=278 data-nosnippet>278</a>        ClassScheduler {
+<a href=#279 id=279 data-nosnippet>279</a>            rqs: all_cpus().map(class_rq).collect(),
+<a href=#280 id=280 data-nosnippet>280</a>            last_chosen_cpu: AtomicCpuId::default(),
+<a href=#281 id=281 data-nosnippet>281</a>        }
+<a href=#282 id=282 data-nosnippet>282</a>    }
+<a href=#283 id=283 data-nosnippet>283</a>
+<a href=#284 id=284 data-nosnippet>284</a>    <span class="comment">// TODO: Implement a better algorithm and replace the current naive implementation.
+<a href=#285 id=285 data-nosnippet>285</a>    </span><span class="kw">fn </span>select_cpu(<span class="kw-2">&amp;</span><span class="self">self</span>, thread: <span class="kw-2">&amp;</span>Thread, flags: EnqueueFlags) -&gt; CpuId {
+<a href=#286 id=286 data-nosnippet>286</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(last_cpu) = thread.sched_attr().last_cpu() {
+<a href=#287 id=287 data-nosnippet>287</a>            <span class="kw">return </span>last_cpu;
+<a href=#288 id=288 data-nosnippet>288</a>        }
+<a href=#289 id=289 data-nosnippet>289</a>        <span class="macro">debug_assert!</span>(flags == EnqueueFlags::Spawn);
+<a href=#290 id=290 data-nosnippet>290</a>
+<a href=#291 id=291 data-nosnippet>291</a>        <span class="kw">let </span>guard = disable_local();
+<a href=#292 id=292 data-nosnippet>292</a>
+<a href=#293 id=293 data-nosnippet>293</a>        <span class="kw">let </span><span class="kw-2">mut </span>selected = guard.current_cpu();
+<a href=#294 id=294 data-nosnippet>294</a>        <span class="kw">let </span><span class="kw-2">mut </span>minimum_load = u32::MAX;
+<a href=#295 id=295 data-nosnippet>295</a>
+<a href=#296 id=296 data-nosnippet>296</a>        <span class="comment">// Set `selected` as `candidate` if the candidate's load is smaller.
+<a href=#297 id=297 data-nosnippet>297</a>        </span><span class="kw">let </span>test_candidate = |candidate: CpuId| {
+<a href=#298 id=298 data-nosnippet>298</a>            <span class="kw">let </span>PerCpuLoadStats { queue_len, .. } =
+<a href=#299 id=299 data-nosnippet>299</a>                <span class="self">self</span>.rqs[candidate.as_usize()].lock().load_stats();
+<a href=#300 id=300 data-nosnippet>300</a>            <span class="kw">let </span>load = queue_len;
+<a href=#301 id=301 data-nosnippet>301</a>            <span class="kw">if </span>load &lt; minimum_load {
+<a href=#302 id=302 data-nosnippet>302</a>                minimum_load = load;
+<a href=#303 id=303 data-nosnippet>303</a>                selected = candidate;
+<a href=#304 id=304 data-nosnippet>304</a>            }
+<a href=#305 id=305 data-nosnippet>305</a>        };
+<a href=#306 id=306 data-nosnippet>306</a>
+<a href=#307 id=307 data-nosnippet>307</a>        <span class="kw">let </span>affinity = thread.atomic_cpu_affinity().load(Ordering::Relaxed);
+<a href=#308 id=308 data-nosnippet>308</a>        <span class="kw">match </span><span class="self">self</span>.last_chosen_cpu.get() {
+<a href=#309 id=309 data-nosnippet>309</a>            <span class="prelude-val">Some</span>(cpu) =&gt; {
+<a href=#310 id=310 data-nosnippet>310</a>                <span class="comment">// Perform a round-robin selection starting after the last chosen CPU.
+<a href=#311 id=311 data-nosnippet>311</a>                //
+<a href=#312 id=312 data-nosnippet>312</a>                // It still checks every CPU in the affinity set to find the one with the
+<a href=#313 id=313 data-nosnippet>313</a>                // minimum load, but avoids selecting the same CPU again in case of a tie.
+<a href=#314 id=314 data-nosnippet>314</a>                </span><span class="self">Self</span>::cycle_after(cpu, <span class="kw-2">&amp;</span>affinity).for_each(test_candidate)
+<a href=#315 id=315 data-nosnippet>315</a>            }
+<a href=#316 id=316 data-nosnippet>316</a>            <span class="prelude-val">None </span>=&gt; affinity.iter().for_each(test_candidate),
+<a href=#317 id=317 data-nosnippet>317</a>        }
+<a href=#318 id=318 data-nosnippet>318</a>
+<a href=#319 id=319 data-nosnippet>319</a>        <span class="self">self</span>.last_chosen_cpu.set_anyway(selected);
+<a href=#320 id=320 data-nosnippet>320</a>        selected
+<a href=#321 id=321 data-nosnippet>321</a>    }
+<a href=#322 id=322 data-nosnippet>322</a>
+<a href=#323 id=323 data-nosnippet>323</a>    <span class="doccomment">/// Returns a cycling iterator over the CPUs in the [`CpuSet`], starting *after*
+<a href=#324 id=324 data-nosnippet>324</a>    /// the given [`CpuId`].
+<a href=#325 id=325 data-nosnippet>325</a>    ///
+<a href=#326 id=326 data-nosnippet>326</a>    /// The iteration order is ascending up to the wrapping point, after which it
+<a href=#327 id=327 data-nosnippet>327</a>    /// continues from the first CPU in the set in ascending order again.
+<a href=#328 id=328 data-nosnippet>328</a>    ///
+<a href=#329 id=329 data-nosnippet>329</a>    /// If the given [`CpuId`] is in the set, it will be the last element yielded.
+<a href=#330 id=330 data-nosnippet>330</a>    </span><span class="kw">fn </span>cycle_after(cpu: CpuId, cpu_set: <span class="kw-2">&amp;</span>CpuSet) -&gt; <span class="kw">impl </span>Iterator&lt;Item = CpuId&gt; + <span class="lifetime">'_ </span>{
+<a href=#331 id=331 data-nosnippet>331</a>        cpu_set
+<a href=#332 id=332 data-nosnippet>332</a>            .iter_in((Bound::Excluded(cpu), Bound::Unbounded))
+<a href=#333 id=333 data-nosnippet>333</a>            .chain(cpu_set.iter_in(..=cpu))
+<a href=#334 id=334 data-nosnippet>334</a>    }
+<a href=#335 id=335 data-nosnippet>335</a>}
+<a href=#336 id=336 data-nosnippet>336</a>
+<a href=#337 id=337 data-nosnippet>337</a><span class="kw">impl </span>PerCpuClassRqSet {
+<a href=#338 id=338 data-nosnippet>338</a>    <span class="kw">fn </span>pick_next_entity(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;SchedEntity&gt; {
+<a href=#339 id=339 data-nosnippet>339</a>        (<span class="self">self</span>.stop.pick_next())
+<a href=#340 id=340 data-nosnippet>340</a>            .or_else(|| <span class="self">self</span>.real_time.pick_next())
+<a href=#341 id=341 data-nosnippet>341</a>            .or_else(|| <span class="self">self</span>.fair.pick_next())
+<a href=#342 id=342 data-nosnippet>342</a>            .or_else(|| <span class="self">self</span>.idle.pick_next())
+<a href=#343 id=343 data-nosnippet>343</a>            .and_then(|task| {
+<a href=#344 id=344 data-nosnippet>344</a>                <span class="kw">let </span>thread = task.as_thread()<span class="question-mark">?</span>.clone();
+<a href=#345 id=345 data-nosnippet>345</a>                <span class="prelude-val">Some</span>((task, thread))
+<a href=#346 id=346 data-nosnippet>346</a>            })
+<a href=#347 id=347 data-nosnippet>347</a>    }
+<a href=#348 id=348 data-nosnippet>348</a>
+<a href=#349 id=349 data-nosnippet>349</a>    <span class="kw">fn </span>enqueue_entity(<span class="kw-2">&amp;mut </span><span class="self">self</span>, (task, thread): SchedEntity, flags: <span class="prelude-ty">Option</span>&lt;EnqueueFlags&gt;) {
+<a href=#350 id=350 data-nosnippet>350</a>        <span class="kw">match </span>thread.sched_attr().policy_kind() {
+<a href=#351 id=351 data-nosnippet>351</a>            SchedPolicyKind::Stop =&gt; <span class="self">self</span>.stop.enqueue(task, flags),
+<a href=#352 id=352 data-nosnippet>352</a>            SchedPolicyKind::RealTime =&gt; <span class="self">self</span>.real_time.enqueue(task, flags),
+<a href=#353 id=353 data-nosnippet>353</a>            SchedPolicyKind::Fair =&gt; <span class="self">self</span>.fair.enqueue(task, flags),
+<a href=#354 id=354 data-nosnippet>354</a>            SchedPolicyKind::Idle =&gt; <span class="self">self</span>.idle.enqueue(task, flags),
+<a href=#355 id=355 data-nosnippet>355</a>        }
+<a href=#356 id=356 data-nosnippet>356</a>    }
+<a href=#357 id=357 data-nosnippet>357</a>
+<a href=#358 id=358 data-nosnippet>358</a>    <span class="kw">fn </span>load_stats(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PerCpuLoadStats {
+<a href=#359 id=359 data-nosnippet>359</a>        <span class="kw">let </span>queue_len = (<span class="self">self</span>.stop.len() + <span class="self">self</span>.real_time.len() + <span class="self">self</span>.fair.len()) <span class="kw">as </span>u32;
+<a href=#360 id=360 data-nosnippet>360</a>        <span class="kw">let </span>is_idle = <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.current {
+<a href=#361 id=361 data-nosnippet>361</a>            <span class="prelude-val">Some</span>(((<span class="kw">_</span>, thread), <span class="kw">_</span>)) =&gt; thread.sched_attr().policy_kind() == SchedPolicyKind::Idle,
+<a href=#362 id=362 data-nosnippet>362</a>            <span class="prelude-val">None </span>=&gt; <span class="bool-val">true</span>,
+<a href=#363 id=363 data-nosnippet>363</a>        };
+<a href=#364 id=364 data-nosnippet>364</a>        PerCpuLoadStats { queue_len, is_idle }
+<a href=#365 id=365 data-nosnippet>365</a>    }
+<a href=#366 id=366 data-nosnippet>366</a>}
+<a href=#367 id=367 data-nosnippet>367</a>
+<a href=#368 id=368 data-nosnippet>368</a><span class="kw">impl </span>LocalRunQueue <span class="kw">for </span>PerCpuClassRqSet {
+<a href=#369 id=369 data-nosnippet>369</a>    <span class="kw">fn </span>current(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Arc&lt;Task&gt;&gt; {
+<a href=#370 id=370 data-nosnippet>370</a>        <span class="self">self</span>.current.as_ref().map(|((task, <span class="kw">_</span>), <span class="kw">_</span>)| task)
+<a href=#371 id=371 data-nosnippet>371</a>    }
+<a href=#372 id=372 data-nosnippet>372</a>
+<a href=#373 id=373 data-nosnippet>373</a>    <span class="kw">fn </span>try_pick_next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Arc&lt;Task&gt;&gt; {
+<a href=#374 id=374 data-nosnippet>374</a>        <span class="self">self</span>.pick_next_entity().and_then(|next| {
+<a href=#375 id=375 data-nosnippet>375</a>            <span class="comment">// We guarantee that a task can appear at once in a `PerCpuClassRqSet`. So, the `next` cannot be the same
+<a href=#376 id=376 data-nosnippet>376</a>            // as the current task here.
+<a href=#377 id=377 data-nosnippet>377</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>((old, <span class="kw">_</span>)) = <span class="self">self</span>.current.replace((next, CurrentRuntime::new())) {
+<a href=#378 id=378 data-nosnippet>378</a>                <span class="self">self</span>.enqueue_entity(old, <span class="prelude-val">None</span>);
+<a href=#379 id=379 data-nosnippet>379</a>            }
+<a href=#380 id=380 data-nosnippet>380</a>            <span class="self">self</span>.current.as_ref().map(|((task, <span class="kw">_</span>), <span class="kw">_</span>)| task)
+<a href=#381 id=381 data-nosnippet>381</a>        })
+<a href=#382 id=382 data-nosnippet>382</a>    }
+<a href=#383 id=383 data-nosnippet>383</a>
+<a href=#384 id=384 data-nosnippet>384</a>    <span class="kw">fn </span>update_current(<span class="kw-2">&amp;mut </span><span class="self">self</span>, flags: UpdateFlags) -&gt; bool {
+<a href=#385 id=385 data-nosnippet>385</a>        <span class="kw">let </span>(should_preempt, <span class="kw-2">mut </span>lookahead) = <span class="kw">if let </span><span class="prelude-val">Some</span>(((<span class="kw">_</span>, cur), rt)) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.current {
+<a href=#386 id=386 data-nosnippet>386</a>            rt.update();
+<a href=#387 id=387 data-nosnippet>387</a>            <span class="kw">let </span>attr = <span class="kw-2">&amp;</span>cur.sched_attr();
+<a href=#388 id=388 data-nosnippet>388</a>
+<a href=#389 id=389 data-nosnippet>389</a>            <span class="kw">match </span>attr.policy_kind() {
+<a href=#390 id=390 data-nosnippet>390</a>                SchedPolicyKind::Stop =&gt; (<span class="self">self</span>.stop.update_current(rt, attr, flags), <span class="number">0</span>),
+<a href=#391 id=391 data-nosnippet>391</a>                SchedPolicyKind::RealTime =&gt; (<span class="self">self</span>.real_time.update_current(rt, attr, flags), <span class="number">1</span>),
+<a href=#392 id=392 data-nosnippet>392</a>                SchedPolicyKind::Fair =&gt; (<span class="self">self</span>.fair.update_current(rt, attr, flags), <span class="number">2</span>),
+<a href=#393 id=393 data-nosnippet>393</a>                SchedPolicyKind::Idle =&gt; (<span class="self">self</span>.idle.update_current(rt, attr, flags), <span class="number">3</span>),
+<a href=#394 id=394 data-nosnippet>394</a>            }
+<a href=#395 id=395 data-nosnippet>395</a>        } <span class="kw">else </span>{
+<a href=#396 id=396 data-nosnippet>396</a>            (<span class="bool-val">false</span>, <span class="number">4</span>)
+<a href=#397 id=397 data-nosnippet>397</a>        };
+<a href=#398 id=398 data-nosnippet>398</a>
+<a href=#399 id=399 data-nosnippet>399</a>        <span class="kw">if </span><span class="macro">matches!</span>(flags, UpdateFlags::Wait | UpdateFlags::Exit) {
+<a href=#400 id=400 data-nosnippet>400</a>            lookahead = <span class="number">4</span>;
+<a href=#401 id=401 data-nosnippet>401</a>        }
+<a href=#402 id=402 data-nosnippet>402</a>
+<a href=#403 id=403 data-nosnippet>403</a>        should_preempt
+<a href=#404 id=404 data-nosnippet>404</a>            || (lookahead &gt;= <span class="number">1 </span>&amp;&amp; !<span class="self">self</span>.stop.is_empty())
+<a href=#405 id=405 data-nosnippet>405</a>            || (lookahead &gt;= <span class="number">2 </span>&amp;&amp; !<span class="self">self</span>.real_time.is_empty())
+<a href=#406 id=406 data-nosnippet>406</a>            || (lookahead &gt;= <span class="number">3 </span>&amp;&amp; !<span class="self">self</span>.fair.is_empty())
+<a href=#407 id=407 data-nosnippet>407</a>            || (lookahead &gt;= <span class="number">4 </span>&amp;&amp; !<span class="self">self</span>.idle.is_empty())
+<a href=#408 id=408 data-nosnippet>408</a>    }
+<a href=#409 id=409 data-nosnippet>409</a>
+<a href=#410 id=410 data-nosnippet>410</a>    <span class="kw">fn </span>dequeue_current(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Arc&lt;Task&gt;&gt; {
+<a href=#411 id=411 data-nosnippet>411</a>        <span class="self">self</span>.current.take().map(|((cur_task, <span class="kw">_</span>), <span class="kw">_</span>)| {
+<a href=#412 id=412 data-nosnippet>412</a>            cur_task.schedule_info().cpu.set_to_none();
+<a href=#413 id=413 data-nosnippet>413</a>            cur_task
+<a href=#414 id=414 data-nosnippet>414</a>        })
+<a href=#415 id=415 data-nosnippet>415</a>    }
+<a href=#416 id=416 data-nosnippet>416</a>}
+<a href=#417 id=417 data-nosnippet>417</a>
+<a href=#418 id=418 data-nosnippet>418</a><span class="doccomment">/// Holds per-CPU load information.
+<a href=#419 id=419 data-nosnippet>419</a></span><span class="kw">struct </span>PerCpuLoadStats {
+<a href=#420 id=420 data-nosnippet>420</a>    <span class="doccomment">/// The length of the run queue (excluding the idle task).
+<a href=#421 id=421 data-nosnippet>421</a>    </span>queue_len: u32,
+<a href=#422 id=422 data-nosnippet>422</a>    <span class="doccomment">/// If the CPU is currently idle.
+<a href=#423 id=423 data-nosnippet>423</a>    ///
+<a href=#424 id=424 data-nosnippet>424</a>    /// A CPU is said to be idle when it is running the idle task, or it is not
+<a href=#425 id=425 data-nosnippet>425</a>    /// running any task at all. The latter case is very unlikely to happen
+<a href=#426 id=426 data-nosnippet>426</a>    /// (almost a bug if it happens) as the idle task should always be runnable.
+<a href=#427 id=427 data-nosnippet>427</a>    </span>is_idle: bool,
+<a href=#428 id=428 data-nosnippet>428</a>}
+<a href=#429 id=429 data-nosnippet>429</a>
+<a href=#430 id=430 data-nosnippet>430</a><span class="kw">impl </span>SchedulerStats <span class="kw">for </span>ClassScheduler {
+<a href=#431 id=431 data-nosnippet>431</a>    <span class="kw">fn </span>nr_queued_and_running(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (u32, u32) {
+<a href=#432 id=432 data-nosnippet>432</a>        <span class="self">self</span>.rqs.iter().fold((<span class="number">0</span>, <span class="number">0</span>), |(queued, running), rq| {
+<a href=#433 id=433 data-nosnippet>433</a>            <span class="kw">let </span>PerCpuLoadStats { queue_len, is_idle } = rq.lock().load_stats();
+<a href=#434 id=434 data-nosnippet>434</a>            (queued + queue_len, running + u32::from(!is_idle))
+<a href=#435 id=435 data-nosnippet>435</a>        })
+<a href=#436 id=436 data-nosnippet>436</a>    }
+<a href=#437 id=437 data-nosnippet>437</a>}
+<a href=#438 id=438 data-nosnippet>438</a>
+<a href=#439 id=439 data-nosnippet>439</a><span class="kw">impl </span>Default <span class="kw">for </span>ClassScheduler {
+<a href=#440 id=440 data-nosnippet>440</a>    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+<a href=#441 id=441 data-nosnippet>441</a>        <span class="self">Self</span>::new()
+<a href=#442 id=442 data-nosnippet>442</a>    }
+<a href=#443 id=443 data-nosnippet>443</a>}
+</code></pre></div></section></main></body></html>

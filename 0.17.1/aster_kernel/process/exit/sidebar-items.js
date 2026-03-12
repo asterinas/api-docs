@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["exit_process","find_reaper_process","move_children_to_reaper_process","move_process_children","send_child_death_signal","send_parent_death_signal"]};

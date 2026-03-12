@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Ns16550aRegister"],"struct":["Ns16550aUart"],"trait":["Ns16550aAccess"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["IpcControlCmd"],"fn":["init_in_first_kthread"],"mod":["semaphore"],"struct":["IpcFlags","IpcPermission"],"type":["key_t"]};

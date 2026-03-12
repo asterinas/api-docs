@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["lookup_child_from_table","populate_children_from_table"],"struct":["ProcDir"],"trait":["DirOps"]};

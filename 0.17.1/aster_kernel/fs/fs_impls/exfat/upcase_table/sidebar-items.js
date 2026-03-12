@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["UPCASE_MANDATORY_SIZE"],"struct":["ExfatUpcaseTable"]};

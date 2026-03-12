@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["TDX_GUEST_MINOR"],"fn":["alloc_dma_buf","tdx_get_quote","tdx_get_report"],"mod":["ioctl_defs"],"struct":["ReportData","ReportMac","TdInfo","TdReport","TdxGuest","TdxGuestFile","TdxQuoteHdr","TdxReportRequest"]};

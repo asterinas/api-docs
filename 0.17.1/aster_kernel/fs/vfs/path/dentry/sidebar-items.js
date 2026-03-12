@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["DentryOptions","NameAndParent"],"fn":["write_lock_children_on_two_dentries"],"struct":["Dentry","DentryChildren","DentryFlags","DentryKey","DirDentry","SetNameAndParentError"]};

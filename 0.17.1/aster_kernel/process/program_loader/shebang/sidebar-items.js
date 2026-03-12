@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["parse_shebang_line"]};

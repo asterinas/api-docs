@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["RtScope"],"struct":["AddrMessageFlags","AddrSegmentBody","CIfaddrMsg"],"type":["AddrSegment"]};

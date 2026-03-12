@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CONSOLE_NAME","MAX_CMAP_SIZE"],"enum":["PixelFormat"],"static":["FRAMEBUFFER","FRAMEBUFFER_CONSOLE"],"struct":["ColorMapEntry","ConsoleCallbacks","DummyFramebufferConsole","FrameBuffer","Pixel","RenderedPixel"]};

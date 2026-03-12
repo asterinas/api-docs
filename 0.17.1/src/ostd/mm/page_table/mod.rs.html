@@ -1,0 +1,607 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `ostd/src/mm/page_table/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="ostd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../static.files/storage-e2aeef58.js"></script><script defer src="../../../../static.files/src-script-813739b1.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">ostd/mm/page_table/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="comment">// SPDX-License-Identifier: MPL-2.0
+<a href=#2 id=2 data-nosnippet>2</a>
+<a href=#3 id=3 data-nosnippet>3</a></span><span class="attr">#![cfg_attr(
+<a href=#4 id=4 data-nosnippet>4</a>    any(target_arch = <span class="string">"riscv64"</span>, target_arch = <span class="string">"loongarch64"</span>),
+<a href=#5 id=5 data-nosnippet>5</a>    expect(dead_code)
+<a href=#6 id=6 data-nosnippet>6</a>)]
+<a href=#7 id=7 data-nosnippet>7</a>
+<a href=#8 id=8 data-nosnippet>8</a></span><span class="kw">use </span>core::{
+<a href=#9 id=9 data-nosnippet>9</a>    fmt::Debug,
+<a href=#10 id=10 data-nosnippet>10</a>    intrinsics::transmute_unchecked,
+<a href=#11 id=11 data-nosnippet>11</a>    ops::{Range, RangeInclusive},
+<a href=#12 id=12 data-nosnippet>12</a>    sync::atomic::{AtomicUsize, Ordering},
+<a href=#13 id=13 data-nosnippet>13</a>};
+<a href=#14 id=14 data-nosnippet>14</a>
+<a href=#15 id=15 data-nosnippet>15</a><span class="kw">use </span>ostd_pod::Pod;
+<a href=#16 id=16 data-nosnippet>16</a>
+<a href=#17 id=17 data-nosnippet>17</a><span class="kw">use super</span>::{
+<a href=#18 id=18 data-nosnippet>18</a>    HasPaddr, Paddr, PagingConstsTrait, PagingLevel, PodOnce, Vaddr, kspace::KernelPtConfig,
+<a href=#19 id=19 data-nosnippet>19</a>    nr_subpage_per_huge, page_prop::PageProperty, page_size, vm_space::UserPtConfig,
+<a href=#20 id=20 data-nosnippet>20</a>};
+<a href=#21 id=21 data-nosnippet>21</a><span class="kw">use crate</span>::{
+<a href=#22 id=22 data-nosnippet>22</a>    arch::mm::{PageTableEntry, PagingConsts},
+<a href=#23 id=23 data-nosnippet>23</a>    mm::page_prop::PageTableFlags,
+<a href=#24 id=24 data-nosnippet>24</a>    task::{atomic_mode::AsAtomicModeGuard, disable_preempt},
+<a href=#25 id=25 data-nosnippet>25</a>};
+<a href=#26 id=26 data-nosnippet>26</a>
+<a href=#27 id=27 data-nosnippet>27</a><span class="kw">mod </span>cursor;
+<a href=#28 id=28 data-nosnippet>28</a><span class="kw">mod </span>node;
+<a href=#29 id=29 data-nosnippet>29</a>
+<a href=#30 id=30 data-nosnippet>30</a><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::mm) <span class="kw">use </span>cursor::PageTableFrag;
+<a href=#31 id=31 data-nosnippet>31</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>cursor::{Cursor, CursorMut};
+<a href=#32 id=32 data-nosnippet>32</a><span class="kw">use </span>node::<span class="kw-2">*</span>; <span class="comment">// FIXME: Remove glob imports.
+<a href=#33 id=33 data-nosnippet>33</a>
+<a href=#34 id=34 data-nosnippet>34</a></span><span class="attr">#[cfg(ktest)]
+<a href=#35 id=35 data-nosnippet>35</a></span><span class="kw">mod </span>test;
+<a href=#36 id=36 data-nosnippet>36</a>
+<a href=#37 id=37 data-nosnippet>37</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>boot_pt;
+<a href=#38 id=38 data-nosnippet>38</a>
+<a href=#39 id=39 data-nosnippet>39</a><span class="attr">#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+<a href=#40 id=40 data-nosnippet>40</a></span><span class="kw">pub enum </span>PageTableError {
+<a href=#41 id=41 data-nosnippet>41</a>    <span class="doccomment">/// The provided virtual address range is invalid.
+<a href=#42 id=42 data-nosnippet>42</a>    </span>InvalidVaddrRange(Vaddr, Vaddr),
+<a href=#43 id=43 data-nosnippet>43</a>    <span class="doccomment">/// The provided virtual address is invalid.
+<a href=#44 id=44 data-nosnippet>44</a>    </span>InvalidVaddr(Vaddr),
+<a href=#45 id=45 data-nosnippet>45</a>    <span class="doccomment">/// Using virtual address not aligned.
+<a href=#46 id=46 data-nosnippet>46</a>    </span>UnalignedVaddr,
+<a href=#47 id=47 data-nosnippet>47</a>}
+<a href=#48 id=48 data-nosnippet>48</a>
+<a href=#49 id=49 data-nosnippet>49</a><span class="doccomment">/// The configurations of a page table.
+<a href=#50 id=50 data-nosnippet>50</a>///
+<a href=#51 id=51 data-nosnippet>51</a>/// It abstracts away both the usage and the architecture specifics from the
+<a href=#52 id=52 data-nosnippet>52</a>/// general page table implementation. For examples:
+<a href=#53 id=53 data-nosnippet>53</a>///  - the managed virtual address range;
+<a href=#54 id=54 data-nosnippet>54</a>///  - the trackedness of physical mappings;
+<a href=#55 id=55 data-nosnippet>55</a>///  - the PTE layout;
+<a href=#56 id=56 data-nosnippet>56</a>///  - the number of page table levels, etc.
+<a href=#57 id=57 data-nosnippet>57</a>///
+<a href=#58 id=58 data-nosnippet>58</a>/// # Safety
+<a href=#59 id=59 data-nosnippet>59</a>///
+<a href=#60 id=60 data-nosnippet>60</a>/// The implementor must ensure that `item_raw_info`, `item_into_raw`,
+<a href=#61 id=61 data-nosnippet>61</a>/// `item_from_raw`, and `item_ref_from_raw` are implemented correctly so that:
+<a href=#62 id=62 data-nosnippet>62</a>///  - `item_into_raw` is not overridden;
+<a href=#63 id=63 data-nosnippet>63</a>///  - `item_raw_info` returns the exact same values as if called with
+<a href=#64 id=64 data-nosnippet>64</a>///    `item_into_raw`;
+<a href=#65 id=65 data-nosnippet>65</a>///  - if the provided raw form matches the item that was consumed by
+<a href=#66 id=66 data-nosnippet>66</a>///    `item_into_raw`, `item_from_raw` restores the exact item that was
+<a href=#67 id=67 data-nosnippet>67</a>///    consumed by `item_into_raw`;
+<a href=#68 id=68 data-nosnippet>68</a>///  - `item_ref_from_raw`, if called with the same argument, returns the same
+<a href=#69 id=69 data-nosnippet>69</a>///    value.
+<a href=#70 id=70 data-nosnippet>70</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">unsafe trait </span>PageTableConfig:
+<a href=#71 id=71 data-nosnippet>71</a>    Clone + Debug + Send + Sync + <span class="lifetime">'static
+<a href=#72 id=72 data-nosnippet>72</a></span>{
+<a href=#73 id=73 data-nosnippet>73</a>    <span class="doccomment">/// The index range at the top level (`C::NR_LEVELS`) page table.
+<a href=#74 id=74 data-nosnippet>74</a>    ///
+<a href=#75 id=75 data-nosnippet>75</a>    /// When configured with this value, the [`PageTable`] instance will only
+<a href=#76 id=76 data-nosnippet>76</a>    /// be allowed to manage the virtual address range that is covered by
+<a href=#77 id=77 data-nosnippet>77</a>    /// this range. The range can be smaller than the actual allowed range
+<a href=#78 id=78 data-nosnippet>78</a>    /// specified by the hardware MMU (limited by `C::ADDRESS_WIDTH`).
+<a href=#79 id=79 data-nosnippet>79</a>    </span><span class="kw">const </span>TOP_LEVEL_INDEX_RANGE: Range&lt;usize&gt;;
+<a href=#80 id=80 data-nosnippet>80</a>
+<a href=#81 id=81 data-nosnippet>81</a>    <span class="doccomment">/// If we can remove the top-level page table entries.
+<a href=#82 id=82 data-nosnippet>82</a>    ///
+<a href=#83 id=83 data-nosnippet>83</a>    /// This is for the kernel page table, whose second-top-level page
+<a href=#84 id=84 data-nosnippet>84</a>    /// tables need `'static` lifetime to be shared with user page tables.
+<a href=#85 id=85 data-nosnippet>85</a>    /// Other page tables do not need to set this to `false`.
+<a href=#86 id=86 data-nosnippet>86</a>    </span><span class="kw">const </span>TOP_LEVEL_CAN_UNMAP: bool = <span class="bool-val">true</span>;
+<a href=#87 id=87 data-nosnippet>87</a>
+<a href=#88 id=88 data-nosnippet>88</a>    <span class="doccomment">/// The type of the page table entry.
+<a href=#89 id=89 data-nosnippet>89</a>    </span><span class="kw">type </span>E: PteTrait;
+<a href=#90 id=90 data-nosnippet>90</a>
+<a href=#91 id=91 data-nosnippet>91</a>    <span class="doccomment">/// The paging constants.
+<a href=#92 id=92 data-nosnippet>92</a>    </span><span class="kw">type </span>C: PagingConstsTrait;
+<a href=#93 id=93 data-nosnippet>93</a>
+<a href=#94 id=94 data-nosnippet>94</a>    <span class="doccomment">/// The item that can be mapped into the virtual memory space using the
+<a href=#95 id=95 data-nosnippet>95</a>    /// page table.
+<a href=#96 id=96 data-nosnippet>96</a>    ///
+<a href=#97 id=97 data-nosnippet>97</a>    /// Usually, this item is a [`crate::mm::Frame`], which we call a "tracked"
+<a href=#98 id=98 data-nosnippet>98</a>    /// frame. The page table can also do "untracked" mappings that only maps
+<a href=#99 id=99 data-nosnippet>99</a>    /// to certain physical addresses without tracking the ownership of the
+<a href=#100 id=100 data-nosnippet>100</a>    /// mapped physical frame. The user of the page table APIs can choose by
+<a href=#101 id=101 data-nosnippet>101</a>    /// defining this type and the corresponding methods [`item_into_raw`] and
+<a href=#102 id=102 data-nosnippet>102</a>    /// [`item_from_raw`].
+<a href=#103 id=103 data-nosnippet>103</a>    ///
+<a href=#104 id=104 data-nosnippet>104</a>    /// [`item_from_raw`]: PageTableConfig::item_from_raw
+<a href=#105 id=105 data-nosnippet>105</a>    /// [`item_into_raw`]: PageTableConfig::item_into_raw
+<a href=#106 id=106 data-nosnippet>106</a>    </span><span class="kw">type </span>Item: Send;
+<a href=#107 id=107 data-nosnippet>107</a>    <span class="doccomment">/// The reference type of the [`PageTableConfig::Item`].
+<a href=#108 id=108 data-nosnippet>108</a>    </span><span class="kw">type </span>ItemRef&lt;<span class="lifetime">'a</span>&gt;;
+<a href=#109 id=109 data-nosnippet>109</a>
+<a href=#110 id=110 data-nosnippet>110</a>    <span class="doccomment">/// Gets the physical address, the paging level, and the page property of
+<a href=#111 id=111 data-nosnippet>111</a>    /// the item.
+<a href=#112 id=112 data-nosnippet>112</a>    </span><span class="kw">fn </span>item_raw_info(item: <span class="kw-2">&amp;</span><span class="self">Self</span>::Item) -&gt; (Paddr, PagingLevel, PageProperty);
+<a href=#113 id=113 data-nosnippet>113</a>
+<a href=#114 id=114 data-nosnippet>114</a>    <span class="doccomment">/// Consumes the item and returns the physical address, the paging level,
+<a href=#115 id=115 data-nosnippet>115</a>    /// and the page property.
+<a href=#116 id=116 data-nosnippet>116</a>    ///
+<a href=#117 id=117 data-nosnippet>117</a>    /// The ownership of the item will be consumed, i.e., the item will be
+<a href=#118 id=118 data-nosnippet>118</a>    /// forgotten after this function is called.
+<a href=#119 id=119 data-nosnippet>119</a>    </span><span class="kw">fn </span>item_into_raw(item: <span class="self">Self</span>::Item) -&gt; (Paddr, PagingLevel, PageProperty) {
+<a href=#120 id=120 data-nosnippet>120</a>        <span class="kw">let </span>item = core::mem::ManuallyDrop::new(item);
+<a href=#121 id=121 data-nosnippet>121</a>        <span class="self">Self</span>::item_raw_info(<span class="kw-2">&amp;*</span>item)
+<a href=#122 id=122 data-nosnippet>122</a>    }
+<a href=#123 id=123 data-nosnippet>123</a>
+<a href=#124 id=124 data-nosnippet>124</a>    <span class="doccomment">/// Restores the item from the physical address and the paging level.
+<a href=#125 id=125 data-nosnippet>125</a>    ///
+<a href=#126 id=126 data-nosnippet>126</a>    /// There could be transformations after [`PageTableConfig::item_into_raw`]
+<a href=#127 id=127 data-nosnippet>127</a>    /// and before [`PageTableConfig::item_from_raw`], which include:
+<a href=#128 id=128 data-nosnippet>128</a>    ///  - splitting and coalescing the items, for example, splitting one item
+<a href=#129 id=129 data-nosnippet>129</a>    ///    into 512 `level - 1` items with and contiguous physical addresses;
+<a href=#130 id=130 data-nosnippet>130</a>    ///  - protecting the items, for example, changing the page property.
+<a href=#131 id=131 data-nosnippet>131</a>    ///
+<a href=#132 id=132 data-nosnippet>132</a>    /// Splitting and coalescing maintains ownership rules, i.e., if one
+<a href=#133 id=133 data-nosnippet>133</a>    /// physical address is within the range of one item, after splitting/
+<a href=#134 id=134 data-nosnippet>134</a>    /// coalescing, there should be exactly one item that contains the address.
+<a href=#135 id=135 data-nosnippet>135</a>    ///
+<a href=#136 id=136 data-nosnippet>136</a>    /// # Safety
+<a href=#137 id=137 data-nosnippet>137</a>    ///
+<a href=#138 id=138 data-nosnippet>138</a>    /// The caller must ensure that:
+<a href=#139 id=139 data-nosnippet>139</a>    ///  - the physical address and the paging level represent a page table
+<a href=#140 id=140 data-nosnippet>140</a>    ///    item or part of it (as described above);
+<a href=#141 id=141 data-nosnippet>141</a>    ///  - either the ownership of the item is properly transferred to the
+<a href=#142 id=142 data-nosnippet>142</a>    ///    return value;
+<a href=#143 id=143 data-nosnippet>143</a>    ///  - the [`super::PrivilegedPageFlags::AVAIL1`] flag is preserved, i.e.,
+<a href=#144 id=144 data-nosnippet>144</a>    ///    it is the same as that returned from
+<a href=#145 id=145 data-nosnippet>145</a>    ///    [`PageTableConfig::item_into_raw`].
+<a href=#146 id=146 data-nosnippet>146</a>    </span><span class="kw">unsafe fn </span>item_from_raw(paddr: Paddr, level: PagingLevel, prop: PageProperty) -&gt; <span class="self">Self</span>::Item;
+<a href=#147 id=147 data-nosnippet>147</a>
+<a href=#148 id=148 data-nosnippet>148</a>    <span class="doccomment">/// Restores a reference to the item from the physical address and the
+<a href=#149 id=149 data-nosnippet>149</a>    /// paging level.
+<a href=#150 id=150 data-nosnippet>150</a>    ///
+<a href=#151 id=151 data-nosnippet>151</a>    /// # Safety
+<a href=#152 id=152 data-nosnippet>152</a>    ///
+<a href=#153 id=153 data-nosnippet>153</a>    /// The caller must ensure that:
+<a href=#154 id=154 data-nosnippet>154</a>    ///  - the physical address and the paging level represent a page table
+<a href=#155 id=155 data-nosnippet>155</a>    ///    item or part of it (see also [`PageTableConfig::item_from_raw`]);
+<a href=#156 id=156 data-nosnippet>156</a>    ///  - the returned reference `'a` does not outlive the original item;
+<a href=#157 id=157 data-nosnippet>157</a>    ///  - the [`super::PrivilegedPageFlags::AVAIL1`] flag is preserved, as
+<a href=#158 id=158 data-nosnippet>158</a>    ///    described in [`PageTableConfig::item_from_raw`].
+<a href=#159 id=159 data-nosnippet>159</a>    </span><span class="kw">unsafe fn </span>item_ref_from_raw&lt;<span class="lifetime">'a</span>&gt;(
+<a href=#160 id=160 data-nosnippet>160</a>        paddr: Paddr,
+<a href=#161 id=161 data-nosnippet>161</a>        level: PagingLevel,
+<a href=#162 id=162 data-nosnippet>162</a>        prop: PageProperty,
+<a href=#163 id=163 data-nosnippet>163</a>    ) -&gt; <span class="self">Self</span>::ItemRef&lt;<span class="lifetime">'a</span>&gt;;
+<a href=#164 id=164 data-nosnippet>164</a>}
+<a href=#165 id=165 data-nosnippet>165</a>
+<a href=#166 id=166 data-nosnippet>166</a><span class="comment">// Implement it so that we can comfortably use low level functions
+<a href=#167 id=167 data-nosnippet>167</a>// like `page_size::&lt;C&gt;` without typing `C::C` everywhere.
+<a href=#168 id=168 data-nosnippet>168</a></span><span class="kw">impl</span>&lt;C: PageTableConfig&gt; PagingConstsTrait <span class="kw">for </span>C {
+<a href=#169 id=169 data-nosnippet>169</a>    <span class="kw">const </span>BASE_PAGE_SIZE: usize = C::C::BASE_PAGE_SIZE;
+<a href=#170 id=170 data-nosnippet>170</a>    <span class="kw">const </span>NR_LEVELS: PagingLevel = C::C::NR_LEVELS;
+<a href=#171 id=171 data-nosnippet>171</a>    <span class="kw">const </span>HIGHEST_TRANSLATION_LEVEL: PagingLevel = C::C::HIGHEST_TRANSLATION_LEVEL;
+<a href=#172 id=172 data-nosnippet>172</a>    <span class="kw">const </span>PTE_SIZE: usize = C::C::PTE_SIZE;
+<a href=#173 id=173 data-nosnippet>173</a>    <span class="kw">const </span>ADDRESS_WIDTH: usize = C::C::ADDRESS_WIDTH;
+<a href=#174 id=174 data-nosnippet>174</a>    <span class="kw">const </span>VA_SIGN_EXT: bool = C::C::VA_SIGN_EXT;
+<a href=#175 id=175 data-nosnippet>175</a>}
+<a href=#176 id=176 data-nosnippet>176</a>
+<a href=#177 id=177 data-nosnippet>177</a><span class="doccomment">/// Splits the address range into largest page table items.
+<a href=#178 id=178 data-nosnippet>178</a>///
+<a href=#179 id=179 data-nosnippet>179</a>/// Each of the returned items is a tuple of the physical address and the
+<a href=#180 id=180 data-nosnippet>180</a>/// paging level. It is helpful when you want to map a physical address range
+<a href=#181 id=181 data-nosnippet>181</a>/// into the provided virtual address.
+<a href=#182 id=182 data-nosnippet>182</a>///
+<a href=#183 id=183 data-nosnippet>183</a>/// For example, on x86-64, `C: PageTableConfig` may specify level 1 page as
+<a href=#184 id=184 data-nosnippet>184</a>/// 4KiB, level 2 page as 2MiB, and level 3 page as 1GiB. Suppose that the
+<a href=#185 id=185 data-nosnippet>185</a>/// supplied physical address range is from `0x3fdff000` to `0x80002000`,
+<a href=#186 id=186 data-nosnippet>186</a>/// and the virtual address is also `0x3fdff000`, the following 5 items will
+<a href=#187 id=187 data-nosnippet>187</a>/// be returned:
+<a href=#188 id=188 data-nosnippet>188</a>///
+<a href=#189 id=189 data-nosnippet>189</a>/// ```text
+<a href=#190 id=190 data-nosnippet>190</a>/// 0x3fdff000                                                 0x80002000
+<a href=#191 id=191 data-nosnippet>191</a>/// start                                                             end
+<a href=#192 id=192 data-nosnippet>192</a>///   |----|----------------|--------------------------------|----|----|
+<a href=#193 id=193 data-nosnippet>193</a>///    4KiB      2MiB                       1GiB              4KiB 4KiB
+<a href=#194 id=194 data-nosnippet>194</a>/// ```
+<a href=#195 id=195 data-nosnippet>195</a>///
+<a href=#196 id=196 data-nosnippet>196</a>/// # Panics
+<a href=#197 id=197 data-nosnippet>197</a>///
+<a href=#198 id=198 data-nosnippet>198</a>/// Panics if:
+<a href=#199 id=199 data-nosnippet>199</a>///  - any of `va`, `pa`, or `len` is not aligned to the base page size;
+<a href=#200 id=200 data-nosnippet>200</a>///  - the range `va..(va + len)` is not valid for the page table.
+<a href=#201 id=201 data-nosnippet>201</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>largest_pages&lt;C: PageTableConfig&gt;(
+<a href=#202 id=202 data-nosnippet>202</a>    <span class="kw-2">mut </span>va: Vaddr,
+<a href=#203 id=203 data-nosnippet>203</a>    <span class="kw-2">mut </span>pa: Paddr,
+<a href=#204 id=204 data-nosnippet>204</a>    <span class="kw-2">mut </span>len: usize,
+<a href=#205 id=205 data-nosnippet>205</a>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = (Paddr, PagingLevel)&gt; {
+<a href=#206 id=206 data-nosnippet>206</a>    <span class="macro">assert_eq!</span>(va % C::BASE_PAGE_SIZE, <span class="number">0</span>);
+<a href=#207 id=207 data-nosnippet>207</a>    <span class="macro">assert_eq!</span>(pa % C::BASE_PAGE_SIZE, <span class="number">0</span>);
+<a href=#208 id=208 data-nosnippet>208</a>    <span class="macro">assert_eq!</span>(len % C::BASE_PAGE_SIZE, <span class="number">0</span>);
+<a href=#209 id=209 data-nosnippet>209</a>    <span class="macro">assert!</span>(is_valid_range::&lt;C&gt;(<span class="kw-2">&amp;</span>(va..(va + len))));
+<a href=#210 id=210 data-nosnippet>210</a>
+<a href=#211 id=211 data-nosnippet>211</a>    core::iter::from_fn(<span class="kw">move </span>|| {
+<a href=#212 id=212 data-nosnippet>212</a>        <span class="kw">if </span>len == <span class="number">0 </span>{
+<a href=#213 id=213 data-nosnippet>213</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#214 id=214 data-nosnippet>214</a>        }
+<a href=#215 id=215 data-nosnippet>215</a>
+<a href=#216 id=216 data-nosnippet>216</a>        <span class="kw">let </span><span class="kw-2">mut </span>level = C::HIGHEST_TRANSLATION_LEVEL;
+<a href=#217 id=217 data-nosnippet>217</a>        <span class="kw">while </span>page_size::&lt;C&gt;(level) &gt; len
+<a href=#218 id=218 data-nosnippet>218</a>            || !va.is_multiple_of(page_size::&lt;C&gt;(level))
+<a href=#219 id=219 data-nosnippet>219</a>            || !pa.is_multiple_of(page_size::&lt;C&gt;(level))
+<a href=#220 id=220 data-nosnippet>220</a>        {
+<a href=#221 id=221 data-nosnippet>221</a>            level -= <span class="number">1</span>;
+<a href=#222 id=222 data-nosnippet>222</a>        }
+<a href=#223 id=223 data-nosnippet>223</a>
+<a href=#224 id=224 data-nosnippet>224</a>        <span class="kw">let </span>item_start = pa;
+<a href=#225 id=225 data-nosnippet>225</a>        va += page_size::&lt;C&gt;(level);
+<a href=#226 id=226 data-nosnippet>226</a>        pa += page_size::&lt;C&gt;(level);
+<a href=#227 id=227 data-nosnippet>227</a>        len -= page_size::&lt;C&gt;(level);
+<a href=#228 id=228 data-nosnippet>228</a>
+<a href=#229 id=229 data-nosnippet>229</a>        <span class="prelude-val">Some</span>((item_start, level))
+<a href=#230 id=230 data-nosnippet>230</a>    })
+<a href=#231 id=231 data-nosnippet>231</a>}
+<a href=#232 id=232 data-nosnippet>232</a>
+<a href=#233 id=233 data-nosnippet>233</a><span class="doccomment">/// Gets the managed virtual addresses range for the page table.
+<a href=#234 id=234 data-nosnippet>234</a>///
+<a href=#235 id=235 data-nosnippet>235</a>/// It returns a [`RangeInclusive`] because the end address, if being
+<a href=#236 id=236 data-nosnippet>236</a>/// [`Vaddr::MAX`], overflows [`Range&lt;Vaddr&gt;`].
+<a href=#237 id=237 data-nosnippet>237</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">const fn </span>vaddr_range&lt;C: PageTableConfig&gt;() -&gt; RangeInclusive&lt;Vaddr&gt; {
+<a href=#238 id=238 data-nosnippet>238</a>    <span class="kw">const fn </span>top_level_index_width&lt;C: PageTableConfig&gt;() -&gt; usize {
+<a href=#239 id=239 data-nosnippet>239</a>        C::ADDRESS_WIDTH - pte_index_bit_offset::&lt;C&gt;(C::NR_LEVELS)
+<a href=#240 id=240 data-nosnippet>240</a>    }
+<a href=#241 id=241 data-nosnippet>241</a>
+<a href=#242 id=242 data-nosnippet>242</a>    <span class="kw">const </span>{
+<a href=#243 id=243 data-nosnippet>243</a>        <span class="macro">assert!</span>(C::TOP_LEVEL_INDEX_RANGE.start &lt; C::TOP_LEVEL_INDEX_RANGE.end);
+<a href=#244 id=244 data-nosnippet>244</a>        <span class="macro">assert!</span>(top_level_index_width::&lt;C&gt;() &lt;= nr_pte_index_bits::&lt;C&gt;(),);
+<a href=#245 id=245 data-nosnippet>245</a>        <span class="macro">assert!</span>(C::TOP_LEVEL_INDEX_RANGE.start &lt; <span class="number">1 </span>&lt;&lt; top_level_index_width::&lt;C&gt;());
+<a href=#246 id=246 data-nosnippet>246</a>        <span class="macro">assert!</span>(C::TOP_LEVEL_INDEX_RANGE.end &lt;= <span class="number">1 </span>&lt;&lt; top_level_index_width::&lt;C&gt;());
+<a href=#247 id=247 data-nosnippet>247</a>    };
+<a href=#248 id=248 data-nosnippet>248</a>
+<a href=#249 id=249 data-nosnippet>249</a>    <span class="kw">const fn </span>pt_va_range_start&lt;C: PageTableConfig&gt;() -&gt; Vaddr {
+<a href=#250 id=250 data-nosnippet>250</a>        C::TOP_LEVEL_INDEX_RANGE.start &lt;&lt; pte_index_bit_offset::&lt;C&gt;(C::NR_LEVELS)
+<a href=#251 id=251 data-nosnippet>251</a>    }
+<a href=#252 id=252 data-nosnippet>252</a>
+<a href=#253 id=253 data-nosnippet>253</a>    <span class="kw">const fn </span>pt_va_range_end&lt;C: PageTableConfig&gt;() -&gt; Vaddr {
+<a href=#254 id=254 data-nosnippet>254</a>        C::TOP_LEVEL_INDEX_RANGE
+<a href=#255 id=255 data-nosnippet>255</a>            .end
+<a href=#256 id=256 data-nosnippet>256</a>            .unbounded_shl(pte_index_bit_offset::&lt;C&gt;(C::NR_LEVELS) <span class="kw">as </span>u32)
+<a href=#257 id=257 data-nosnippet>257</a>            .wrapping_sub(<span class="number">1</span>) <span class="comment">// Inclusive end.
+<a href=#258 id=258 data-nosnippet>258</a>    </span>}
+<a href=#259 id=259 data-nosnippet>259</a>
+<a href=#260 id=260 data-nosnippet>260</a>    <span class="kw">const fn </span>sign_bit_of_va&lt;C: PageTableConfig&gt;(va: Vaddr) -&gt; bool {
+<a href=#261 id=261 data-nosnippet>261</a>        (va &gt;&gt; (C::ADDRESS_WIDTH - <span class="number">1</span>)) &amp; <span class="number">1 </span>!= <span class="number">0
+<a href=#262 id=262 data-nosnippet>262</a>    </span>}
+<a href=#263 id=263 data-nosnippet>263</a>
+<a href=#264 id=264 data-nosnippet>264</a>    <span class="kw">let </span><span class="kw-2">mut </span>start = pt_va_range_start::&lt;C&gt;();
+<a href=#265 id=265 data-nosnippet>265</a>    <span class="kw">let </span><span class="kw-2">mut </span>end = pt_va_range_end::&lt;C&gt;();
+<a href=#266 id=266 data-nosnippet>266</a>
+<a href=#267 id=267 data-nosnippet>267</a>    <span class="kw">const </span>{
+<a href=#268 id=268 data-nosnippet>268</a>        <span class="macro">assert!</span>(
+<a href=#269 id=269 data-nosnippet>269</a>            !C::VA_SIGN_EXT
+<a href=#270 id=270 data-nosnippet>270</a>                || sign_bit_of_va::&lt;C&gt;(pt_va_range_start::&lt;C&gt;())
+<a href=#271 id=271 data-nosnippet>271</a>                    == sign_bit_of_va::&lt;C&gt;(pt_va_range_end::&lt;C&gt;()),
+<a href=#272 id=272 data-nosnippet>272</a>            <span class="string">"The sign bit of both range endpoints must be the same if sign extension is enabled"
+<a href=#273 id=273 data-nosnippet>273</a>        </span>)
+<a href=#274 id=274 data-nosnippet>274</a>    }
+<a href=#275 id=275 data-nosnippet>275</a>
+<a href=#276 id=276 data-nosnippet>276</a>    <span class="kw">if </span>C::VA_SIGN_EXT &amp;&amp; sign_bit_of_va::&lt;C&gt;(pt_va_range_start::&lt;C&gt;()) {
+<a href=#277 id=277 data-nosnippet>277</a>        start |= !<span class="number">0 </span>^ ((<span class="number">1 </span>&lt;&lt; C::ADDRESS_WIDTH) - <span class="number">1</span>);
+<a href=#278 id=278 data-nosnippet>278</a>        end |= !<span class="number">0 </span>^ ((<span class="number">1 </span>&lt;&lt; C::ADDRESS_WIDTH) - <span class="number">1</span>);
+<a href=#279 id=279 data-nosnippet>279</a>    }
+<a href=#280 id=280 data-nosnippet>280</a>
+<a href=#281 id=281 data-nosnippet>281</a>    start..=end
+<a href=#282 id=282 data-nosnippet>282</a>}
+<a href=#283 id=283 data-nosnippet>283</a>
+<a href=#284 id=284 data-nosnippet>284</a><span class="doccomment">/// Checks if the given range is covered by the valid range of the page table.
+<a href=#285 id=285 data-nosnippet>285</a></span><span class="kw">const fn </span>is_valid_range&lt;C: PageTableConfig&gt;(r: <span class="kw-2">&amp;</span>Range&lt;Vaddr&gt;) -&gt; bool {
+<a href=#286 id=286 data-nosnippet>286</a>    <span class="kw">let </span>va_range = vaddr_range::&lt;C&gt;();
+<a href=#287 id=287 data-nosnippet>287</a>    (r.start == <span class="number">0 </span>&amp;&amp; r.end == <span class="number">0</span>) || (<span class="kw-2">*</span>va_range.start() &lt;= r.start &amp;&amp; r.end - <span class="number">1 </span>&lt;= <span class="kw-2">*</span>va_range.end())
+<a href=#288 id=288 data-nosnippet>288</a>}
+<a href=#289 id=289 data-nosnippet>289</a>
+<a href=#290 id=290 data-nosnippet>290</a><span class="comment">// Here are some const values that are determined by the paging constants.
+<a href=#291 id=291 data-nosnippet>291</a>
+<a href=#292 id=292 data-nosnippet>292</a></span><span class="doccomment">/// The number of virtual address bits used to index a PTE in a page.
+<a href=#293 id=293 data-nosnippet>293</a></span><span class="kw">const fn </span>nr_pte_index_bits&lt;C: PagingConstsTrait&gt;() -&gt; usize {
+<a href=#294 id=294 data-nosnippet>294</a>    nr_subpage_per_huge::&lt;C&gt;().ilog2() <span class="kw">as </span>usize
+<a href=#295 id=295 data-nosnippet>295</a>}
+<a href=#296 id=296 data-nosnippet>296</a>
+<a href=#297 id=297 data-nosnippet>297</a><span class="doccomment">/// The index of a VA's PTE in a page table node at the given level.
+<a href=#298 id=298 data-nosnippet>298</a></span><span class="kw">const fn </span>pte_index&lt;C: PagingConstsTrait&gt;(va: Vaddr, level: PagingLevel) -&gt; usize {
+<a href=#299 id=299 data-nosnippet>299</a>    (va &gt;&gt; pte_index_bit_offset::&lt;C&gt;(level)) &amp; (nr_subpage_per_huge::&lt;C&gt;() - <span class="number">1</span>)
+<a href=#300 id=300 data-nosnippet>300</a>}
+<a href=#301 id=301 data-nosnippet>301</a>
+<a href=#302 id=302 data-nosnippet>302</a><span class="doccomment">/// The bit offset of the entry offset part in a virtual address.
+<a href=#303 id=303 data-nosnippet>303</a>///
+<a href=#304 id=304 data-nosnippet>304</a>/// This function returns the bit offset of the least significant bit. Take
+<a href=#305 id=305 data-nosnippet>305</a>/// x86-64 as an example, the `pte_index_bit_offset(2)` should return 21, which
+<a href=#306 id=306 data-nosnippet>306</a>/// is 12 (the 4KiB in-page offset) plus 9 (index width in the level-1 table).
+<a href=#307 id=307 data-nosnippet>307</a></span><span class="kw">const fn </span>pte_index_bit_offset&lt;C: PagingConstsTrait&gt;(level: PagingLevel) -&gt; usize {
+<a href=#308 id=308 data-nosnippet>308</a>    C::BASE_PAGE_SIZE.ilog2() <span class="kw">as </span>usize + nr_pte_index_bits::&lt;C&gt;() * (level <span class="kw">as </span>usize - <span class="number">1</span>)
+<a href=#309 id=309 data-nosnippet>309</a>}
+<a href=#310 id=310 data-nosnippet>310</a>
+<a href=#311 id=311 data-nosnippet>311</a><span class="doccomment">/// A handle to a page table.
+<a href=#312 id=312 data-nosnippet>312</a>/// A page table can track the lifetime of the mapped physical pages.
+<a href=#313 id=313 data-nosnippet>313</a></span><span class="attr">#[derive(Debug)]
+<a href=#314 id=314 data-nosnippet>314</a></span><span class="kw">pub struct </span>PageTable&lt;C: PageTableConfig&gt; {
+<a href=#315 id=315 data-nosnippet>315</a>    root: PageTableNode&lt;C&gt;,
+<a href=#316 id=316 data-nosnippet>316</a>}
+<a href=#317 id=317 data-nosnippet>317</a>
+<a href=#318 id=318 data-nosnippet>318</a><span class="kw">impl </span>PageTable&lt;UserPtConfig&gt; {
+<a href=#319 id=319 data-nosnippet>319</a>    <span class="kw">pub fn </span>activate(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#320 id=320 data-nosnippet>320</a>        <span class="comment">// SAFETY: The user mode page table is safe to activate since the kernel
+<a href=#321 id=321 data-nosnippet>321</a>        // mappings are shared.
+<a href=#322 id=322 data-nosnippet>322</a>        </span><span class="kw">unsafe </span>{
+<a href=#323 id=323 data-nosnippet>323</a>            <span class="self">self</span>.root.activate();
+<a href=#324 id=324 data-nosnippet>324</a>        }
+<a href=#325 id=325 data-nosnippet>325</a>    }
+<a href=#326 id=326 data-nosnippet>326</a>}
+<a href=#327 id=327 data-nosnippet>327</a>
+<a href=#328 id=328 data-nosnippet>328</a><span class="kw">impl </span>PageTable&lt;KernelPtConfig&gt; {
+<a href=#329 id=329 data-nosnippet>329</a>    <span class="doccomment">/// Create a new kernel page table.
+<a href=#330 id=330 data-nosnippet>330</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new_kernel_page_table() -&gt; <span class="self">Self </span>{
+<a href=#331 id=331 data-nosnippet>331</a>        <span class="kw">let </span>kpt = <span class="self">Self</span>::empty();
+<a href=#332 id=332 data-nosnippet>332</a>
+<a href=#333 id=333 data-nosnippet>333</a>        <span class="comment">// Make shared the page tables mapped by the root table in the kernel space.
+<a href=#334 id=334 data-nosnippet>334</a>        </span>{
+<a href=#335 id=335 data-nosnippet>335</a>            <span class="kw">let </span>preempt_guard = disable_preempt();
+<a href=#336 id=336 data-nosnippet>336</a>            <span class="kw">let </span><span class="kw-2">mut </span>root_node = kpt.root.borrow().lock(<span class="kw-2">&amp;</span>preempt_guard);
+<a href=#337 id=337 data-nosnippet>337</a>
+<a href=#338 id=338 data-nosnippet>338</a>            <span class="kw">for </span>i <span class="kw">in </span>KernelPtConfig::TOP_LEVEL_INDEX_RANGE {
+<a href=#339 id=339 data-nosnippet>339</a>                <span class="kw">let </span><span class="kw-2">mut </span>root_entry = root_node.entry(i);
+<a href=#340 id=340 data-nosnippet>340</a>                <span class="kw">let _ </span>= root_entry.alloc_if_none(<span class="kw-2">&amp;</span>preempt_guard).unwrap();
+<a href=#341 id=341 data-nosnippet>341</a>            }
+<a href=#342 id=342 data-nosnippet>342</a>        }
+<a href=#343 id=343 data-nosnippet>343</a>
+<a href=#344 id=344 data-nosnippet>344</a>        kpt
+<a href=#345 id=345 data-nosnippet>345</a>    }
+<a href=#346 id=346 data-nosnippet>346</a>
+<a href=#347 id=347 data-nosnippet>347</a>    <span class="doccomment">/// Create a new user page table.
+<a href=#348 id=348 data-nosnippet>348</a>    ///
+<a href=#349 id=349 data-nosnippet>349</a>    /// This should be the only way to create the user page table, that is to
+<a href=#350 id=350 data-nosnippet>350</a>    /// duplicate the kernel page table with all the kernel mappings shared.
+<a href=#351 id=351 data-nosnippet>351</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::mm) <span class="kw">fn </span>create_user_page_table(<span class="kw-2">&amp;</span><span class="lifetime">'static </span><span class="self">self</span>) -&gt; PageTable&lt;UserPtConfig&gt; {
+<a href=#352 id=352 data-nosnippet>352</a>        <span class="kw">let </span>new_root = PageTableNode::alloc(PagingConsts::NR_LEVELS);
+<a href=#353 id=353 data-nosnippet>353</a>
+<a href=#354 id=354 data-nosnippet>354</a>        <span class="kw">let </span>preempt_guard = disable_preempt();
+<a href=#355 id=355 data-nosnippet>355</a>        <span class="kw">let </span><span class="kw-2">mut </span>root_node = <span class="self">self</span>.root.borrow().lock(<span class="kw-2">&amp;</span>preempt_guard);
+<a href=#356 id=356 data-nosnippet>356</a>        <span class="kw">let </span><span class="kw-2">mut </span>new_node = new_root.borrow().lock(<span class="kw-2">&amp;</span>preempt_guard);
+<a href=#357 id=357 data-nosnippet>357</a>
+<a href=#358 id=358 data-nosnippet>358</a>        <span class="kw">const </span>{
+<a href=#359 id=359 data-nosnippet>359</a>            <span class="macro">assert!</span>(!KernelPtConfig::TOP_LEVEL_CAN_UNMAP);
+<a href=#360 id=360 data-nosnippet>360</a>            <span class="macro">assert!</span>(
+<a href=#361 id=361 data-nosnippet>361</a>                UserPtConfig::TOP_LEVEL_INDEX_RANGE.end
+<a href=#362 id=362 data-nosnippet>362</a>                    &lt;= KernelPtConfig::TOP_LEVEL_INDEX_RANGE.start
+<a href=#363 id=363 data-nosnippet>363</a>            );
+<a href=#364 id=364 data-nosnippet>364</a>        }
+<a href=#365 id=365 data-nosnippet>365</a>
+<a href=#366 id=366 data-nosnippet>366</a>        <span class="kw">for </span>i <span class="kw">in </span>KernelPtConfig::TOP_LEVEL_INDEX_RANGE {
+<a href=#367 id=367 data-nosnippet>367</a>            <span class="kw">let </span>root_entry = root_node.entry(i);
+<a href=#368 id=368 data-nosnippet>368</a>            <span class="kw">let </span>child = root_entry.to_ref();
+<a href=#369 id=369 data-nosnippet>369</a>            <span class="kw">let </span>PteStateRef::PageTable(pt) = child <span class="kw">else </span>{
+<a href=#370 id=370 data-nosnippet>370</a>                <span class="macro">panic!</span>(<span class="string">"The kernel page table doesn't contain shared nodes"</span>);
+<a href=#371 id=371 data-nosnippet>371</a>            };
+<a href=#372 id=372 data-nosnippet>372</a>
+<a href=#373 id=373 data-nosnippet>373</a>            <span class="comment">// We do not add additional reference count specifically for the
+<a href=#374 id=374 data-nosnippet>374</a>            // shared kernel page tables. It requires user page tables to
+<a href=#375 id=375 data-nosnippet>375</a>            // outlive the kernel page table, which is trivially true.
+<a href=#376 id=376 data-nosnippet>376</a>            // See also `&lt;PageTablePageMeta as AnyFrameMeta&gt;::on_drop`.
+<a href=#377 id=377 data-nosnippet>377</a>            </span><span class="kw">let </span>pt_addr = pt.paddr();
+<a href=#378 id=378 data-nosnippet>378</a>            <span class="kw">let </span>pte = PageTableEntry::from_repr(
+<a href=#379 id=379 data-nosnippet>379</a>                <span class="kw-2">&amp;</span>PteScalar::PageTable(pt_addr, PageTableFlags::empty()),
+<a href=#380 id=380 data-nosnippet>380</a>                UserPtConfig::NR_LEVELS,
+<a href=#381 id=381 data-nosnippet>381</a>            );
+<a href=#382 id=382 data-nosnippet>382</a>            <span class="comment">// SAFETY: The index is within the bounds and the PTE is at the
+<a href=#383 id=383 data-nosnippet>383</a>            // correct paging level. However, neither it's a `UserPtConfig`
+<a href=#384 id=384 data-nosnippet>384</a>            // child nor the node has the ownership of the child. It is
+<a href=#385 id=385 data-nosnippet>385</a>            // still safe because `UserPtConfig::TOP_LEVEL_INDEX_RANGE`
+<a href=#386 id=386 data-nosnippet>386</a>            // guarantees that the cursor won't access it.
+<a href=#387 id=387 data-nosnippet>387</a>            </span><span class="kw">unsafe </span>{ new_node.write_pte(i, pte) };
+<a href=#388 id=388 data-nosnippet>388</a>        }
+<a href=#389 id=389 data-nosnippet>389</a>        drop(new_node);
+<a href=#390 id=390 data-nosnippet>390</a>
+<a href=#391 id=391 data-nosnippet>391</a>        PageTable::&lt;UserPtConfig&gt; { root: new_root }
+<a href=#392 id=392 data-nosnippet>392</a>    }
+<a href=#393 id=393 data-nosnippet>393</a>}
+<a href=#394 id=394 data-nosnippet>394</a>
+<a href=#395 id=395 data-nosnippet>395</a><span class="kw">impl</span>&lt;C: PageTableConfig&gt; PageTable&lt;C&gt; {
+<a href=#396 id=396 data-nosnippet>396</a>    <span class="doccomment">/// Create a new empty page table.
+<a href=#397 id=397 data-nosnippet>397</a>    ///
+<a href=#398 id=398 data-nosnippet>398</a>    /// Useful for the IOMMU page tables only.
+<a href=#399 id=399 data-nosnippet>399</a>    </span><span class="kw">pub fn </span>empty() -&gt; <span class="self">Self </span>{
+<a href=#400 id=400 data-nosnippet>400</a>        PageTable {
+<a href=#401 id=401 data-nosnippet>401</a>            root: PageTableNode::&lt;C&gt;::alloc(C::NR_LEVELS),
+<a href=#402 id=402 data-nosnippet>402</a>        }
+<a href=#403 id=403 data-nosnippet>403</a>    }
+<a href=#404 id=404 data-nosnippet>404</a>
+<a href=#405 id=405 data-nosnippet>405</a>    <span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::mm) <span class="kw">unsafe fn </span>first_activate_unchecked(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#406 id=406 data-nosnippet>406</a>        <span class="comment">// SAFETY: The safety is upheld by the caller.
+<a href=#407 id=407 data-nosnippet>407</a>        </span><span class="kw">unsafe </span>{ <span class="self">self</span>.root.first_activate() };
+<a href=#408 id=408 data-nosnippet>408</a>    }
+<a href=#409 id=409 data-nosnippet>409</a>
+<a href=#410 id=410 data-nosnippet>410</a>    <span class="doccomment">/// The physical address of the root page table.
+<a href=#411 id=411 data-nosnippet>411</a>    ///
+<a href=#412 id=412 data-nosnippet>412</a>    /// Obtaining the physical address of the root page table is safe, however, using it or
+<a href=#413 id=413 data-nosnippet>413</a>    /// providing it to the hardware will be unsafe since the page table node may be dropped,
+<a href=#414 id=414 data-nosnippet>414</a>    /// resulting in UAF.
+<a href=#415 id=415 data-nosnippet>415</a>    </span><span class="kw">pub fn </span>root_paddr(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Paddr {
+<a href=#416 id=416 data-nosnippet>416</a>        <span class="self">self</span>.root.paddr()
+<a href=#417 id=417 data-nosnippet>417</a>    }
+<a href=#418 id=418 data-nosnippet>418</a>
+<a href=#419 id=419 data-nosnippet>419</a>    <span class="doccomment">/// Query about the mapping of a single byte at the given virtual address.
+<a href=#420 id=420 data-nosnippet>420</a>    ///
+<a href=#421 id=421 data-nosnippet>421</a>    /// Note that this function may fail reflect an accurate result if there are
+<a href=#422 id=422 data-nosnippet>422</a>    /// cursors concurrently accessing the same virtual address range, just like what
+<a href=#423 id=423 data-nosnippet>423</a>    /// happens for the hardware MMU walk.
+<a href=#424 id=424 data-nosnippet>424</a>    </span><span class="attr">#[cfg(ktest)]
+<a href=#425 id=425 data-nosnippet>425</a>    </span><span class="kw">pub fn </span>page_walk(<span class="kw-2">&amp;</span><span class="self">self</span>, vaddr: Vaddr) -&gt; <span class="prelude-ty">Option</span>&lt;(Paddr, PageProperty)&gt; {
+<a href=#426 id=426 data-nosnippet>426</a>        <span class="comment">// SAFETY: The root node is a valid page table node so the address is valid.
+<a href=#427 id=427 data-nosnippet>427</a>        </span><span class="kw">unsafe </span>{ page_walk::&lt;C&gt;(<span class="self">self</span>.root_paddr(), vaddr) }
+<a href=#428 id=428 data-nosnippet>428</a>    }
+<a href=#429 id=429 data-nosnippet>429</a>
+<a href=#430 id=430 data-nosnippet>430</a>    <span class="doccomment">/// Create a new cursor exclusively accessing the virtual address range for mapping.
+<a href=#431 id=431 data-nosnippet>431</a>    ///
+<a href=#432 id=432 data-nosnippet>432</a>    /// If another cursor is already accessing the range, the new cursor may wait until the
+<a href=#433 id=433 data-nosnippet>433</a>    /// previous cursor is dropped.
+<a href=#434 id=434 data-nosnippet>434</a>    </span><span class="kw">pub fn </span>cursor_mut&lt;<span class="lifetime">'rcu</span>, G: AsAtomicModeGuard&gt;(
+<a href=#435 id=435 data-nosnippet>435</a>        <span class="kw-2">&amp;</span><span class="lifetime">'rcu </span><span class="self">self</span>,
+<a href=#436 id=436 data-nosnippet>436</a>        guard: <span class="kw-2">&amp;</span><span class="lifetime">'rcu </span>G,
+<a href=#437 id=437 data-nosnippet>437</a>        va: <span class="kw-2">&amp;</span>Range&lt;Vaddr&gt;,
+<a href=#438 id=438 data-nosnippet>438</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;CursorMut&lt;<span class="lifetime">'rcu</span>, C&gt;, PageTableError&gt; {
+<a href=#439 id=439 data-nosnippet>439</a>        CursorMut::new(<span class="self">self</span>, guard.as_atomic_mode_guard(), va)
+<a href=#440 id=440 data-nosnippet>440</a>    }
+<a href=#441 id=441 data-nosnippet>441</a>
+<a href=#442 id=442 data-nosnippet>442</a>    <span class="doccomment">/// Create a new cursor exclusively accessing the virtual address range for querying.
+<a href=#443 id=443 data-nosnippet>443</a>    ///
+<a href=#444 id=444 data-nosnippet>444</a>    /// If another cursor is already accessing the range, the new cursor may wait until the
+<a href=#445 id=445 data-nosnippet>445</a>    /// previous cursor is dropped. The modification to the mapping by the cursor may also
+<a href=#446 id=446 data-nosnippet>446</a>    /// block or be overridden by the mapping of another cursor.
+<a href=#447 id=447 data-nosnippet>447</a>    </span><span class="kw">pub fn </span>cursor&lt;<span class="lifetime">'rcu</span>, G: AsAtomicModeGuard&gt;(
+<a href=#448 id=448 data-nosnippet>448</a>        <span class="kw-2">&amp;</span><span class="lifetime">'rcu </span><span class="self">self</span>,
+<a href=#449 id=449 data-nosnippet>449</a>        guard: <span class="kw-2">&amp;</span><span class="lifetime">'rcu </span>G,
+<a href=#450 id=450 data-nosnippet>450</a>        va: <span class="kw-2">&amp;</span>Range&lt;Vaddr&gt;,
+<a href=#451 id=451 data-nosnippet>451</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Cursor&lt;<span class="lifetime">'rcu</span>, C&gt;, PageTableError&gt; {
+<a href=#452 id=452 data-nosnippet>452</a>        Cursor::new(<span class="self">self</span>, guard.as_atomic_mode_guard(), va)
+<a href=#453 id=453 data-nosnippet>453</a>    }
+<a href=#454 id=454 data-nosnippet>454</a>
+<a href=#455 id=455 data-nosnippet>455</a>    <span class="doccomment">/// Create a new reference to the same page table.
+<a href=#456 id=456 data-nosnippet>456</a>    /// The caller must ensure that the kernel page table is not copied.
+<a href=#457 id=457 data-nosnippet>457</a>    /// This is only useful for IOMMU page tables. Think twice before using it in other cases.
+<a href=#458 id=458 data-nosnippet>458</a>    </span><span class="kw">pub unsafe fn </span>shallow_copy(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+<a href=#459 id=459 data-nosnippet>459</a>        PageTable {
+<a href=#460 id=460 data-nosnippet>460</a>            root: <span class="self">self</span>.root.clone(),
+<a href=#461 id=461 data-nosnippet>461</a>        }
+<a href=#462 id=462 data-nosnippet>462</a>    }
+<a href=#463 id=463 data-nosnippet>463</a>}
+<a href=#464 id=464 data-nosnippet>464</a>
+<a href=#465 id=465 data-nosnippet>465</a><span class="doccomment">/// A software emulation of the MMU address translation process.
+<a href=#466 id=466 data-nosnippet>466</a>///
+<a href=#467 id=467 data-nosnippet>467</a>/// This method returns the physical address of the given virtual address and
+<a href=#468 id=468 data-nosnippet>468</a>/// the page property if a valid mapping exists for the given virtual address.
+<a href=#469 id=469 data-nosnippet>469</a>///
+<a href=#470 id=470 data-nosnippet>470</a>/// # Safety
+<a href=#471 id=471 data-nosnippet>471</a>///
+<a href=#472 id=472 data-nosnippet>472</a>/// The caller must ensure that the `root_paddr` is a pointer to a valid root
+<a href=#473 id=473 data-nosnippet>473</a>/// page table node.
+<a href=#474 id=474 data-nosnippet>474</a>///
+<a href=#475 id=475 data-nosnippet>475</a>/// # Notes on the page table use-after-free problem
+<a href=#476 id=476 data-nosnippet>476</a>///
+<a href=#477 id=477 data-nosnippet>477</a>/// Neither the hardware MMU nor the software page walk method acquires the page
+<a href=#478 id=478 data-nosnippet>478</a>/// table locks while reading. They can enter a to-be-recycled page table node
+<a href=#479 id=479 data-nosnippet>479</a>/// and read the page table entries after the node is recycled and reused.
+<a href=#480 id=480 data-nosnippet>480</a>///
+<a href=#481 id=481 data-nosnippet>481</a>/// For the hardware MMU page walk, we mitigate this problem by dropping the page
+<a href=#482 id=482 data-nosnippet>482</a>/// table nodes only after the TLBs have been flushed on all the CPUs that
+<a href=#483 id=483 data-nosnippet>483</a>/// activate the page table.
+<a href=#484 id=484 data-nosnippet>484</a>///
+<a href=#485 id=485 data-nosnippet>485</a>/// For the software page walk, we only need to disable preemption at the beginning
+<a href=#486 id=486 data-nosnippet>486</a>/// since the page table nodes won't be recycled in the RCU critical section.
+<a href=#487 id=487 data-nosnippet>487</a></span><span class="attr">#[cfg(ktest)]
+<a href=#488 id=488 data-nosnippet>488</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">unsafe fn </span>page_walk&lt;C: PageTableConfig&gt;(
+<a href=#489 id=489 data-nosnippet>489</a>    root_paddr: Paddr,
+<a href=#490 id=490 data-nosnippet>490</a>    vaddr: Vaddr,
+<a href=#491 id=491 data-nosnippet>491</a>) -&gt; <span class="prelude-ty">Option</span>&lt;(Paddr, PageProperty)&gt; {
+<a href=#492 id=492 data-nosnippet>492</a>    <span class="kw">use </span><span class="kw">super</span>::paddr_to_vaddr;
+<a href=#493 id=493 data-nosnippet>493</a>
+<a href=#494 id=494 data-nosnippet>494</a>    <span class="kw">let </span>_rcu_guard = disable_preempt();
+<a href=#495 id=495 data-nosnippet>495</a>
+<a href=#496 id=496 data-nosnippet>496</a>    <span class="kw">let </span><span class="kw-2">mut </span>pt_addr = paddr_to_vaddr(root_paddr);
+<a href=#497 id=497 data-nosnippet>497</a>    <span class="kw">for </span>cur_level <span class="kw">in </span>(<span class="number">1</span>..=C::NR_LEVELS).rev() {
+<a href=#498 id=498 data-nosnippet>498</a>        <span class="kw">let </span>offset = pte_index::&lt;C&gt;(vaddr, cur_level);
+<a href=#499 id=499 data-nosnippet>499</a>        <span class="comment">// SAFETY:
+<a href=#500 id=500 data-nosnippet>500</a>        //  - The page table node is alive because (1) the root node is alive and
+<a href=#501 id=501 data-nosnippet>501</a>        //    (2) all child nodes cannot be recycled because we're in the RCU critical section.
+<a href=#502 id=502 data-nosnippet>502</a>        //  - The index is inside the bound, so the page table entry is valid.
+<a href=#503 id=503 data-nosnippet>503</a>        //  - All page table entries are aligned and accessed with atomic operations only.
+<a href=#504 id=504 data-nosnippet>504</a>        </span><span class="kw">let </span>cur_pte = <span class="kw">unsafe </span>{ load_pte((pt_addr <span class="kw">as </span><span class="kw-2">*mut </span>C::E).add(offset), Ordering::Acquire) };
+<a href=#505 id=505 data-nosnippet>505</a>
+<a href=#506 id=506 data-nosnippet>506</a>        <span class="kw">match </span>cur_pte.to_repr(cur_level) {
+<a href=#507 id=507 data-nosnippet>507</a>            PteScalar::Absent =&gt; <span class="kw">return </span><span class="prelude-val">None</span>,
+<a href=#508 id=508 data-nosnippet>508</a>            PteScalar::PageTable(next_pt_addr, <span class="kw">_</span>) =&gt; {
+<a href=#509 id=509 data-nosnippet>509</a>                pt_addr = paddr_to_vaddr(next_pt_addr);
+<a href=#510 id=510 data-nosnippet>510</a>                <span class="kw">continue</span>;
+<a href=#511 id=511 data-nosnippet>511</a>            }
+<a href=#512 id=512 data-nosnippet>512</a>            PteScalar::Mapped(frame_paddr, prop) =&gt; {
+<a href=#513 id=513 data-nosnippet>513</a>                <span class="macro">debug_assert!</span>(cur_level &lt;= C::HIGHEST_TRANSLATION_LEVEL);
+<a href=#514 id=514 data-nosnippet>514</a>                <span class="kw">return </span><span class="prelude-val">Some</span>((
+<a href=#515 id=515 data-nosnippet>515</a>                    frame_paddr + (vaddr &amp; (page_size::&lt;C&gt;(cur_level) - <span class="number">1</span>)),
+<a href=#516 id=516 data-nosnippet>516</a>                    prop,
+<a href=#517 id=517 data-nosnippet>517</a>                ));
+<a href=#518 id=518 data-nosnippet>518</a>            }
+<a href=#519 id=519 data-nosnippet>519</a>        }
+<a href=#520 id=520 data-nosnippet>520</a>    }
+<a href=#521 id=521 data-nosnippet>521</a>
+<a href=#522 id=522 data-nosnippet>522</a>    <span class="macro">unreachable!</span>(<span class="string">"All present PTEs at the level 1 must be last-level PTEs"</span>);
+<a href=#523 id=523 data-nosnippet>523</a>}
+<a href=#524 id=524 data-nosnippet>524</a>
+<a href=#525 id=525 data-nosnippet>525</a><span class="doccomment">/// The scalar representation of a page table entry (PTE).
+<a href=#526 id=526 data-nosnippet>526</a>///
+<a href=#527 id=527 data-nosnippet>527</a>/// This is an architecture-agnostic representation that can be converted
+<a href=#528 id=528 data-nosnippet>528</a>/// to/from architecture-specific PTEs via the [`PteTrait`]. This is a scalar
+<a href=#529 id=529 data-nosnippet>529</a>/// value that can be cloned or compared, and does not own the underlying page
+<a href=#530 id=530 data-nosnippet>530</a>/// table node or mapped item if present.
+<a href=#531 id=531 data-nosnippet>531</a></span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
+<a href=#532 id=532 data-nosnippet>532</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>PteScalar {
+<a href=#533 id=533 data-nosnippet>533</a>    <span class="doccomment">/// A PTE that is considered absent by the MMU.
+<a href=#534 id=534 data-nosnippet>534</a>    </span>Absent,
+<a href=#535 id=535 data-nosnippet>535</a>    <span class="doccomment">/// A PTE that points to the next-level page table.
+<a href=#536 id=536 data-nosnippet>536</a>    </span>PageTable(Paddr, PageTableFlags),
+<a href=#537 id=537 data-nosnippet>537</a>    <span class="doccomment">/// A PTE that establishes the mapping to a physical frame.
+<a href=#538 id=538 data-nosnippet>538</a>    </span>Mapped(Paddr, PageProperty),
+<a href=#539 id=539 data-nosnippet>539</a>}
+<a href=#540 id=540 data-nosnippet>540</a>
+<a href=#541 id=541 data-nosnippet>541</a><span class="doccomment">/// A trait that abstracts architecture-specific page table entries (PTEs).
+<a href=#542 id=542 data-nosnippet>542</a>///
+<a href=#543 id=543 data-nosnippet>543</a>/// A PTE refers to an entry in any level of a page table. This trait requires
+<a href=#544 id=544 data-nosnippet>544</a>/// that any architecture-specific PTEs are scalar types that essentially
+<a href=#545 id=545 data-nosnippet>545</a>/// encodes [`PteScalar`].
+<a href=#546 id=546 data-nosnippet>546</a>///
+<a href=#547 id=547 data-nosnippet>547</a>/// # Safety
+<a href=#548 id=548 data-nosnippet>548</a>///
+<a href=#549 id=549 data-nosnippet>549</a>/// An implementor must ensure that:
+<a href=#550 id=550 data-nosnippet>550</a>///  - the methods `as_usize` and `from_usize` are not overridden;
+<a href=#551 id=551 data-nosnippet>551</a>///  - the return value of `from_repr`, when called with `repr`, should return
+<a href=#552 id=552 data-nosnippet>552</a>///    the same [`PteScalar`] that is passed to `from_repr`, if the level
+<a href=#553 id=553 data-nosnippet>553</a>///    passed to `repr` is the same as that passed to `from_repr`;
+<a href=#554 id=554 data-nosnippet>554</a>///  - a zeroed PTE represents an absent entry.
+<a href=#555 id=555 data-nosnippet>555</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">unsafe trait </span>PteTrait:
+<a href=#556 id=556 data-nosnippet>556</a>    Clone + Copy + Debug + Pod + PodOnce + Sized + Send + Sync + <span class="lifetime">'static
+<a href=#557 id=557 data-nosnippet>557</a></span>{
+<a href=#558 id=558 data-nosnippet>558</a>    <span class="doccomment">/// Returns architecture-specific representation of the PTE.
+<a href=#559 id=559 data-nosnippet>559</a>    </span><span class="kw">fn </span>from_repr(repr: <span class="kw-2">&amp;</span>PteScalar, level: PagingLevel) -&gt; <span class="self">Self</span>;
+<a href=#560 id=560 data-nosnippet>560</a>
+<a href=#561 id=561 data-nosnippet>561</a>    <span class="doccomment">/// Returns the representation of the PTE.
+<a href=#562 id=562 data-nosnippet>562</a>    ///
+<a href=#563 id=563 data-nosnippet>563</a>    /// The caller must ensure that the level is the correct level of the PTE,
+<a href=#564 id=564 data-nosnippet>564</a>    /// otherwise the implementation can return arbitrary value.
+<a href=#565 id=565 data-nosnippet>565</a>    </span><span class="kw">fn </span>to_repr(<span class="kw-2">&amp;</span><span class="self">self</span>, level: PagingLevel) -&gt; PteScalar;
+<a href=#566 id=566 data-nosnippet>566</a>
+<a href=#567 id=567 data-nosnippet>567</a>    <span class="doccomment">/// Converts the PTE into a raw `usize` value.
+<a href=#568 id=568 data-nosnippet>568</a>    </span><span class="kw">fn </span>as_usize(<span class="self">self</span>) -&gt; usize {
+<a href=#569 id=569 data-nosnippet>569</a>        <span class="kw">const </span>{ <span class="macro">assert!</span>(size_of::&lt;<span class="self">Self</span>&gt;() == size_of::&lt;usize&gt;()) };
+<a href=#570 id=570 data-nosnippet>570</a>
+<a href=#571 id=571 data-nosnippet>571</a>        <span class="comment">// SAFETY: `Self` is `Pod` and has the same memory representation as `usize`.
+<a href=#572 id=572 data-nosnippet>572</a>        </span><span class="kw">unsafe </span>{ transmute_unchecked(<span class="self">self</span>) }
+<a href=#573 id=573 data-nosnippet>573</a>    }
+<a href=#574 id=574 data-nosnippet>574</a>
+<a href=#575 id=575 data-nosnippet>575</a>    <span class="doccomment">/// Converts the raw `usize` value into a PTE.
+<a href=#576 id=576 data-nosnippet>576</a>    </span><span class="kw">fn </span>from_usize(pte_raw: usize) -&gt; <span class="self">Self </span>{
+<a href=#577 id=577 data-nosnippet>577</a>        <span class="kw">const </span>{ <span class="macro">assert!</span>(size_of::&lt;<span class="self">Self</span>&gt;() == size_of::&lt;usize&gt;()) };
+<a href=#578 id=578 data-nosnippet>578</a>
+<a href=#579 id=579 data-nosnippet>579</a>        <span class="comment">// SAFETY: `Self` is `Pod` and has the same memory representation as `usize`.
+<a href=#580 id=580 data-nosnippet>580</a>        </span><span class="kw">unsafe </span>{ transmute_unchecked(pte_raw) }
+<a href=#581 id=581 data-nosnippet>581</a>    }
+<a href=#582 id=582 data-nosnippet>582</a>}
+<a href=#583 id=583 data-nosnippet>583</a>
+<a href=#584 id=584 data-nosnippet>584</a><span class="doccomment">/// Loads a page table entry with an atomic instruction.
+<a href=#585 id=585 data-nosnippet>585</a>///
+<a href=#586 id=586 data-nosnippet>586</a>/// # Safety
+<a href=#587 id=587 data-nosnippet>587</a>///
+<a href=#588 id=588 data-nosnippet>588</a>/// The safety preconditions are same as those of [`AtomicUsize::from_ptr`].
+<a href=#589 id=589 data-nosnippet>589</a></span><span class="kw">pub unsafe fn </span>load_pte&lt;E: PteTrait&gt;(ptr: <span class="kw-2">*mut </span>E, ordering: Ordering) -&gt; E {
+<a href=#590 id=590 data-nosnippet>590</a>    <span class="comment">// SAFETY: The safety is upheld by the caller.
+<a href=#591 id=591 data-nosnippet>591</a>    </span><span class="kw">let </span>atomic = <span class="kw">unsafe </span>{ AtomicUsize::from_ptr(ptr.cast()) };
+<a href=#592 id=592 data-nosnippet>592</a>    <span class="kw">let </span>pte_raw = atomic.load(ordering);
+<a href=#593 id=593 data-nosnippet>593</a>    E::from_usize(pte_raw)
+<a href=#594 id=594 data-nosnippet>594</a>}
+<a href=#595 id=595 data-nosnippet>595</a>
+<a href=#596 id=596 data-nosnippet>596</a><span class="doccomment">/// Stores a page table entry with an atomic instruction.
+<a href=#597 id=597 data-nosnippet>597</a>///
+<a href=#598 id=598 data-nosnippet>598</a>/// # Safety
+<a href=#599 id=599 data-nosnippet>599</a>///
+<a href=#600 id=600 data-nosnippet>600</a>/// The safety preconditions are same as those of [`AtomicUsize::from_ptr`].
+<a href=#601 id=601 data-nosnippet>601</a></span><span class="kw">pub unsafe fn </span>store_pte&lt;E: PteTrait&gt;(ptr: <span class="kw-2">*mut </span>E, new_val: E, ordering: Ordering) {
+<a href=#602 id=602 data-nosnippet>602</a>    <span class="kw">let </span>new_raw = new_val.as_usize();
+<a href=#603 id=603 data-nosnippet>603</a>    <span class="comment">// SAFETY: The safety is upheld by the caller.
+<a href=#604 id=604 data-nosnippet>604</a>    </span><span class="kw">let </span>atomic = <span class="kw">unsafe </span>{ AtomicUsize::from_ptr(ptr.cast()) };
+<a href=#605 id=605 data-nosnippet>605</a>    atomic.store(new_raw, ordering)
+<a href=#606 id=606 data-nosnippet>606</a>}
+</code></pre></div></section></main></body></html>

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["removexattr","sys_fremovexattr","sys_lremovexattr","sys_removexattr"]};

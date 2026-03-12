@@ -1,0 +1,9 @@
+(function() {
+    var implementors = Object.fromEntries([["aster_kernel",[["impl SysNode for <a class=\"struct\" href=\"aster_kernel/fs/fs_impls/cgroupfs/systree_node/struct.CgroupNode.html\" title=\"struct aster_kernel::fs::fs_impls::cgroupfs::systree_node::CgroupNode\">CgroupNode</a>"],["impl SysNode for <a class=\"struct\" href=\"aster_kernel/fs/fs_impls/cgroupfs/systree_node/struct.CgroupSystem.html\" title=\"struct aster_kernel::fs::fs_impls::cgroupfs::systree_node::CgroupSystem\">CgroupSystem</a>"],["impl SysNode for <a class=\"struct\" href=\"aster_kernel/fs/fs_impls/configfs/systree_node/struct.ConfigRootNode.html\" title=\"struct aster_kernel::fs::fs_impls::configfs::systree_node::ConfigRootNode\">ConfigRootNode</a>"],["impl SysNode for <a class=\"struct\" href=\"aster_kernel/fs/fs_impls/sysfs/kernel/struct.KernelSysNodeRoot.html\" title=\"struct aster_kernel::fs::fs_impls::sysfs::kernel::KernelSysNodeRoot\">KernelSysNodeRoot</a>"],["impl SysNode for <a class=\"struct\" href=\"aster_kernel/fs/vfs/fs_apis/registry/struct.FsRegistry.html\" title=\"struct aster_kernel::fs::vfs::fs_apis::registry::FsRegistry\">FsRegistry</a>"],["impl SysNode for <a class=\"struct\" href=\"aster_kernel/security/tsm/struct.ReportNode.html\" title=\"struct aster_kernel::security::tsm::ReportNode\">ReportNode</a>"],["impl SysNode for <a class=\"struct\" href=\"aster_kernel/security/tsm/struct.ReportSet.html\" title=\"struct aster_kernel::security::tsm::ReportSet\">ReportSet</a>"],["impl SysNode for <a class=\"struct\" href=\"aster_kernel/security/tsm/struct.Tsm.html\" title=\"struct aster_kernel::security::tsm::Tsm\">Tsm</a>"]]],["aster_systree",[]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":57,"fragment_lengths":[1583,21]}

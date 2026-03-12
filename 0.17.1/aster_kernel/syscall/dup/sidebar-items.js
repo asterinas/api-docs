@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["do_dup3","sys_dup","sys_dup2","sys_dup3"]};

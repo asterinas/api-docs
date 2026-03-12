@@ -1,0 +1,48 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `kernel/src/net/socket/util/send_recv_flags.rs`."><title>send_recv_flags.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../../" data-static-root-path="../../../../../static.files/" data-current-crate="aster_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../../static.files/storage-e2aeef58.js"></script><script defer src="../../../../../static.files/src-script-813739b1.js"></script><script defer src="../../../../../src-files.js"></script><script defer src="../../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">aster_kernel/net/socket/util/</div>send_recv_flags.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-2"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="comment">// SPDX-License-Identifier: MPL-2.0
+<a href=#2 id=2 data-nosnippet>2</a>
+<a href=#3 id=3 data-nosnippet>3</a></span><span class="kw">use </span><span class="kw">crate</span>::prelude::<span class="kw-2">*</span>;
+<a href=#4 id=4 data-nosnippet>4</a>
+<a href=#5 id=5 data-nosnippet>5</a><span class="macro">bitflags!</span> {
+<a href=#6 id=6 data-nosnippet>6</a>    <span class="doccomment">/// Flags used for send/recv.
+<a href=#7 id=7 data-nosnippet>7</a>    /// The definition is from https://elixir.bootlin.com/linux/v6.0.9/source/include/linux/socket.h
+<a href=#8 id=8 data-nosnippet>8</a>    </span><span class="attr">#[repr(C)]
+<a href=#9 id=9 data-nosnippet>9</a>    #[derive(Pod)]
+<a href=#10 id=10 data-nosnippet>10</a>    </span><span class="kw">pub struct </span>SendRecvFlags: i32 {
+<a href=#11 id=11 data-nosnippet>11</a>        <span class="kw">const </span>MSG_OOB = <span class="number">1</span>;
+<a href=#12 id=12 data-nosnippet>12</a>        <span class="kw">const </span>MSG_PEEK	= <span class="number">2</span>;
+<a href=#13 id=13 data-nosnippet>13</a>        <span class="kw">const </span>MSG_DONTROUTE	= <span class="number">4</span>;
+<a href=#14 id=14 data-nosnippet>14</a>        <span class="comment">// const MSG_TRYHARD  =   4;       /* Synonym for MSG_DONTROUTE for DECnet */
+<a href=#15 id=15 data-nosnippet>15</a>        </span><span class="kw">const </span>MSG_CTRUNC	= <span class="number">8</span>;
+<a href=#16 id=16 data-nosnippet>16</a>        <span class="kw">const </span>MSG_PROBE	= <span class="number">0x10</span>;	<span class="comment">/* Do not send. Only probe path f.e. for MTU */
+<a href=#17 id=17 data-nosnippet>17</a>        </span><span class="kw">const </span>MSG_TRUNC	= <span class="number">0x20</span>;
+<a href=#18 id=18 data-nosnippet>18</a>        <span class="kw">const </span>MSG_DONTWAIT	= <span class="number">0x40</span>;	<span class="comment">/* Nonblocking io		 */
+<a href=#19 id=19 data-nosnippet>19</a>        </span><span class="kw">const </span>MSG_EOR       = <span class="number">0x80</span>;	<span class="comment">/* End of record */
+<a href=#20 id=20 data-nosnippet>20</a>        </span><span class="kw">const </span>MSG_WAITALL	= <span class="number">0x100</span>;	<span class="comment">/* Wait for a full request */
+<a href=#21 id=21 data-nosnippet>21</a>        </span><span class="kw">const </span>MSG_FIN        = <span class="number">0x200</span>;
+<a href=#22 id=22 data-nosnippet>22</a>        <span class="kw">const </span>MSG_SYN		= <span class="number">0x400</span>;
+<a href=#23 id=23 data-nosnippet>23</a>        <span class="kw">const </span>MSG_CONFIRM	= <span class="number">0x800</span>;	<span class="comment">/* Confirm path validity */
+<a href=#24 id=24 data-nosnippet>24</a>        </span><span class="kw">const </span>MSG_RST		= <span class="number">0x1000</span>;
+<a href=#25 id=25 data-nosnippet>25</a>        <span class="kw">const </span>MSG_ERRQUEUE	= <span class="number">0x2000</span>;	<span class="comment">/* Fetch message from error queue */
+<a href=#26 id=26 data-nosnippet>26</a>        </span><span class="kw">const </span>MSG_NOSIGNAL	= <span class="number">0x4000</span>;	<span class="comment">/* Do not generate SIGPIPE */
+<a href=#27 id=27 data-nosnippet>27</a>        </span><span class="kw">const </span>MSG_MORE	= <span class="number">0x8000</span>;	<span class="comment">/* Sender will send more */
+<a href=#28 id=28 data-nosnippet>28</a>        </span><span class="kw">const </span>MSG_WAITFORONE	= <span class="number">0x10000</span>;	<span class="comment">/* recvmmsg(): block until 1+ packets avail */
+<a href=#29 id=29 data-nosnippet>29</a>        </span><span class="kw">const </span>MSG_SENDPAGE_NOPOLICY = <span class="number">0x10000</span>; <span class="comment">/* sendpage() internal : do no apply policy */
+<a href=#30 id=30 data-nosnippet>30</a>        </span><span class="kw">const </span>MSG_SENDPAGE_NOTLAST = <span class="number">0x20000</span>; <span class="comment">/* sendpage() internal : not the last page */
+<a href=#31 id=31 data-nosnippet>31</a>        </span><span class="kw">const </span>MSG_BATCH	= <span class="number">0x40000</span>; <span class="comment">/* sendmmsg(): more messages coming */
+<a href=#32 id=32 data-nosnippet>32</a>        // const MSG_EOF         MSG_FIN
+<a href=#33 id=33 data-nosnippet>33</a>        </span><span class="kw">const </span>MSG_NO_SHARED_FRAGS = <span class="number">0x80000</span>; <span class="comment">/* sendpage() internal : page frags are not shared */
+<a href=#34 id=34 data-nosnippet>34</a>        </span><span class="kw">const </span>MSG_SENDPAGE_DECRYPTED	= <span class="number">0x100000</span>; <span class="comment">/* sendpage() internal : page may carry plain text and require encryption */
+<a href=#35 id=35 data-nosnippet>35</a>    </span>}
+<a href=#36 id=36 data-nosnippet>36</a>}
+<a href=#37 id=37 data-nosnippet>37</a>
+<a href=#38 id=38 data-nosnippet>38</a><span class="kw">impl </span>SendRecvFlags {
+<a href=#39 id=39 data-nosnippet>39</a>    <span class="kw">fn </span>supported_flags() -&gt; <span class="self">Self </span>{
+<a href=#40 id=40 data-nosnippet>40</a>        SendRecvFlags::empty()
+<a href=#41 id=41 data-nosnippet>41</a>    }
+<a href=#42 id=42 data-nosnippet>42</a>
+<a href=#43 id=43 data-nosnippet>43</a>    <span class="kw">pub fn </span>is_all_supported(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#44 id=44 data-nosnippet>44</a>        <span class="kw">let </span>supported_flags = <span class="self">Self</span>::supported_flags();
+<a href=#45 id=45 data-nosnippet>45</a>        supported_flags.contains(<span class="kw-2">*</span><span class="self">self</span>)
+<a href=#46 id=46 data-nosnippet>46</a>    }
+<a href=#47 id=47 data-nosnippet>47</a>}
+</code></pre></div></section></main></body></html>

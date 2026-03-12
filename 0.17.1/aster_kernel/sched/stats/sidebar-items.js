@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["loadavg","scheduler_stats"]};

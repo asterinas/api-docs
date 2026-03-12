@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["PAGE_SIZE"],"fn":["allocate_boot_params","efi_phase_boot","efi_phase_runtime","fill_screen_info","find_rsdp_addr","load_cmdline","load_initrd","main_efi_common64","parse_memory_type"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["init"],"mod":["bitmap","constants","dentry","fat","fs","inode","super_block","upcase_table","utils"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["BlockGroup","BlockGroupImpl","GroupDescriptor","GroupMetadata","Inner","RawGroupDescriptor"]};

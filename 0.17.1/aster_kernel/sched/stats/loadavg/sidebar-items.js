@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EXP_1","EXP_15","EXP_5","LOAD_FREQ"],"fn":["calc_loadavg","get_loadavg","update_loadavg"],"static":["LOAD_AVG","LOAD_AVG_NEXT_UPDATE"],"type":["LoadAvgFixed"]};

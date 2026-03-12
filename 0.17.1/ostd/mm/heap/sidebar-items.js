@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["SlotInfo"],"struct":["HeapSlot","SlabMeta","SlabSlotList"],"trait":["GlobalHeapAllocator"],"type":["Slab"]};

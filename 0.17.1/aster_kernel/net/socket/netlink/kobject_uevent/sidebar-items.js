@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["bound","message"],"type":["NetlinkUeventSocket"]};

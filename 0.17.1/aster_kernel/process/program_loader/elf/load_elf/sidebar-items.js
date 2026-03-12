@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["PIE_BASE_ADDR"],"fn":["init_aux_vec","load_elf_to_vmar","load_ldso","lookup_and_parse_ldso","map_segment_vmo","map_segment_vmos","map_vdso_to_vmar","map_vmos_and_build_aux_vec"],"struct":["ElfLoadInfo","ElfMappedInfo","LdsoLoadInfo"]};

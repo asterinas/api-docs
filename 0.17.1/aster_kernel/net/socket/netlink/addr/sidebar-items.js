@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["UNSPECIFIED_PORT"],"mod":["multicast"],"struct":["NetlinkSocketAddr"],"type":["NetlinkProtocolId","PortNum"]};

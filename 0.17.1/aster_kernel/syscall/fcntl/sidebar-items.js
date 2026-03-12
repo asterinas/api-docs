@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["FcntlCmd","RangeLockWhence"],"fn":["from_c_flock_and_file","handle_addseal","handle_dupfd","handle_getfd","handle_getfl","handle_getlk","handle_getown","handle_getseal","handle_setfd","handle_setfl","handle_setlk","handle_setown","sys_fcntl"],"struct":["c_flock"],"type":["off_t"]};

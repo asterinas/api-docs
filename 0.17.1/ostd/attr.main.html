@@ -1,0 +1,58 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="A macro attribute to mark the kernel entry point."><title>main in ostd - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="ostd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc attr"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">main</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../ostd/index.html">ostd</a><span class="version">0.17.1</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">main</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#bootstrap-context" title="Bootstrap Context">Bootstrap Context</a></li><li><a href="#custom-task-scheduler" title="Custom Task Scheduler">Custom Task Scheduler</a></li><li><a href="#examples" title="Examples">Examples</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="index.html">In crate ostd</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">ostd</a></div><h1>Attribute Macro <span class="attr">main</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"></span></div><pre class="rust item-decl"><code>#[main]</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>A macro attribute to mark the kernel entry point.</p>
+<h2 id="bootstrap-context"><a class="doc-anchor" href="#bootstrap-context">§</a>Bootstrap Context</h2>
+<p>After initializing itself on the BSP,
+OSTD transfers control to this kernel entrypoint function marked with <code>#[ostd::main]</code>.
+Symmetrically, each AP also has a kernel entrypoint function,
+which is specified with <code>ostd::boot::smp::register_ap_entry</code>.</p>
+<p>Both BSP and AP kernel entrypoints execute code in the <strong>bootstrap context</strong>,
+which is intended to provide an opportunity for an OSTD-based kernel to
+perform all sorts of necessary initialization steps
+before spawning kernel/user tasks to execute code in the task context.</p>
+<p>The bootstrap context has the following limitations:</p>
+<ol>
+<li>No current task: Unlike the task context, the bootstrap context is not
+associated with a task. So calling <code>Task::current</code> in the bootstrap
+context always gets a <code>None</code>.</li>
+<li>No turning back: The kernel code execution eventually transitions
+from the bootstrap context to the task context. This transition is
+triggered by doing <code>return</code> or by calling <code>Task::yield_now</code>
+in a kernel entrypoint function.
+Either way, there is no turning back once leaving the bootstrap context.</li>
+</ol>
+<h2 id="custom-task-scheduler"><a class="doc-anchor" href="#custom-task-scheduler">§</a>Custom Task Scheduler</h2>
+<p>One key initialization step is to set up a custom task scheduler.
+To do so, the bootstrap code should initialize the task scheduler and then
+enable it by injecting it into OSTD (see <code>ostd::task::scheduler::inject_scheduler</code>).
+If no scheduler is injected until a scheduler-related operation (e.g., <code>Task::yield_now</code>) is triggered,
+then the default FIFO task scheduler will be used by OSTD.</p>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
+<p>The high-level workflow of a typical entrypoint function is demonstrated below:</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">use </span>ostd::boot::smp;
+<span class="kw">use </span>ostd::task::{Task, TaskOptions};
+
+<span class="attr">#[ostd::main]
+</span><span class="kw">fn </span>bsp_entrypoint() {
+    <span class="comment">// Call `ostd::task::scheduler::inject_scheduler` here
+    // to specify a custom scheduler.
+
+    // Perform initialization steps on BSP here.
+
+    </span>smp::register_ap_entry(ap_entrypoint);
+
+    TaskOptions::new(idle_task_fn).spawn();
+    <span class="comment">// Returning from here transitions to the task context.
+</span>}
+
+<span class="kw">fn </span>ap_entrypoint() {
+    <span class="comment">// Perform initialization steps on AP here.
+
+    </span>TaskOptions::new(idle_task_fn).spawn().unwrap();
+    <span class="comment">// Returning from here transitions to the task context.
+</span>}
+
+<span class="kw">fn </span>idle_task_fn() {
+    <span class="kw">loop </span>{
+        Task::yield_now();
+    }
+}</code></pre></div></div></details></section></div></main></body></html>

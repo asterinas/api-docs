@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"type":["GetGraphicsMode","GetKeyboardMode","GetPtyNumber","GetTermios","GetWinSize","SetGraphicsMode","SetKeyboardMode","SetOrGetFont","SetTermios","SetTermiosFlush","SetTermiosWait","SetWinSize"]};

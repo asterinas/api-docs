@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["sys_symlink","sys_symlinkat"]};

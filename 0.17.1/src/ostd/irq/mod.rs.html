@@ -1,0 +1,102 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `ostd/src/irq/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="ostd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">ostd/irq/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="comment">// SPDX-License-Identifier: MPL-2.0
+<a href=#2 id=2 data-nosnippet>2</a>
+<a href=#3 id=3 data-nosnippet>3</a></span><span class="doccomment">//! Handling of Interrupt ReQuests (IRQs).
+<a href=#4 id=4 data-nosnippet>4</a>//!
+<a href=#5 id=5 data-nosnippet>5</a>//! # Top vs bottom half
+<a href=#6 id=6 data-nosnippet>6</a>//!
+<a href=#7 id=7 data-nosnippet>7</a>//! OSTD divides the handling of an IRQ into two parts:
+<a href=#8 id=8 data-nosnippet>8</a>//! **top half** and **bottom half**.
+<a href=#9 id=9 data-nosnippet>9</a>//!
+<a href=#10 id=10 data-nosnippet>10</a>//! A driver can assign to a target device an IRQ line, [`IrqLine`],
+<a href=#11 id=11 data-nosnippet>11</a>//! to which a callback function may be registered.
+<a href=#12 id=12 data-nosnippet>12</a>//! When an IRQ arrives at an IRQ line,
+<a href=#13 id=13 data-nosnippet>13</a>//! OSTD will invoke all the callbacks registered on the line,
+<a href=#14 id=14 data-nosnippet>14</a>//! with all local IRQs on the CPU disabled.
+<a href=#15 id=15 data-nosnippet>15</a>//! Thus, the `IrqLine` callbacks should be written as short as possible,
+<a href=#16 id=16 data-nosnippet>16</a>//! performing the most critical tasks.
+<a href=#17 id=17 data-nosnippet>17</a>//! This is the so-called top half of IRQ handling.
+<a href=#18 id=18 data-nosnippet>18</a>//!
+<a href=#19 id=19 data-nosnippet>19</a>//! When the top half finishes,
+<a href=#20 id=20 data-nosnippet>20</a>//! OSTD continues on the handling of the IRQ with the bottom half.
+<a href=#21 id=21 data-nosnippet>21</a>//! The logic of the bottom half is specified
+<a href=#22 id=22 data-nosnippet>22</a>//! by a callback function registered via [`register_bottom_half_handler_l1`]
+<a href=#23 id=23 data-nosnippet>23</a>//! (or [`register_bottom_half_handler_l2`], as we will see later).
+<a href=#24 id=24 data-nosnippet>24</a>//! The implementer of this callback function may re-enable local IRQs,
+<a href=#25 id=25 data-nosnippet>25</a>//! thus allowing the less critical tasks performed in the bottom half
+<a href=#26 id=26 data-nosnippet>26</a>//! to be preempted by the more critical ones done in the top half.
+<a href=#27 id=27 data-nosnippet>27</a>//!
+<a href=#28 id=28 data-nosnippet>28</a>//! OSTD's split of IRQ handling in top and bottom halves
+<a href=#29 id=29 data-nosnippet>29</a>//! closely resembles that of Linux,
+<a href=#30 id=30 data-nosnippet>30</a>//! but with a key difference:
+<a href=#31 id=31 data-nosnippet>31</a>//! OSTD itself does not hardcode any concrete mechanisms for the bottom-half,
+<a href=#32 id=32 data-nosnippet>32</a>//! e.g., Linux's softirqs or tasklets.
+<a href=#33 id=33 data-nosnippet>33</a>//! OSTD's APIs are flexible and powerful enough to
+<a href=#34 id=34 data-nosnippet>34</a>//! enable an OSTD-based kernel to implement such mechanisms itself.
+<a href=#35 id=35 data-nosnippet>35</a>//! This design helps contain the size and complexity of OSTD.
+<a href=#36 id=36 data-nosnippet>36</a>//!
+<a href=#37 id=37 data-nosnippet>37</a>//! # Nested interrupts
+<a href=#38 id=38 data-nosnippet>38</a>//!
+<a href=#39 id=39 data-nosnippet>39</a>//! OSTD allows interrupts to be nested.
+<a href=#40 id=40 data-nosnippet>40</a>//! The top-half for handling nested interrupts are still done by `IrqLine` callbacks,
+<a href=#41 id=41 data-nosnippet>41</a>//! yet the bottom-half logic is done by a new callback
+<a href=#42 id=42 data-nosnippet>42</a>//! registered via [`register_bottom_half_handler_l2`],
+<a href=#43 id=43 data-nosnippet>43</a>//! rather than [`register_bottom_half_handler_l1`].
+<a href=#44 id=44 data-nosnippet>44</a>//!
+<a href=#45 id=45 data-nosnippet>45</a>//! We introduce the concept of **interrupt level** to
+<a href=#46 id=46 data-nosnippet>46</a>//! mark the nesting depth of interrupts.
+<a href=#47 id=47 data-nosnippet>47</a>//! [`InterruptLevel::current`] keeps track of the current nesting depth
+<a href=#48 id=48 data-nosnippet>48</a>//! on the CPU where the code is executing.
+<a href=#49 id=49 data-nosnippet>49</a>//! There are three interrupt levels:
+<a href=#50 id=50 data-nosnippet>50</a>//!
+<a href=#51 id=51 data-nosnippet>51</a>//! - **Level 0 (Task Context):**
+<a href=#52 id=52 data-nosnippet>52</a>//!   Normal execution for a kernel or user task.
+<a href=#53 id=53 data-nosnippet>53</a>//!   Code at this level can be preempted by a hardware interrupt.
+<a href=#54 id=54 data-nosnippet>54</a>//! - **Level 1 (Interrupt Context):**
+<a href=#55 id=55 data-nosnippet>55</a>//!   Entered when an interrupt preempts task context code.
+<a href=#56 id=56 data-nosnippet>56</a>//!   Interrupt handling callbacks that may be invoked at this level are:
+<a href=#57 id=57 data-nosnippet>57</a>//!   - The top-half callbacks registered via [`IrqLine`];
+<a href=#58 id=58 data-nosnippet>58</a>//!   - The bottom-half callback registered via [`register_bottom_half_handler_l1`].
+<a href=#59 id=59 data-nosnippet>59</a>//! - **Level 2 (Nested Interrupt Context):**
+<a href=#60 id=60 data-nosnippet>60</a>//!   The maximum nesting level,
+<a href=#61 id=61 data-nosnippet>61</a>//!   entered when a level 1 bottom-half callback
+<a href=#62 id=62 data-nosnippet>62</a>//!   (registered via `register_bottom_half_handler_l1`) is interrupted.
+<a href=#63 id=63 data-nosnippet>63</a>//!   `IrqLine` callbacks always have IRQ disabled;
+<a href=#64 id=64 data-nosnippet>64</a>//!   thus, they can never be preempted.
+<a href=#65 id=65 data-nosnippet>65</a>//!
+<a href=#66 id=66 data-nosnippet>66</a>//!   Interrupt handling callbacks that may be invoked at this level are:
+<a href=#67 id=67 data-nosnippet>67</a>//!   - The top-half callbacks registered via [`IrqLine`];
+<a href=#68 id=68 data-nosnippet>68</a>//!   - The bottom-half callback registered via [`register_bottom_half_handler_l2`]
+<a href=#69 id=69 data-nosnippet>69</a>//!     (not [`register_bottom_half_handler_l1`]).
+<a href=#70 id=70 data-nosnippet>70</a>//!
+<a href=#71 id=71 data-nosnippet>71</a>//!   At this level, all local IRQs are disabled to prevent further nesting.
+<a href=#72 id=72 data-nosnippet>72</a>//!
+<a href=#73 id=73 data-nosnippet>73</a>
+<a href=#74 id=74 data-nosnippet>74</a></span><span class="kw">mod </span>bottom_half;
+<a href=#75 id=75 data-nosnippet>75</a><span class="kw">mod </span>guard;
+<a href=#76 id=76 data-nosnippet>76</a><span class="kw">mod </span>level;
+<a href=#77 id=77 data-nosnippet>77</a><span class="kw">mod </span>top_half;
+<a href=#78 id=78 data-nosnippet>78</a>
+<a href=#79 id=79 data-nosnippet>79</a><span class="kw">pub use </span>bottom_half::{register_bottom_half_handler_l1, register_bottom_half_handler_l2};
+<a href=#80 id=80 data-nosnippet>80</a><span class="kw">pub use </span>guard::{DisabledLocalIrqGuard, disable_local};
+<a href=#81 id=81 data-nosnippet>81</a><span class="kw">pub use </span>level::InterruptLevel;
+<a href=#82 id=82 data-nosnippet>82</a><span class="kw">pub use </span>top_half::{IrqCallbackFunction, IrqLine};
+<a href=#83 id=83 data-nosnippet>83</a>
+<a href=#84 id=84 data-nosnippet>84</a><span class="kw">use crate</span>::{
+<a href=#85 id=85 data-nosnippet>85</a>    arch::{irq::HwIrqLine, trap::TrapFrame},
+<a href=#86 id=86 data-nosnippet>86</a>    cpu::PrivilegeLevel,
+<a href=#87 id=87 data-nosnippet>87</a>};
+<a href=#88 id=88 data-nosnippet>88</a>
+<a href=#89 id=89 data-nosnippet>89</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_irq_callback_functions(
+<a href=#90 id=90 data-nosnippet>90</a>    trap_frame: <span class="kw-2">&amp;</span>TrapFrame,
+<a href=#91 id=91 data-nosnippet>91</a>    hw_irq_line: <span class="kw-2">&amp;</span>HwIrqLine,
+<a href=#92 id=92 data-nosnippet>92</a>    cpu_priv_at_irq: PrivilegeLevel,
+<a href=#93 id=93 data-nosnippet>93</a>) {
+<a href=#94 id=94 data-nosnippet>94</a>    level::enter(
+<a href=#95 id=95 data-nosnippet>95</a>        <span class="kw">move </span>|| {
+<a href=#96 id=96 data-nosnippet>96</a>            top_half::process(trap_frame, hw_irq_line);
+<a href=#97 id=97 data-nosnippet>97</a>            bottom_half::process(hw_irq_line.irq_num());
+<a href=#98 id=98 data-nosnippet>98</a>        },
+<a href=#99 id=99 data-nosnippet>99</a>        cpu_priv_at_irq,
+<a href=#100 id=100 data-nosnippet>100</a>    );
+<a href=#101 id=101 data-nosnippet>101</a>}
+</code></pre></div></section></main></body></html>

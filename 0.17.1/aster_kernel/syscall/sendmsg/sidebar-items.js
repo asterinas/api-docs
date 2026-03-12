@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["send_one_message","sys_sendmsg"]};

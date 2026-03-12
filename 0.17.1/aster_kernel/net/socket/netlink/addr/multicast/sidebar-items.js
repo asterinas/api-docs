@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_GROUPS"],"struct":["GroupIdIter","GroupIdSet"],"type":["GroupId"]};

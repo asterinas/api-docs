@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["PIDFD_SELF_THREAD","PIDFD_SELF_THREAD_GROUP"],"enum":["PidfdSendSignalFlags","SignalTarget"],"fn":["get_target_from_pidfd","read_siginfo_from_user","sys_pidfd_send_signal"]};

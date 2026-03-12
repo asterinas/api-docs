@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["UTS_FIELD_LEN"],"fn":["copy_uts_field_from_user"],"struct":["UtsName","UtsNamespace"]};

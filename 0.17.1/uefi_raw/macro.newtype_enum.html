@@ -1,0 +1,31 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Interface a C-style enum as an integer newtype."><title>newtype_enum in uefi_raw - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="uefi_raw" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc macro"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">newtype_enum</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../uefi_raw/index.html">uefi_<wbr>raw</a><span class="version">0.8.0</span></h2></div><div class="sidebar-elems"><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">uefi_raw</a></div><h1>Macro <span class="macro">newtype_<wbr>enum</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/uefi_raw/enums.rs.html#44-84">Source</a> </span></div><pre class="rust item-decl"><code>macro_rules! newtype_enum {
+    (
+        $(#[$type_attrs:meta])*
+        $visibility:vis enum $type:ident : $base_integer:ty =&gt; $(#[$impl_attrs:meta])* {
+            $(
+                $(#[$variant_attrs:meta])*
+                $variant:ident = $value:expr,
+            )*
+        }
+    ) =&gt; { ... };
+}</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Interface a C-style enum as an integer newtype.</p>
+<p>This macro implements Debug for you, the way you would expect it to work on
+Rust enums (printing the variant name instead of its integer value). It also
+derives Clone, Copy, Eq, PartialEq, Ord, PartialOrd, and Hash, since that
+always makes sense for C-style enums. If you want anything else
+to be derived, you can ask for it by adding extra derives as shown in the
+example below.</p>
+<p>One minor annoyance is that since variants will be translated into
+associated constants in a separate impl block, you need to discriminate
+which attributes should go on the type and which should go on the impl
+block. The latter should go on the right-hand side of the arrow operator.</p>
+<p>Usage example:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">newtype_enum!</span> {
+<span class="attr">#[derive(Default)]
+</span><span class="kw">pub enum </span>UnixBool: i32 =&gt; <span class="attr">#[allow(missing_docs)] </span>{
+    FALSE          =  <span class="number">0</span>,
+    TRUE           =  <span class="number">1</span>,
+    <span class="doccomment">/// Nobody expects the Unix inquisition!
+    </span>FILE_NOT_FOUND = -<span class="number">1</span>,
+}}</code></pre></div></div></details></section></div></main></body></html>

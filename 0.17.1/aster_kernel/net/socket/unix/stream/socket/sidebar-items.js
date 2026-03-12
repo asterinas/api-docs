@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SHUT_READ_EVENTS","SHUT_WRITE_EVENTS"],"enum":["State"],"fn":["do_unix_getsockopt"],"struct":["OptionSet","UnixStreamSocket"]};

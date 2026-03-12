@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":["chmod","mkmod","perms_to_mask","who_and_perms_to_mask","who_to_mask"],"struct":["InodeMode"]};

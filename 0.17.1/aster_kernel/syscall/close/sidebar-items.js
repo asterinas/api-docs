@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["sys_close","sys_close_range"],"struct":["CloseRangeFlags"]};

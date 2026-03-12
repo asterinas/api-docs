@@ -1,0 +1,44 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Procedural macro to automatically add padding fields to a `#[repr(C)]` struct."><title>padding_struct in ostd_pod - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="ostd_pod" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.0-nightly (1aa9bab4e 2025-12-05)" data-channel="nightly" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc attr"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">padding_struct</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../ostd_pod/index.html">ostd_<wbr>pod</a><span class="version">0.4.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">padding_<wbr>struct</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#padding-calculation-rules" title="Padding Calculation Rules">Padding Calculation Rules</a></li><li><a href="#requirements" title="Requirements">Requirements</a></li><li><a href="#examples" title="Examples">Examples</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="index.html">In crate ostd_<wbr>pod</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">ostd_pod</a></div><h1>Attribute Macro <span class="attr">padding_<wbr>struct</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"></span></div><pre class="rust item-decl"><code>#[padding_struct]</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Procedural macro to automatically add padding fields to a <code>#[repr(C)]</code> struct.</p>
+<p>This macro generates two structs:</p>
+<ol>
+<li>A reference struct (prefixed and suffixed with <code>__</code>) containing the original fields without padding.</li>
+<li>A padded struct (using the original name) with <code>__padN</code> padding fields after each original field.</li>
+</ol>
+<h2 id="padding-calculation-rules"><a class="doc-anchor" href="#padding-calculation-rules">§</a>Padding Calculation Rules</h2>
+<ul>
+<li>For non-last fields: padding size = next field’s offset - current field’s offset - current field’s size.</li>
+<li>For the last field: padding size = struct total size - current field’s offset - current field’s size.</li>
+</ul>
+<h2 id="requirements"><a class="doc-anchor" href="#requirements">§</a>Requirements</h2>
+<ul>
+<li>The struct must have a <code>#[repr(C)]</code> attribute.</li>
+<li>The struct must have named fields.</li>
+</ul>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>padding_struct::padding_struct;
+
+<span class="attr">#[repr(C)]
+#[padding_struct]
+</span><span class="kw">struct </span>MyStruct {
+    a: u8,
+    b: u32,
+}</code></pre></div>
+<p>This generates code equivalent to:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>core::mem::offset_of;
+
+<span class="attr">#[repr(C)]
+</span><span class="kw">struct </span>__MyStruct__ {
+    a: u8,
+    b: u32,
+}
+
+<span class="attr">#[repr(C)]
+</span><span class="kw">struct </span>MyStruct {
+    a: u8,
+    <span class="kw">pub </span>__pad1:
+        [u8; <span class="kw">const </span>{ <span class="macro">offset_of!</span>(__MyStruct__, b) - <span class="macro">offset_of!</span>(__MyStruct__, a) - size_of::&lt;u8&gt;() }],
+    b: u32,
+    <span class="kw">pub </span>__pad2:
+        [u8; <span class="kw">const </span>{ size_of::&lt;__MyStruct__&gt;() - <span class="macro">offset_of!</span>(__MyStruct__, b) - size_of::&lt;u32&gt;() }],
+}</code></pre></div></div></details></section></div></main></body></html>

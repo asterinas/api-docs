@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["INIT_ALLOC_SIZE"],"fn":["has_zero","is_addr_aligned","read_until_nul_byte"],"trait":["ReadCString"]};

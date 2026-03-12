@@ -1,0 +1,9 @@
+(function() {
+    var type_impls = Object.fromEntries([["aster_kernel",[["<details class=\"toggle implementors-toggle\" open><summary><section id=\"impl-ThreadLocalOptionRef%3C'_,+T%3E\" class=\"impl\"><a class=\"src rightside\" href=\"src/aster_kernel/process/posix_thread/thread_local.rs.html#279-288\">Source</a><a href=\"#impl-ThreadLocalOptionRef%3C'_,+T%3E\" class=\"anchor\">§</a><h3 class=\"code-header\">impl&lt;T&gt; <a class=\"struct\" href=\"aster_kernel/process/posix_thread/thread_local/struct.ThreadLocalOptionRef.html\" title=\"struct aster_kernel::process::posix_thread::thread_local::ThreadLocalOptionRef\">ThreadLocalOptionRef</a>&lt;'_, T&gt;</h3></section></summary><div class=\"impl-items\"><details class=\"toggle method-toggle\" open><summary><section id=\"method.unwrap\" class=\"method\"><a class=\"src rightside\" href=\"src/aster_kernel/process/posix_thread/thread_local.rs.html#285-287\">Source</a><h4 class=\"code-header\">pub fn <a href=\"#method.unwrap\" class=\"fn\">unwrap</a>(&amp;self) -&gt; &amp;T</h4></section></summary><div class=\"docblock\"><p>Unwraps and returns a reference to the data.</p>\n<h5 id=\"panics\"><a class=\"doc-anchor\" href=\"#panics\">§</a>Panics</h5>\n<p>This method will panic if the thread has exited and the data has been dropped.</p>\n</div></details></div></details>",0,"aster_kernel::process::posix_thread::thread_local::FileTableRef","aster_kernel::process::posix_thread::thread_local::NsProxyRef"]]]]);
+    if (window.register_type_impls) {
+        window.register_type_impls(type_impls);
+    } else {
+        window.pending_type_impls = type_impls;
+    }
+})()
+//{"start":55,"fragment_lengths":[1415]}

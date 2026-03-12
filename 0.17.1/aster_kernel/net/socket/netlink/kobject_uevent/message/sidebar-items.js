@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["syn_uevent","uevent"],"struct":["UeventMessage"]};
