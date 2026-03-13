@@ -5,7 +5,7 @@
 <a href=#5 id=5 data-nosnippet>5</a><span class="kw">use crate</span>::{
 <a href=#6 id=6 data-nosnippet>6</a>    fs::{
 <a href=#7 id=7 data-nosnippet>7</a>        file::mkmod,
-<a href=#8 id=8 data-nosnippet>8</a>        pseudofs::{PseudoFs, PseudoInodeType},
+<a href=#8 id=8 data-nosnippet>8</a>        pseudofs::{NaivePseudoFs, PseudoInodeType},
 <a href=#9 id=9 data-nosnippet>9</a>        vfs::{
 <a href=#10 id=10 data-nosnippet>10</a>            inode::Inode,
 <a href=#11 id=11 data-nosnippet>11</a>            path::{Mount, Path},
@@ -21,10 +21,10 @@
 <a href=#21 id=21 data-nosnippet>21</a>
 <a href=#22 id=22 data-nosnippet>22</a><span class="kw">impl </span>AnonInodeFs {
 <a href=#23 id=23 data-nosnippet>23</a>    <span class="doccomment">/// Returns the singleton instance of the anonymous inode file system.
-<a href=#24 id=24 data-nosnippet>24</a>    </span><span class="kw">fn </span>singleton() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>Arc&lt;PseudoFs&gt; {
-<a href=#25 id=25 data-nosnippet>25</a>        <span class="kw">static </span>ANON_INODEFS: Once&lt;Arc&lt;PseudoFs&gt;&gt; = Once::new();
+<a href=#24 id=24 data-nosnippet>24</a>    </span><span class="kw">fn </span>singleton() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>Arc&lt;NaivePseudoFs&gt; {
+<a href=#25 id=25 data-nosnippet>25</a>        <span class="kw">static </span>ANON_INODEFS: Once&lt;Arc&lt;NaivePseudoFs&gt;&gt; = Once::new();
 <a href=#26 id=26 data-nosnippet>26</a>
-<a href=#27 id=27 data-nosnippet>27</a>        PseudoFs::singleton(<span class="kw-2">&amp;</span>ANON_INODEFS, <span class="string">"anon_inodefs"</span>, ANON_INODEFS_MAGIC)
+<a href=#27 id=27 data-nosnippet>27</a>        NaivePseudoFs::singleton(<span class="kw-2">&amp;</span>ANON_INODEFS, <span class="string">"anon_inodefs"</span>, ANON_INODEFS_MAGIC)
 <a href=#28 id=28 data-nosnippet>28</a>    }
 <a href=#29 id=29 data-nosnippet>29</a>
 <a href=#30 id=30 data-nosnippet>30</a>    <span class="doccomment">/// Creates a pseudo `Path` for the shared inode.

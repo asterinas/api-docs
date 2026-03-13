@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["ProcFile"],"trait":["FileOps","FileOpsByHandle"]};
+window.SIDEBAR_ITEMS = {"fn":["new_file_common"],"struct":["ProcFile"],"trait":["FileOps","FileOpsByHandle"]};

@@ -19,7 +19,7 @@
 <a href=#19 id=19 data-nosnippet>19</a>    cpu::LinuxAbi,
 <a href=#20 id=20 data-nosnippet>20</a>    current_userspace,
 <a href=#21 id=21 data-nosnippet>21</a>    fs::{
-<a href=#22 id=22 data-nosnippet>22</a>        cgroupfs::CgroupMembership,
+<a href=#22 id=22 data-nosnippet>22</a>        cgroupfs::{CgroupMembership, CgroupSysNode},
 <a href=#23 id=23 data-nosnippet>23</a>        file::file_table::{FdFlags, FileTable},
 <a href=#24 id=24 data-nosnippet>24</a>        thread_info::ThreadFsInfo,
 <a href=#25 id=25 data-nosnippet>25</a>    },
@@ -289,525 +289,550 @@
 <a href=#289 id=289 data-nosnippet>289</a>        <span class="kw">let </span>child_tid = child_thread.as_posix_thread().unwrap().tid();
 <a href=#290 id=290 data-nosnippet>290</a>        <span class="prelude-val">Ok</span>(child_tid)
 <a href=#291 id=291 data-nosnippet>291</a>    } <span class="kw">else </span>{
-<a href=#292 id=292 data-nosnippet>292</a>        <span class="kw">let </span>child_process = clone_child_process(ctx, parent_context, clone_args)<span class="question-mark">?</span>;
-<a href=#293 id=293 data-nosnippet>293</a>
-<a href=#294 id=294 data-nosnippet>294</a>        <span class="kw">let </span><span class="kw-2">mut </span>cgroup_guard = CgroupMembership::lock();
-<a href=#295 id=295 data-nosnippet>295</a>        <span class="kw">let </span>cgroup = ctx.process.cgroup().get().map(|cgroup| cgroup.clone());
-<a href=#296 id=296 data-nosnippet>296</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(cgroup) = cgroup {
-<a href=#297 id=297 data-nosnippet>297</a>            cgroup_guard
-<a href=#298 id=298 data-nosnippet>298</a>                .move_process_to_node(child_process.clone(), <span class="kw-2">&amp;</span>cgroup)
-<a href=#299 id=299 data-nosnippet>299</a>                .unwrap();
-<a href=#300 id=300 data-nosnippet>300</a>        }
-<a href=#301 id=301 data-nosnippet>301</a>        drop(cgroup_guard);
-<a href=#302 id=302 data-nosnippet>302</a>
-<a href=#303 id=303 data-nosnippet>303</a>        <span class="kw">if </span>clone_args.flags.contains(CloneFlags::CLONE_VFORK) {
-<a href=#304 id=304 data-nosnippet>304</a>            child_process.status().set_vfork_child(<span class="bool-val">true</span>);
-<a href=#305 id=305 data-nosnippet>305</a>        }
-<a href=#306 id=306 data-nosnippet>306</a>
-<a href=#307 id=307 data-nosnippet>307</a>        child_process.run();
-<a href=#308 id=308 data-nosnippet>308</a>
-<a href=#309 id=309 data-nosnippet>309</a>        PROCESS_CREATION_COUNTER
-<a href=#310 id=310 data-nosnippet>310</a>            .get()
-<a href=#311 id=311 data-nosnippet>311</a>            .unwrap()
-<a href=#312 id=312 data-nosnippet>312</a>            <span class="comment">// Race conditions are fine as we don't really care which CPU creates a process.
-<a href=#313 id=313 data-nosnippet>313</a>            </span>.add_on_cpu(CpuId::current_racy(), <span class="number">1</span>);
+<a href=#292 id=292 data-nosnippet>292</a>        <span class="comment">// Hold the read lock before charge to ensure the cgroup of current process
+<a href=#293 id=293 data-nosnippet>293</a>        // won't change during the charge and the subsequent move operation.
+<a href=#294 id=294 data-nosnippet>294</a>        </span><span class="kw">let </span>cgroup_read_guard = CgroupMembership::read_lock();
+<a href=#295 id=295 data-nosnippet>295</a>
+<a href=#296 id=296 data-nosnippet>296</a>        <span class="comment">// Pre-charge the pids sub-controller before creating the child process.
+<a href=#297 id=297 data-nosnippet>297</a>        // This enforces `pids.max` at fork time per cgroupv2 semantics.
+<a href=#298 id=298 data-nosnippet>298</a>        // The charge must happen before process creation so that on failure
+<a href=#299 id=299 data-nosnippet>299</a>        // we can return EAGAIN without leaving an orphaned process.
+<a href=#300 id=300 data-nosnippet>300</a>        </span><span class="kw">let </span>parent_cgroup = ctx.process.cgroup().get().map(|cgroup| cgroup.clone());
+<a href=#301 id=301 data-nosnippet>301</a>        <span class="kw">let </span>pids_charge = <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>cgroup) = parent_cgroup {
+<a href=#302 id=302 data-nosnippet>302</a>            <span class="kw">let </span>pids_charge = cgroup
+<a href=#303 id=303 data-nosnippet>303</a>                .controller()
+<a href=#304 id=304 data-nosnippet>304</a>                .pre_charge_pids(<span class="kw-2">&amp;</span>cgroup_read_guard)
+<a href=#305 id=305 data-nosnippet>305</a>                .map_err(|<span class="kw">_</span>| {
+<a href=#306 id=306 data-nosnippet>306</a>                    Error::with_message(Errno::EAGAIN, <span class="string">"the pids sub-controller limit is reached"</span>)
+<a href=#307 id=307 data-nosnippet>307</a>                })<span class="question-mark">?</span>;
+<a href=#308 id=308 data-nosnippet>308</a>            <span class="prelude-val">Some</span>(pids_charge)
+<a href=#309 id=309 data-nosnippet>309</a>        } <span class="kw">else </span>{
+<a href=#310 id=310 data-nosnippet>310</a>            <span class="prelude-val">None
+<a href=#311 id=311 data-nosnippet>311</a>        </span>};
+<a href=#312 id=312 data-nosnippet>312</a>
+<a href=#313 id=313 data-nosnippet>313</a>        <span class="kw">let </span>child_process = clone_child_process(ctx, parent_context, clone_args)<span class="question-mark">?</span>;
 <a href=#314 id=314 data-nosnippet>314</a>
-<a href=#315 id=315 data-nosnippet>315</a>        <span class="kw">if </span>child_process.status().is_vfork_child() {
-<a href=#316 id=316 data-nosnippet>316</a>            <span class="kw">let </span>cond = || (!child_process.status().is_vfork_child()).then_some(());
-<a href=#317 id=317 data-nosnippet>317</a>            <span class="kw">let </span>current = ctx.process.as_ref();
-<a href=#318 id=318 data-nosnippet>318</a>            current.children_wait_queue().wait_until(cond);
-<a href=#319 id=319 data-nosnippet>319</a>        }
-<a href=#320 id=320 data-nosnippet>320</a>
-<a href=#321 id=321 data-nosnippet>321</a>        <span class="kw">let </span>child_pid = child_process.pid();
-<a href=#322 id=322 data-nosnippet>322</a>        <span class="prelude-val">Ok</span>(child_pid)
-<a href=#323 id=323 data-nosnippet>323</a>    }
-<a href=#324 id=324 data-nosnippet>324</a>}
-<a href=#325 id=325 data-nosnippet>325</a>
-<a href=#326 id=326 data-nosnippet>326</a><span class="kw">fn </span>clone_child_task(
-<a href=#327 id=327 data-nosnippet>327</a>    ctx: <span class="kw-2">&amp;</span>Context,
-<a href=#328 id=328 data-nosnippet>328</a>    parent_context: <span class="kw-2">&amp;</span>UserContext,
-<a href=#329 id=329 data-nosnippet>329</a>    clone_args: CloneArgs,
-<a href=#330 id=330 data-nosnippet>330</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;Task&gt;&gt; {
-<a href=#331 id=331 data-nosnippet>331</a>    <span class="kw">let </span>clone_flags = clone_args.flags;
-<a href=#332 id=332 data-nosnippet>332</a>
-<a href=#333 id=333 data-nosnippet>333</a>    <span class="kw">let </span>Context {
-<a href=#334 id=334 data-nosnippet>334</a>        process,
-<a href=#335 id=335 data-nosnippet>335</a>        thread_local,
-<a href=#336 id=336 data-nosnippet>336</a>        posix_thread,
-<a href=#337 id=337 data-nosnippet>337</a>        ..
-<a href=#338 id=338 data-nosnippet>338</a>    } = ctx;
+<a href=#315 id=315 data-nosnippet>315</a>        <span class="comment">// Use the same cgroup snapshot that was charged above to avoid
+<a href=#316 id=316 data-nosnippet>316</a>        // a mismatch if the parent migrates concurrently.
+<a href=#317 id=317 data-nosnippet>317</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>cgroup) = parent_cgroup {
+<a href=#318 id=318 data-nosnippet>318</a>            cgroup_read_guard.move_forked_process_to_node(
+<a href=#319 id=319 data-nosnippet>319</a>                child_process.clone(),
+<a href=#320 id=320 data-nosnippet>320</a>                cgroup,
+<a href=#321 id=321 data-nosnippet>321</a>                pids_charge.unwrap(),
+<a href=#322 id=322 data-nosnippet>322</a>            );
+<a href=#323 id=323 data-nosnippet>323</a>        } <span class="kw">else </span>{
+<a href=#324 id=324 data-nosnippet>324</a>            drop(pids_charge);
+<a href=#325 id=325 data-nosnippet>325</a>        }
+<a href=#326 id=326 data-nosnippet>326</a>        drop(cgroup_read_guard);
+<a href=#327 id=327 data-nosnippet>327</a>
+<a href=#328 id=328 data-nosnippet>328</a>        <span class="kw">if </span>clone_args.flags.contains(CloneFlags::CLONE_VFORK) {
+<a href=#329 id=329 data-nosnippet>329</a>            child_process.status().set_vfork_child(<span class="bool-val">true</span>);
+<a href=#330 id=330 data-nosnippet>330</a>        }
+<a href=#331 id=331 data-nosnippet>331</a>
+<a href=#332 id=332 data-nosnippet>332</a>        child_process.run();
+<a href=#333 id=333 data-nosnippet>333</a>
+<a href=#334 id=334 data-nosnippet>334</a>        PROCESS_CREATION_COUNTER
+<a href=#335 id=335 data-nosnippet>335</a>            .get()
+<a href=#336 id=336 data-nosnippet>336</a>            .unwrap()
+<a href=#337 id=337 data-nosnippet>337</a>            <span class="comment">// Race conditions are fine as we don't really care which CPU creates a process.
+<a href=#338 id=338 data-nosnippet>338</a>            </span>.add_on_cpu(CpuId::current_racy(), <span class="number">1</span>);
 <a href=#339 id=339 data-nosnippet>339</a>
-<a href=#340 id=340 data-nosnippet>340</a>    <span class="comment">// Clone system V semaphore
-<a href=#341 id=341 data-nosnippet>341</a>    </span>clone_sysvsem(clone_flags)<span class="question-mark">?</span>;
-<a href=#342 id=342 data-nosnippet>342</a>
-<a href=#343 id=343 data-nosnippet>343</a>    <span class="comment">// Clone file table
-<a href=#344 id=344 data-nosnippet>344</a>    </span><span class="kw">let </span>child_file_table = clone_files(thread_local.borrow_file_table().unwrap(), clone_flags);
+<a href=#340 id=340 data-nosnippet>340</a>        <span class="kw">if </span>child_process.status().is_vfork_child() {
+<a href=#341 id=341 data-nosnippet>341</a>            <span class="kw">let </span>cond = || (!child_process.status().is_vfork_child()).then_some(());
+<a href=#342 id=342 data-nosnippet>342</a>            <span class="kw">let </span>current = ctx.process.as_ref();
+<a href=#343 id=343 data-nosnippet>343</a>            current.children_wait_queue().wait_until(cond);
+<a href=#344 id=344 data-nosnippet>344</a>        }
 <a href=#345 id=345 data-nosnippet>345</a>
-<a href=#346 id=346 data-nosnippet>346</a>    <span class="comment">// Clone fs
-<a href=#347 id=347 data-nosnippet>347</a>    </span><span class="kw">let </span>child_fs = clone_fs(<span class="kw-2">&amp;</span>thread_local.borrow_fs(), clone_flags);
-<a href=#348 id=348 data-nosnippet>348</a>
-<a href=#349 id=349 data-nosnippet>349</a>    <span class="comment">// Clone FPU context
-<a href=#350 id=350 data-nosnippet>350</a>    </span><span class="kw">let </span>child_fpu_context = thread_local.fpu().clone_context();
-<a href=#351 id=351 data-nosnippet>351</a>
-<a href=#352 id=352 data-nosnippet>352</a>    <span class="comment">// Clone namespaces
-<a href=#353 id=353 data-nosnippet>353</a>    </span><span class="kw">let </span>child_user_ns = thread_local.borrow_user_ns().clone();
-<a href=#354 id=354 data-nosnippet>354</a>    <span class="kw">let </span>child_ns_proxy = clone_ns_proxy(
-<a href=#355 id=355 data-nosnippet>355</a>        thread_local.borrow_ns_proxy().unwrap(),
-<a href=#356 id=356 data-nosnippet>356</a>        <span class="kw-2">&amp;</span>child_user_ns,
-<a href=#357 id=357 data-nosnippet>357</a>        clone_flags,
-<a href=#358 id=358 data-nosnippet>358</a>        posix_thread,
-<a href=#359 id=359 data-nosnippet>359</a>    )<span class="question-mark">?</span>;
-<a href=#360 id=360 data-nosnippet>360</a>
-<a href=#361 id=361 data-nosnippet>361</a>    <span class="comment">// Clone default timer slack
-<a href=#362 id=362 data-nosnippet>362</a>    </span><span class="kw">let </span>default_timer_slack_ns = posix_thread.timer_slack_ns();
-<a href=#363 id=363 data-nosnippet>363</a>
-<a href=#364 id=364 data-nosnippet>364</a>    <span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_NEWNS) {
-<a href=#365 id=365 data-nosnippet>365</a>        child_fs
-<a href=#366 id=366 data-nosnippet>366</a>            .resolver()
-<a href=#367 id=367 data-nosnippet>367</a>            .write()
-<a href=#368 id=368 data-nosnippet>368</a>            .switch_to_mnt_ns(child_ns_proxy.mnt_ns())<span class="question-mark">?</span>;
-<a href=#369 id=369 data-nosnippet>369</a>    }
+<a href=#346 id=346 data-nosnippet>346</a>        <span class="kw">let </span>child_pid = child_process.pid();
+<a href=#347 id=347 data-nosnippet>347</a>        <span class="prelude-val">Ok</span>(child_pid)
+<a href=#348 id=348 data-nosnippet>348</a>    }
+<a href=#349 id=349 data-nosnippet>349</a>}
+<a href=#350 id=350 data-nosnippet>350</a>
+<a href=#351 id=351 data-nosnippet>351</a><span class="kw">fn </span>clone_child_task(
+<a href=#352 id=352 data-nosnippet>352</a>    ctx: <span class="kw-2">&amp;</span>Context,
+<a href=#353 id=353 data-nosnippet>353</a>    parent_context: <span class="kw-2">&amp;</span>UserContext,
+<a href=#354 id=354 data-nosnippet>354</a>    clone_args: CloneArgs,
+<a href=#355 id=355 data-nosnippet>355</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;Task&gt;&gt; {
+<a href=#356 id=356 data-nosnippet>356</a>    <span class="kw">let </span>clone_flags = clone_args.flags;
+<a href=#357 id=357 data-nosnippet>357</a>
+<a href=#358 id=358 data-nosnippet>358</a>    <span class="kw">let </span>Context {
+<a href=#359 id=359 data-nosnippet>359</a>        process,
+<a href=#360 id=360 data-nosnippet>360</a>        thread_local,
+<a href=#361 id=361 data-nosnippet>361</a>        posix_thread,
+<a href=#362 id=362 data-nosnippet>362</a>        ..
+<a href=#363 id=363 data-nosnippet>363</a>    } = ctx;
+<a href=#364 id=364 data-nosnippet>364</a>
+<a href=#365 id=365 data-nosnippet>365</a>    <span class="comment">// Clone system V semaphore
+<a href=#366 id=366 data-nosnippet>366</a>    </span>clone_sysvsem(clone_flags)<span class="question-mark">?</span>;
+<a href=#367 id=367 data-nosnippet>367</a>
+<a href=#368 id=368 data-nosnippet>368</a>    <span class="comment">// Clone file table
+<a href=#369 id=369 data-nosnippet>369</a>    </span><span class="kw">let </span>child_file_table = clone_files(thread_local.borrow_file_table().unwrap(), clone_flags);
 <a href=#370 id=370 data-nosnippet>370</a>
-<a href=#371 id=371 data-nosnippet>371</a>    <span class="kw">let </span>child_user_ctx = Box::new(clone_user_ctx(
-<a href=#372 id=372 data-nosnippet>372</a>        parent_context,
-<a href=#373 id=373 data-nosnippet>373</a>        clone_args.stack,
-<a href=#374 id=374 data-nosnippet>374</a>        clone_args.stack_size,
-<a href=#375 id=375 data-nosnippet>375</a>        clone_args.tls,
-<a href=#376 id=376 data-nosnippet>376</a>        clone_flags,
-<a href=#377 id=377 data-nosnippet>377</a>    ));
-<a href=#378 id=378 data-nosnippet>378</a>
-<a href=#379 id=379 data-nosnippet>379</a>    <span class="comment">// Inherit sigmask from current thread
-<a href=#380 id=380 data-nosnippet>380</a>    </span><span class="kw">let </span>sig_mask = posix_thread.sig_mask().load(Ordering::Relaxed).into();
-<a href=#381 id=381 data-nosnippet>381</a>
-<a href=#382 id=382 data-nosnippet>382</a>    <span class="comment">// Inherit the thread name.
-<a href=#383 id=383 data-nosnippet>383</a>    </span><span class="kw">let </span>thread_name = posix_thread.thread_name().lock().clone();
-<a href=#384 id=384 data-nosnippet>384</a>
-<a href=#385 id=385 data-nosnippet>385</a>    <span class="kw">let </span>child_tid = allocate_posix_tid();
-<a href=#386 id=386 data-nosnippet>386</a>    <span class="kw">let </span>child_task = {
-<a href=#387 id=387 data-nosnippet>387</a>        <span class="kw">let </span>credentials = {
-<a href=#388 id=388 data-nosnippet>388</a>            <span class="kw">let </span>credentials = ctx.posix_thread.credentials();
-<a href=#389 id=389 data-nosnippet>389</a>            Credentials::new_from(<span class="kw-2">&amp;</span>credentials)
-<a href=#390 id=390 data-nosnippet>390</a>        };
-<a href=#391 id=391 data-nosnippet>391</a>
-<a href=#392 id=392 data-nosnippet>392</a>        <span class="kw">let </span><span class="kw-2">mut </span>thread_builder =
-<a href=#393 id=393 data-nosnippet>393</a>            PosixThreadBuilder::new(child_tid, thread_name, child_user_ctx, credentials)
-<a href=#394 id=394 data-nosnippet>394</a>                .process(posix_thread.weak_process().clone())
-<a href=#395 id=395 data-nosnippet>395</a>                .sig_mask(sig_mask)
-<a href=#396 id=396 data-nosnippet>396</a>                .file_table(child_file_table)
-<a href=#397 id=397 data-nosnippet>397</a>                .fs(child_fs)
-<a href=#398 id=398 data-nosnippet>398</a>                .fpu_context(child_fpu_context)
-<a href=#399 id=399 data-nosnippet>399</a>                .user_ns(child_user_ns)
-<a href=#400 id=400 data-nosnippet>400</a>                .ns_proxy(child_ns_proxy)
-<a href=#401 id=401 data-nosnippet>401</a>                .default_timer_slack_ns(default_timer_slack_ns);
-<a href=#402 id=402 data-nosnippet>402</a>
-<a href=#403 id=403 data-nosnippet>403</a>        <span class="comment">// Deal with SETTID/CLEARTID flags
-<a href=#404 id=404 data-nosnippet>404</a>        </span>clone_parent_settid(child_tid, clone_args.parent_tid, clone_flags)<span class="question-mark">?</span>;
-<a href=#405 id=405 data-nosnippet>405</a>        thread_builder = clone_child_cleartid(thread_builder, clone_args.child_tid, clone_flags);
-<a href=#406 id=406 data-nosnippet>406</a>        thread_builder = clone_child_settid(thread_builder, clone_args.child_tid, clone_flags);
-<a href=#407 id=407 data-nosnippet>407</a>
-<a href=#408 id=408 data-nosnippet>408</a>        thread_builder.build()
-<a href=#409 id=409 data-nosnippet>409</a>    };
-<a href=#410 id=410 data-nosnippet>410</a>
-<a href=#411 id=411 data-nosnippet>411</a>    process
-<a href=#412 id=412 data-nosnippet>412</a>        .tasks()
-<a href=#413 id=413 data-nosnippet>413</a>        .lock()
-<a href=#414 id=414 data-nosnippet>414</a>        .insert(child_task.clone())
-<a href=#415 id=415 data-nosnippet>415</a>        .map_err(|<span class="kw">_</span>| {
-<a href=#416 id=416 data-nosnippet>416</a>            Error::with_message(
-<a href=#417 id=417 data-nosnippet>417</a>                Errno::EINTR,
-<a href=#418 id=418 data-nosnippet>418</a>                <span class="string">"the process has exited or has already executed a new program"</span>,
-<a href=#419 id=419 data-nosnippet>419</a>            )
-<a href=#420 id=420 data-nosnippet>420</a>        })<span class="question-mark">?</span>;
-<a href=#421 id=421 data-nosnippet>421</a>
-<a href=#422 id=422 data-nosnippet>422</a>    <span class="prelude-val">Ok</span>(child_task)
-<a href=#423 id=423 data-nosnippet>423</a>}
-<a href=#424 id=424 data-nosnippet>424</a>
-<a href=#425 id=425 data-nosnippet>425</a><span class="kw">fn </span>clone_child_process(
-<a href=#426 id=426 data-nosnippet>426</a>    ctx: <span class="kw-2">&amp;</span>Context,
-<a href=#427 id=427 data-nosnippet>427</a>    parent_context: <span class="kw-2">&amp;</span>UserContext,
-<a href=#428 id=428 data-nosnippet>428</a>    clone_args: CloneArgs,
-<a href=#429 id=429 data-nosnippet>429</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;Process&gt;&gt; {
-<a href=#430 id=430 data-nosnippet>430</a>    <span class="kw">let </span>Context {
-<a href=#431 id=431 data-nosnippet>431</a>        process,
-<a href=#432 id=432 data-nosnippet>432</a>        thread_local,
-<a href=#433 id=433 data-nosnippet>433</a>        posix_thread,
-<a href=#434 id=434 data-nosnippet>434</a>        ..
-<a href=#435 id=435 data-nosnippet>435</a>    } = ctx;
-<a href=#436 id=436 data-nosnippet>436</a>
-<a href=#437 id=437 data-nosnippet>437</a>    <span class="kw">let </span>clone_flags = clone_args.flags;
-<a href=#438 id=438 data-nosnippet>438</a>
-<a href=#439 id=439 data-nosnippet>439</a>    <span class="comment">// Clone the virtual memory space
-<a href=#440 id=440 data-nosnippet>440</a>    </span><span class="kw">let </span>child_vmar = clone_vmar(thread_local.vmar().borrow().as_ref().unwrap(), clone_flags)<span class="question-mark">?</span>;
-<a href=#441 id=441 data-nosnippet>441</a>
-<a href=#442 id=442 data-nosnippet>442</a>    <span class="comment">// Clone the user context
-<a href=#443 id=443 data-nosnippet>443</a>    </span><span class="kw">let </span>child_user_ctx = Box::new(clone_user_ctx(
-<a href=#444 id=444 data-nosnippet>444</a>        parent_context,
-<a href=#445 id=445 data-nosnippet>445</a>        clone_args.stack,
-<a href=#446 id=446 data-nosnippet>446</a>        clone_args.stack_size,
-<a href=#447 id=447 data-nosnippet>447</a>        clone_args.tls,
-<a href=#448 id=448 data-nosnippet>448</a>        clone_flags,
-<a href=#449 id=449 data-nosnippet>449</a>    ));
-<a href=#450 id=450 data-nosnippet>450</a>
-<a href=#451 id=451 data-nosnippet>451</a>    <span class="comment">// Clone the file table
-<a href=#452 id=452 data-nosnippet>452</a>    </span><span class="kw">let </span>child_file_table = clone_files(thread_local.borrow_file_table().unwrap(), clone_flags);
-<a href=#453 id=453 data-nosnippet>453</a>
-<a href=#454 id=454 data-nosnippet>454</a>    <span class="comment">// Clone the filesystem information
-<a href=#455 id=455 data-nosnippet>455</a>    </span><span class="kw">let </span>child_fs = clone_fs(<span class="kw-2">&amp;</span>thread_local.borrow_fs(), clone_flags);
-<a href=#456 id=456 data-nosnippet>456</a>
-<a href=#457 id=457 data-nosnippet>457</a>    <span class="comment">// Clone signal dispositions
-<a href=#458 id=458 data-nosnippet>458</a>    </span><span class="kw">let </span>child_sig_dispositions = clone_sighand(process.sig_dispositions(), clone_flags);
-<a href=#459 id=459 data-nosnippet>459</a>
-<a href=#460 id=460 data-nosnippet>460</a>    <span class="comment">// Clone System V semaphore
-<a href=#461 id=461 data-nosnippet>461</a>    </span>clone_sysvsem(clone_flags)<span class="question-mark">?</span>;
-<a href=#462 id=462 data-nosnippet>462</a>
-<a href=#463 id=463 data-nosnippet>463</a>    <span class="comment">// Clone FPU context
-<a href=#464 id=464 data-nosnippet>464</a>    </span><span class="kw">let </span>child_fpu_context = thread_local.fpu().clone_context();
-<a href=#465 id=465 data-nosnippet>465</a>
-<a href=#466 id=466 data-nosnippet>466</a>    <span class="comment">// Clone the namespaces
-<a href=#467 id=467 data-nosnippet>467</a>    </span><span class="kw">let </span>child_user_ns = clone_user_ns(clone_flags, thread_local)<span class="question-mark">?</span>;
-<a href=#468 id=468 data-nosnippet>468</a>    <span class="kw">let </span>child_ns_proxy = clone_ns_proxy(
-<a href=#469 id=469 data-nosnippet>469</a>        thread_local.borrow_ns_proxy().unwrap(),
-<a href=#470 id=470 data-nosnippet>470</a>        <span class="kw-2">&amp;</span>child_user_ns,
-<a href=#471 id=471 data-nosnippet>471</a>        clone_flags,
-<a href=#472 id=472 data-nosnippet>472</a>        posix_thread,
-<a href=#473 id=473 data-nosnippet>473</a>    )<span class="question-mark">?</span>;
-<a href=#474 id=474 data-nosnippet>474</a>
-<a href=#475 id=475 data-nosnippet>475</a>    <span class="comment">// Clone default timer slack
-<a href=#476 id=476 data-nosnippet>476</a>    </span><span class="kw">let </span>default_timer_slack_ns = posix_thread.timer_slack_ns();
-<a href=#477 id=477 data-nosnippet>477</a>
-<a href=#478 id=478 data-nosnippet>478</a>    <span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_NEWNS) {
-<a href=#479 id=479 data-nosnippet>479</a>        child_fs
-<a href=#480 id=480 data-nosnippet>480</a>            .resolver()
-<a href=#481 id=481 data-nosnippet>481</a>            .write()
-<a href=#482 id=482 data-nosnippet>482</a>            .switch_to_mnt_ns(child_ns_proxy.mnt_ns())<span class="question-mark">?</span>;
-<a href=#483 id=483 data-nosnippet>483</a>    }
+<a href=#371 id=371 data-nosnippet>371</a>    <span class="comment">// Clone fs
+<a href=#372 id=372 data-nosnippet>372</a>    </span><span class="kw">let </span>child_fs = clone_fs(<span class="kw-2">&amp;</span>thread_local.borrow_fs(), clone_flags);
+<a href=#373 id=373 data-nosnippet>373</a>
+<a href=#374 id=374 data-nosnippet>374</a>    <span class="comment">// Clone FPU context
+<a href=#375 id=375 data-nosnippet>375</a>    </span><span class="kw">let </span>child_fpu_context = thread_local.fpu().clone_context();
+<a href=#376 id=376 data-nosnippet>376</a>
+<a href=#377 id=377 data-nosnippet>377</a>    <span class="comment">// Clone namespaces
+<a href=#378 id=378 data-nosnippet>378</a>    </span><span class="kw">let </span>child_user_ns = thread_local.borrow_user_ns().clone();
+<a href=#379 id=379 data-nosnippet>379</a>    <span class="kw">let </span>child_ns_proxy = clone_ns_proxy(
+<a href=#380 id=380 data-nosnippet>380</a>        thread_local.borrow_ns_proxy().unwrap(),
+<a href=#381 id=381 data-nosnippet>381</a>        <span class="kw-2">&amp;</span>child_user_ns,
+<a href=#382 id=382 data-nosnippet>382</a>        clone_flags,
+<a href=#383 id=383 data-nosnippet>383</a>        posix_thread,
+<a href=#384 id=384 data-nosnippet>384</a>    )<span class="question-mark">?</span>;
+<a href=#385 id=385 data-nosnippet>385</a>
+<a href=#386 id=386 data-nosnippet>386</a>    <span class="comment">// Clone default timer slack
+<a href=#387 id=387 data-nosnippet>387</a>    </span><span class="kw">let </span>default_timer_slack_ns = posix_thread.timer_slack_ns();
+<a href=#388 id=388 data-nosnippet>388</a>
+<a href=#389 id=389 data-nosnippet>389</a>    <span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_NEWNS) {
+<a href=#390 id=390 data-nosnippet>390</a>        child_fs
+<a href=#391 id=391 data-nosnippet>391</a>            .resolver()
+<a href=#392 id=392 data-nosnippet>392</a>            .write()
+<a href=#393 id=393 data-nosnippet>393</a>            .switch_to_mnt_ns(child_ns_proxy.mnt_ns())<span class="question-mark">?</span>;
+<a href=#394 id=394 data-nosnippet>394</a>    }
+<a href=#395 id=395 data-nosnippet>395</a>
+<a href=#396 id=396 data-nosnippet>396</a>    <span class="kw">let </span>child_user_ctx = Box::new(clone_user_ctx(
+<a href=#397 id=397 data-nosnippet>397</a>        parent_context,
+<a href=#398 id=398 data-nosnippet>398</a>        clone_args.stack,
+<a href=#399 id=399 data-nosnippet>399</a>        clone_args.stack_size,
+<a href=#400 id=400 data-nosnippet>400</a>        clone_args.tls,
+<a href=#401 id=401 data-nosnippet>401</a>        clone_flags,
+<a href=#402 id=402 data-nosnippet>402</a>    ));
+<a href=#403 id=403 data-nosnippet>403</a>
+<a href=#404 id=404 data-nosnippet>404</a>    <span class="comment">// Inherit sigmask from current thread
+<a href=#405 id=405 data-nosnippet>405</a>    </span><span class="kw">let </span>sig_mask = posix_thread.sig_mask().load(Ordering::Relaxed).into();
+<a href=#406 id=406 data-nosnippet>406</a>
+<a href=#407 id=407 data-nosnippet>407</a>    <span class="comment">// Inherit the thread name.
+<a href=#408 id=408 data-nosnippet>408</a>    </span><span class="kw">let </span>thread_name = posix_thread.thread_name().lock().clone();
+<a href=#409 id=409 data-nosnippet>409</a>
+<a href=#410 id=410 data-nosnippet>410</a>    <span class="kw">let </span>child_tid = allocate_posix_tid();
+<a href=#411 id=411 data-nosnippet>411</a>    <span class="kw">let </span>child_task = {
+<a href=#412 id=412 data-nosnippet>412</a>        <span class="kw">let </span>credentials = {
+<a href=#413 id=413 data-nosnippet>413</a>            <span class="kw">let </span>credentials = ctx.posix_thread.credentials();
+<a href=#414 id=414 data-nosnippet>414</a>            Credentials::new_from(<span class="kw-2">&amp;</span>credentials)
+<a href=#415 id=415 data-nosnippet>415</a>        };
+<a href=#416 id=416 data-nosnippet>416</a>
+<a href=#417 id=417 data-nosnippet>417</a>        <span class="kw">let </span><span class="kw-2">mut </span>thread_builder =
+<a href=#418 id=418 data-nosnippet>418</a>            PosixThreadBuilder::new(child_tid, thread_name, child_user_ctx, credentials)
+<a href=#419 id=419 data-nosnippet>419</a>                .process(posix_thread.weak_process().clone())
+<a href=#420 id=420 data-nosnippet>420</a>                .sig_mask(sig_mask)
+<a href=#421 id=421 data-nosnippet>421</a>                .file_table(child_file_table)
+<a href=#422 id=422 data-nosnippet>422</a>                .fs(child_fs)
+<a href=#423 id=423 data-nosnippet>423</a>                .fpu_context(child_fpu_context)
+<a href=#424 id=424 data-nosnippet>424</a>                .user_ns(child_user_ns)
+<a href=#425 id=425 data-nosnippet>425</a>                .ns_proxy(child_ns_proxy)
+<a href=#426 id=426 data-nosnippet>426</a>                .default_timer_slack_ns(default_timer_slack_ns);
+<a href=#427 id=427 data-nosnippet>427</a>
+<a href=#428 id=428 data-nosnippet>428</a>        <span class="comment">// Deal with SETTID/CLEARTID flags
+<a href=#429 id=429 data-nosnippet>429</a>        </span>clone_parent_settid(child_tid, clone_args.parent_tid, clone_flags)<span class="question-mark">?</span>;
+<a href=#430 id=430 data-nosnippet>430</a>        thread_builder = clone_child_cleartid(thread_builder, clone_args.child_tid, clone_flags);
+<a href=#431 id=431 data-nosnippet>431</a>        thread_builder = clone_child_settid(thread_builder, clone_args.child_tid, clone_flags);
+<a href=#432 id=432 data-nosnippet>432</a>
+<a href=#433 id=433 data-nosnippet>433</a>        thread_builder.build()
+<a href=#434 id=434 data-nosnippet>434</a>    };
+<a href=#435 id=435 data-nosnippet>435</a>
+<a href=#436 id=436 data-nosnippet>436</a>    process
+<a href=#437 id=437 data-nosnippet>437</a>        .tasks()
+<a href=#438 id=438 data-nosnippet>438</a>        .lock()
+<a href=#439 id=439 data-nosnippet>439</a>        .insert(child_task.clone())
+<a href=#440 id=440 data-nosnippet>440</a>        .map_err(|<span class="kw">_</span>| {
+<a href=#441 id=441 data-nosnippet>441</a>            Error::with_message(
+<a href=#442 id=442 data-nosnippet>442</a>                Errno::EINTR,
+<a href=#443 id=443 data-nosnippet>443</a>                <span class="string">"the process has exited or has already executed a new program"</span>,
+<a href=#444 id=444 data-nosnippet>444</a>            )
+<a href=#445 id=445 data-nosnippet>445</a>        })<span class="question-mark">?</span>;
+<a href=#446 id=446 data-nosnippet>446</a>
+<a href=#447 id=447 data-nosnippet>447</a>    <span class="prelude-val">Ok</span>(child_task)
+<a href=#448 id=448 data-nosnippet>448</a>}
+<a href=#449 id=449 data-nosnippet>449</a>
+<a href=#450 id=450 data-nosnippet>450</a><span class="kw">fn </span>clone_child_process(
+<a href=#451 id=451 data-nosnippet>451</a>    ctx: <span class="kw-2">&amp;</span>Context,
+<a href=#452 id=452 data-nosnippet>452</a>    parent_context: <span class="kw-2">&amp;</span>UserContext,
+<a href=#453 id=453 data-nosnippet>453</a>    clone_args: CloneArgs,
+<a href=#454 id=454 data-nosnippet>454</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;Process&gt;&gt; {
+<a href=#455 id=455 data-nosnippet>455</a>    <span class="kw">let </span>Context {
+<a href=#456 id=456 data-nosnippet>456</a>        process,
+<a href=#457 id=457 data-nosnippet>457</a>        thread_local,
+<a href=#458 id=458 data-nosnippet>458</a>        posix_thread,
+<a href=#459 id=459 data-nosnippet>459</a>        ..
+<a href=#460 id=460 data-nosnippet>460</a>    } = ctx;
+<a href=#461 id=461 data-nosnippet>461</a>
+<a href=#462 id=462 data-nosnippet>462</a>    <span class="kw">let </span>clone_flags = clone_args.flags;
+<a href=#463 id=463 data-nosnippet>463</a>
+<a href=#464 id=464 data-nosnippet>464</a>    <span class="comment">// Clone the virtual memory space
+<a href=#465 id=465 data-nosnippet>465</a>    </span><span class="kw">let </span>child_vmar = clone_vmar(thread_local.vmar().borrow().as_ref().unwrap(), clone_flags)<span class="question-mark">?</span>;
+<a href=#466 id=466 data-nosnippet>466</a>
+<a href=#467 id=467 data-nosnippet>467</a>    <span class="comment">// Clone the user context
+<a href=#468 id=468 data-nosnippet>468</a>    </span><span class="kw">let </span>child_user_ctx = Box::new(clone_user_ctx(
+<a href=#469 id=469 data-nosnippet>469</a>        parent_context,
+<a href=#470 id=470 data-nosnippet>470</a>        clone_args.stack,
+<a href=#471 id=471 data-nosnippet>471</a>        clone_args.stack_size,
+<a href=#472 id=472 data-nosnippet>472</a>        clone_args.tls,
+<a href=#473 id=473 data-nosnippet>473</a>        clone_flags,
+<a href=#474 id=474 data-nosnippet>474</a>    ));
+<a href=#475 id=475 data-nosnippet>475</a>
+<a href=#476 id=476 data-nosnippet>476</a>    <span class="comment">// Clone the file table
+<a href=#477 id=477 data-nosnippet>477</a>    </span><span class="kw">let </span>child_file_table = clone_files(thread_local.borrow_file_table().unwrap(), clone_flags);
+<a href=#478 id=478 data-nosnippet>478</a>
+<a href=#479 id=479 data-nosnippet>479</a>    <span class="comment">// Clone the filesystem information
+<a href=#480 id=480 data-nosnippet>480</a>    </span><span class="kw">let </span>child_fs = clone_fs(<span class="kw-2">&amp;</span>thread_local.borrow_fs(), clone_flags);
+<a href=#481 id=481 data-nosnippet>481</a>
+<a href=#482 id=482 data-nosnippet>482</a>    <span class="comment">// Clone signal dispositions
+<a href=#483 id=483 data-nosnippet>483</a>    </span><span class="kw">let </span>child_sig_dispositions = clone_sighand(process.sig_dispositions(), clone_flags);
 <a href=#484 id=484 data-nosnippet>484</a>
-<a href=#485 id=485 data-nosnippet>485</a>    <span class="comment">// Inherit the parent's signal mask
-<a href=#486 id=486 data-nosnippet>486</a>    </span><span class="kw">let </span>child_sig_mask = posix_thread.sig_mask().load(Ordering::Relaxed).into();
+<a href=#485 id=485 data-nosnippet>485</a>    <span class="comment">// Clone System V semaphore
+<a href=#486 id=486 data-nosnippet>486</a>    </span>clone_sysvsem(clone_flags)<span class="question-mark">?</span>;
 <a href=#487 id=487 data-nosnippet>487</a>
-<a href=#488 id=488 data-nosnippet>488</a>    <span class="comment">// Inherit the parent's resource limits
-<a href=#489 id=489 data-nosnippet>489</a>    </span><span class="kw">let </span>child_resource_limits = process.resource_limits().clone();
+<a href=#488 id=488 data-nosnippet>488</a>    <span class="comment">// Clone FPU context
+<a href=#489 id=489 data-nosnippet>489</a>    </span><span class="kw">let </span>child_fpu_context = thread_local.fpu().clone_context();
 <a href=#490 id=490 data-nosnippet>490</a>
-<a href=#491 id=491 data-nosnippet>491</a>    <span class="comment">// Inherit the parent's nice value
-<a href=#492 id=492 data-nosnippet>492</a>    </span><span class="kw">let </span>child_nice = process.nice().load(Ordering::Relaxed);
-<a href=#493 id=493 data-nosnippet>493</a>
-<a href=#494 id=494 data-nosnippet>494</a>    <span class="comment">// Inherit the parent's OOM score adjustment
-<a href=#495 id=495 data-nosnippet>495</a>    </span><span class="kw">let </span>child_oom_score_adj = process.oom_score_adj().load(Ordering::Relaxed);
-<a href=#496 id=496 data-nosnippet>496</a>
-<a href=#497 id=497 data-nosnippet>497</a>    <span class="kw">let </span>child_tid = allocate_posix_tid();
-<a href=#498 id=498 data-nosnippet>498</a>
-<a href=#499 id=499 data-nosnippet>499</a>    <span class="kw">let </span>child = {
-<a href=#500 id=500 data-nosnippet>500</a>        <span class="kw">let </span><span class="kw-2">mut </span>child_thread_builder = {
-<a href=#501 id=501 data-nosnippet>501</a>            <span class="kw">let </span>thread_name = {
-<a href=#502 id=502 data-nosnippet>502</a>                <span class="kw">let </span>executable_path = child_vmar.process_vm().executable_file();
-<a href=#503 id=503 data-nosnippet>503</a>                thread_local
-<a href=#504 id=504 data-nosnippet>504</a>                    .borrow_fs()
-<a href=#505 id=505 data-nosnippet>505</a>                    .resolver()
-<a href=#506 id=506 data-nosnippet>506</a>                    .read()
-<a href=#507 id=507 data-nosnippet>507</a>                    .make_abs_path(executable_path)
-<a href=#508 id=508 data-nosnippet>508</a>                    .into_string()
-<a href=#509 id=509 data-nosnippet>509</a>            };
-<a href=#510 id=510 data-nosnippet>510</a>            <span class="kw">let </span>child_thread_name = ThreadName::new_from_executable_path(<span class="kw-2">&amp;</span>thread_name);
-<a href=#511 id=511 data-nosnippet>511</a>
-<a href=#512 id=512 data-nosnippet>512</a>            <span class="kw">let </span>credentials = {
-<a href=#513 id=513 data-nosnippet>513</a>                <span class="kw">let </span>credentials = ctx.posix_thread.credentials();
-<a href=#514 id=514 data-nosnippet>514</a>                Credentials::new_from(<span class="kw-2">&amp;</span>credentials)
-<a href=#515 id=515 data-nosnippet>515</a>            };
-<a href=#516 id=516 data-nosnippet>516</a>
-<a href=#517 id=517 data-nosnippet>517</a>            PosixThreadBuilder::new(child_tid, child_thread_name, child_user_ctx, credentials)
-<a href=#518 id=518 data-nosnippet>518</a>                .sig_mask(child_sig_mask)
-<a href=#519 id=519 data-nosnippet>519</a>                .file_table(child_file_table)
-<a href=#520 id=520 data-nosnippet>520</a>                .fs(child_fs)
-<a href=#521 id=521 data-nosnippet>521</a>                .fpu_context(child_fpu_context)
-<a href=#522 id=522 data-nosnippet>522</a>                .user_ns(child_user_ns.clone())
-<a href=#523 id=523 data-nosnippet>523</a>                .ns_proxy(child_ns_proxy)
-<a href=#524 id=524 data-nosnippet>524</a>                .default_timer_slack_ns(default_timer_slack_ns)
-<a href=#525 id=525 data-nosnippet>525</a>        };
-<a href=#526 id=526 data-nosnippet>526</a>
-<a href=#527 id=527 data-nosnippet>527</a>        <span class="comment">// Deal with SETTID/CLEARTID flags
-<a href=#528 id=528 data-nosnippet>528</a>        </span>clone_parent_settid(child_tid, clone_args.parent_tid, clone_flags)<span class="question-mark">?</span>;
-<a href=#529 id=529 data-nosnippet>529</a>        child_thread_builder =
-<a href=#530 id=530 data-nosnippet>530</a>            clone_child_cleartid(child_thread_builder, clone_args.child_tid, clone_flags);
-<a href=#531 id=531 data-nosnippet>531</a>        child_thread_builder =
-<a href=#532 id=532 data-nosnippet>532</a>            clone_child_settid(child_thread_builder, clone_args.child_tid, clone_flags);
-<a href=#533 id=533 data-nosnippet>533</a>
-<a href=#534 id=534 data-nosnippet>534</a>        create_child_process(
-<a href=#535 id=535 data-nosnippet>535</a>            child_tid,
-<a href=#536 id=536 data-nosnippet>536</a>            child_vmar,
-<a href=#537 id=537 data-nosnippet>537</a>            child_resource_limits,
-<a href=#538 id=538 data-nosnippet>538</a>            child_nice,
-<a href=#539 id=539 data-nosnippet>539</a>            child_oom_score_adj,
-<a href=#540 id=540 data-nosnippet>540</a>            child_sig_dispositions,
-<a href=#541 id=541 data-nosnippet>541</a>            child_user_ns,
-<a href=#542 id=542 data-nosnippet>542</a>            child_thread_builder,
-<a href=#543 id=543 data-nosnippet>543</a>        )
-<a href=#544 id=544 data-nosnippet>544</a>    };
-<a href=#545 id=545 data-nosnippet>545</a>
-<a href=#546 id=546 data-nosnippet>546</a>    clone_pidfd(ctx, <span class="kw-2">&amp;</span>child, clone_flags, clone_args.pidfd)<span class="question-mark">?</span>;
-<a href=#547 id=547 data-nosnippet>547</a>
-<a href=#548 id=548 data-nosnippet>548</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(sig) = clone_args.exit_signal {
-<a href=#549 id=549 data-nosnippet>549</a>        child.set_exit_signal(sig);
-<a href=#550 id=550 data-nosnippet>550</a>    };
+<a href=#491 id=491 data-nosnippet>491</a>    <span class="comment">// Clone the namespaces
+<a href=#492 id=492 data-nosnippet>492</a>    </span><span class="kw">let </span>child_user_ns = clone_user_ns(clone_flags, thread_local)<span class="question-mark">?</span>;
+<a href=#493 id=493 data-nosnippet>493</a>    <span class="kw">let </span>child_ns_proxy = clone_ns_proxy(
+<a href=#494 id=494 data-nosnippet>494</a>        thread_local.borrow_ns_proxy().unwrap(),
+<a href=#495 id=495 data-nosnippet>495</a>        <span class="kw-2">&amp;</span>child_user_ns,
+<a href=#496 id=496 data-nosnippet>496</a>        clone_flags,
+<a href=#497 id=497 data-nosnippet>497</a>        posix_thread,
+<a href=#498 id=498 data-nosnippet>498</a>    )<span class="question-mark">?</span>;
+<a href=#499 id=499 data-nosnippet>499</a>
+<a href=#500 id=500 data-nosnippet>500</a>    <span class="comment">// Clone default timer slack
+<a href=#501 id=501 data-nosnippet>501</a>    </span><span class="kw">let </span>default_timer_slack_ns = posix_thread.timer_slack_ns();
+<a href=#502 id=502 data-nosnippet>502</a>
+<a href=#503 id=503 data-nosnippet>503</a>    <span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_NEWNS) {
+<a href=#504 id=504 data-nosnippet>504</a>        child_fs
+<a href=#505 id=505 data-nosnippet>505</a>            .resolver()
+<a href=#506 id=506 data-nosnippet>506</a>            .write()
+<a href=#507 id=507 data-nosnippet>507</a>            .switch_to_mnt_ns(child_ns_proxy.mnt_ns())<span class="question-mark">?</span>;
+<a href=#508 id=508 data-nosnippet>508</a>    }
+<a href=#509 id=509 data-nosnippet>509</a>
+<a href=#510 id=510 data-nosnippet>510</a>    <span class="comment">// Inherit the parent's signal mask
+<a href=#511 id=511 data-nosnippet>511</a>    </span><span class="kw">let </span>child_sig_mask = posix_thread.sig_mask().load(Ordering::Relaxed).into();
+<a href=#512 id=512 data-nosnippet>512</a>
+<a href=#513 id=513 data-nosnippet>513</a>    <span class="comment">// Inherit the parent's resource limits
+<a href=#514 id=514 data-nosnippet>514</a>    </span><span class="kw">let </span>child_resource_limits = process.resource_limits().clone();
+<a href=#515 id=515 data-nosnippet>515</a>
+<a href=#516 id=516 data-nosnippet>516</a>    <span class="comment">// Inherit the parent's nice value
+<a href=#517 id=517 data-nosnippet>517</a>    </span><span class="kw">let </span>child_nice = process.nice().load(Ordering::Relaxed);
+<a href=#518 id=518 data-nosnippet>518</a>
+<a href=#519 id=519 data-nosnippet>519</a>    <span class="comment">// Inherit the parent's OOM score adjustment
+<a href=#520 id=520 data-nosnippet>520</a>    </span><span class="kw">let </span>child_oom_score_adj = process.oom_score_adj().load(Ordering::Relaxed);
+<a href=#521 id=521 data-nosnippet>521</a>
+<a href=#522 id=522 data-nosnippet>522</a>    <span class="kw">let </span>child_tid = allocate_posix_tid();
+<a href=#523 id=523 data-nosnippet>523</a>
+<a href=#524 id=524 data-nosnippet>524</a>    <span class="kw">let </span>child = {
+<a href=#525 id=525 data-nosnippet>525</a>        <span class="kw">let </span><span class="kw-2">mut </span>child_thread_builder = {
+<a href=#526 id=526 data-nosnippet>526</a>            <span class="kw">let </span>thread_name = {
+<a href=#527 id=527 data-nosnippet>527</a>                <span class="kw">let </span>executable_path = child_vmar.process_vm().executable_file();
+<a href=#528 id=528 data-nosnippet>528</a>                thread_local
+<a href=#529 id=529 data-nosnippet>529</a>                    .borrow_fs()
+<a href=#530 id=530 data-nosnippet>530</a>                    .resolver()
+<a href=#531 id=531 data-nosnippet>531</a>                    .read()
+<a href=#532 id=532 data-nosnippet>532</a>                    .make_abs_path(executable_path)
+<a href=#533 id=533 data-nosnippet>533</a>                    .into_string()
+<a href=#534 id=534 data-nosnippet>534</a>            };
+<a href=#535 id=535 data-nosnippet>535</a>            <span class="kw">let </span>child_thread_name = ThreadName::new_from_executable_path(<span class="kw-2">&amp;</span>thread_name);
+<a href=#536 id=536 data-nosnippet>536</a>
+<a href=#537 id=537 data-nosnippet>537</a>            <span class="kw">let </span>credentials = {
+<a href=#538 id=538 data-nosnippet>538</a>                <span class="kw">let </span>credentials = ctx.posix_thread.credentials();
+<a href=#539 id=539 data-nosnippet>539</a>                Credentials::new_from(<span class="kw-2">&amp;</span>credentials)
+<a href=#540 id=540 data-nosnippet>540</a>            };
+<a href=#541 id=541 data-nosnippet>541</a>
+<a href=#542 id=542 data-nosnippet>542</a>            PosixThreadBuilder::new(child_tid, child_thread_name, child_user_ctx, credentials)
+<a href=#543 id=543 data-nosnippet>543</a>                .sig_mask(child_sig_mask)
+<a href=#544 id=544 data-nosnippet>544</a>                .file_table(child_file_table)
+<a href=#545 id=545 data-nosnippet>545</a>                .fs(child_fs)
+<a href=#546 id=546 data-nosnippet>546</a>                .fpu_context(child_fpu_context)
+<a href=#547 id=547 data-nosnippet>547</a>                .user_ns(child_user_ns.clone())
+<a href=#548 id=548 data-nosnippet>548</a>                .ns_proxy(child_ns_proxy)
+<a href=#549 id=549 data-nosnippet>549</a>                .default_timer_slack_ns(default_timer_slack_ns)
+<a href=#550 id=550 data-nosnippet>550</a>        };
 <a href=#551 id=551 data-nosnippet>551</a>
-<a href=#552 id=552 data-nosnippet>552</a>    <span class="comment">// Sets parent process and group for child process.
-<a href=#553 id=553 data-nosnippet>553</a>    </span>set_parent_and_group(clone_flags, process, <span class="kw-2">&amp;</span>child);
-<a href=#554 id=554 data-nosnippet>554</a>
-<a href=#555 id=555 data-nosnippet>555</a>    <span class="prelude-val">Ok</span>(child)
-<a href=#556 id=556 data-nosnippet>556</a>}
-<a href=#557 id=557 data-nosnippet>557</a>
-<a href=#558 id=558 data-nosnippet>558</a><span class="kw">fn </span>clone_child_cleartid(
-<a href=#559 id=559 data-nosnippet>559</a>    child_builder: PosixThreadBuilder,
-<a href=#560 id=560 data-nosnippet>560</a>    child_tidptr: Vaddr,
-<a href=#561 id=561 data-nosnippet>561</a>    clone_flags: CloneFlags,
-<a href=#562 id=562 data-nosnippet>562</a>) -&gt; PosixThreadBuilder {
-<a href=#563 id=563 data-nosnippet>563</a>    <span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_CHILD_CLEARTID) {
-<a href=#564 id=564 data-nosnippet>564</a>        child_builder.clear_child_tid(child_tidptr)
-<a href=#565 id=565 data-nosnippet>565</a>    } <span class="kw">else </span>{
-<a href=#566 id=566 data-nosnippet>566</a>        child_builder
-<a href=#567 id=567 data-nosnippet>567</a>    }
-<a href=#568 id=568 data-nosnippet>568</a>}
-<a href=#569 id=569 data-nosnippet>569</a>
-<a href=#570 id=570 data-nosnippet>570</a><span class="kw">fn </span>clone_child_settid(
-<a href=#571 id=571 data-nosnippet>571</a>    child_builder: PosixThreadBuilder,
-<a href=#572 id=572 data-nosnippet>572</a>    child_tidptr: Vaddr,
-<a href=#573 id=573 data-nosnippet>573</a>    clone_flags: CloneFlags,
-<a href=#574 id=574 data-nosnippet>574</a>) -&gt; PosixThreadBuilder {
-<a href=#575 id=575 data-nosnippet>575</a>    <span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_CHILD_SETTID) {
-<a href=#576 id=576 data-nosnippet>576</a>        child_builder.set_child_tid(child_tidptr)
-<a href=#577 id=577 data-nosnippet>577</a>    } <span class="kw">else </span>{
-<a href=#578 id=578 data-nosnippet>578</a>        child_builder
-<a href=#579 id=579 data-nosnippet>579</a>    }
-<a href=#580 id=580 data-nosnippet>580</a>}
-<a href=#581 id=581 data-nosnippet>581</a>
-<a href=#582 id=582 data-nosnippet>582</a><span class="kw">fn </span>clone_parent_settid(
-<a href=#583 id=583 data-nosnippet>583</a>    child_tid: Tid,
-<a href=#584 id=584 data-nosnippet>584</a>    parent_tidptr: <span class="prelude-ty">Option</span>&lt;Vaddr&gt;,
-<a href=#585 id=585 data-nosnippet>585</a>    clone_flags: CloneFlags,
-<a href=#586 id=586 data-nosnippet>586</a>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-<a href=#587 id=587 data-nosnippet>587</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) =
-<a href=#588 id=588 data-nosnippet>588</a>        parent_tidptr.filter(|<span class="kw">_</span>| clone_flags.contains(CloneFlags::CLONE_PARENT_SETTID))
-<a href=#589 id=589 data-nosnippet>589</a>    {
-<a href=#590 id=590 data-nosnippet>590</a>        <span class="macro">current_userspace!</span>().write_val(addr, <span class="kw-2">&amp;</span>child_tid)<span class="question-mark">?</span>;
-<a href=#591 id=591 data-nosnippet>591</a>    }
-<a href=#592 id=592 data-nosnippet>592</a>    <span class="prelude-val">Ok</span>(())
+<a href=#552 id=552 data-nosnippet>552</a>        <span class="comment">// Deal with SETTID/CLEARTID flags
+<a href=#553 id=553 data-nosnippet>553</a>        </span>clone_parent_settid(child_tid, clone_args.parent_tid, clone_flags)<span class="question-mark">?</span>;
+<a href=#554 id=554 data-nosnippet>554</a>        child_thread_builder =
+<a href=#555 id=555 data-nosnippet>555</a>            clone_child_cleartid(child_thread_builder, clone_args.child_tid, clone_flags);
+<a href=#556 id=556 data-nosnippet>556</a>        child_thread_builder =
+<a href=#557 id=557 data-nosnippet>557</a>            clone_child_settid(child_thread_builder, clone_args.child_tid, clone_flags);
+<a href=#558 id=558 data-nosnippet>558</a>
+<a href=#559 id=559 data-nosnippet>559</a>        create_child_process(
+<a href=#560 id=560 data-nosnippet>560</a>            child_tid,
+<a href=#561 id=561 data-nosnippet>561</a>            child_vmar,
+<a href=#562 id=562 data-nosnippet>562</a>            child_resource_limits,
+<a href=#563 id=563 data-nosnippet>563</a>            child_nice,
+<a href=#564 id=564 data-nosnippet>564</a>            child_oom_score_adj,
+<a href=#565 id=565 data-nosnippet>565</a>            child_sig_dispositions,
+<a href=#566 id=566 data-nosnippet>566</a>            child_user_ns,
+<a href=#567 id=567 data-nosnippet>567</a>            child_thread_builder,
+<a href=#568 id=568 data-nosnippet>568</a>        )
+<a href=#569 id=569 data-nosnippet>569</a>    };
+<a href=#570 id=570 data-nosnippet>570</a>
+<a href=#571 id=571 data-nosnippet>571</a>    clone_pidfd(ctx, <span class="kw-2">&amp;</span>child, clone_flags, clone_args.pidfd)<span class="question-mark">?</span>;
+<a href=#572 id=572 data-nosnippet>572</a>
+<a href=#573 id=573 data-nosnippet>573</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(sig) = clone_args.exit_signal {
+<a href=#574 id=574 data-nosnippet>574</a>        child.set_exit_signal(sig);
+<a href=#575 id=575 data-nosnippet>575</a>    };
+<a href=#576 id=576 data-nosnippet>576</a>
+<a href=#577 id=577 data-nosnippet>577</a>    <span class="comment">// Sets parent process and group for child process.
+<a href=#578 id=578 data-nosnippet>578</a>    </span>set_parent_and_group(clone_flags, process, <span class="kw-2">&amp;</span>child);
+<a href=#579 id=579 data-nosnippet>579</a>
+<a href=#580 id=580 data-nosnippet>580</a>    <span class="prelude-val">Ok</span>(child)
+<a href=#581 id=581 data-nosnippet>581</a>}
+<a href=#582 id=582 data-nosnippet>582</a>
+<a href=#583 id=583 data-nosnippet>583</a><span class="kw">fn </span>clone_child_cleartid(
+<a href=#584 id=584 data-nosnippet>584</a>    child_builder: PosixThreadBuilder,
+<a href=#585 id=585 data-nosnippet>585</a>    child_tidptr: Vaddr,
+<a href=#586 id=586 data-nosnippet>586</a>    clone_flags: CloneFlags,
+<a href=#587 id=587 data-nosnippet>587</a>) -&gt; PosixThreadBuilder {
+<a href=#588 id=588 data-nosnippet>588</a>    <span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_CHILD_CLEARTID) {
+<a href=#589 id=589 data-nosnippet>589</a>        child_builder.clear_child_tid(child_tidptr)
+<a href=#590 id=590 data-nosnippet>590</a>    } <span class="kw">else </span>{
+<a href=#591 id=591 data-nosnippet>591</a>        child_builder
+<a href=#592 id=592 data-nosnippet>592</a>    }
 <a href=#593 id=593 data-nosnippet>593</a>}
 <a href=#594 id=594 data-nosnippet>594</a>
-<a href=#595 id=595 data-nosnippet>595</a><span class="kw">fn </span>clone_vmar(parent_vmar: <span class="kw-2">&amp;</span>Arc&lt;Vmar&gt;, clone_flags: CloneFlags) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;Vmar&gt;&gt; {
-<a href=#596 id=596 data-nosnippet>596</a>    <span class="comment">// If CLONE_VM is set, the child and parent share the same VMAR.
-<a href=#597 id=597 data-nosnippet>597</a>    // Otherwise, the child has a copy of the parent's VMAR.
-<a href=#598 id=598 data-nosnippet>598</a>    </span><span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_VM) {
-<a href=#599 id=599 data-nosnippet>599</a>        <span class="prelude-val">Ok</span>(parent_vmar.clone())
-<a href=#600 id=600 data-nosnippet>600</a>    } <span class="kw">else </span>{
-<a href=#601 id=601 data-nosnippet>601</a>        <span class="prelude-val">Ok</span>(Vmar::fork_from(parent_vmar)<span class="question-mark">?</span>)
-<a href=#602 id=602 data-nosnippet>602</a>    }
-<a href=#603 id=603 data-nosnippet>603</a>}
-<a href=#604 id=604 data-nosnippet>604</a>
-<a href=#605 id=605 data-nosnippet>605</a><span class="kw">fn </span>clone_user_ctx(
-<a href=#606 id=606 data-nosnippet>606</a>    parent_context: <span class="kw-2">&amp;</span>UserContext,
-<a href=#607 id=607 data-nosnippet>607</a>    new_sp: <span class="prelude-ty">Option</span>&lt;NonZeroU64&gt;,
-<a href=#608 id=608 data-nosnippet>608</a>    stack_size: <span class="prelude-ty">Option</span>&lt;NonZeroU64&gt;,
-<a href=#609 id=609 data-nosnippet>609</a>    tls: u64,
+<a href=#595 id=595 data-nosnippet>595</a><span class="kw">fn </span>clone_child_settid(
+<a href=#596 id=596 data-nosnippet>596</a>    child_builder: PosixThreadBuilder,
+<a href=#597 id=597 data-nosnippet>597</a>    child_tidptr: Vaddr,
+<a href=#598 id=598 data-nosnippet>598</a>    clone_flags: CloneFlags,
+<a href=#599 id=599 data-nosnippet>599</a>) -&gt; PosixThreadBuilder {
+<a href=#600 id=600 data-nosnippet>600</a>    <span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_CHILD_SETTID) {
+<a href=#601 id=601 data-nosnippet>601</a>        child_builder.set_child_tid(child_tidptr)
+<a href=#602 id=602 data-nosnippet>602</a>    } <span class="kw">else </span>{
+<a href=#603 id=603 data-nosnippet>603</a>        child_builder
+<a href=#604 id=604 data-nosnippet>604</a>    }
+<a href=#605 id=605 data-nosnippet>605</a>}
+<a href=#606 id=606 data-nosnippet>606</a>
+<a href=#607 id=607 data-nosnippet>607</a><span class="kw">fn </span>clone_parent_settid(
+<a href=#608 id=608 data-nosnippet>608</a>    child_tid: Tid,
+<a href=#609 id=609 data-nosnippet>609</a>    parent_tidptr: <span class="prelude-ty">Option</span>&lt;Vaddr&gt;,
 <a href=#610 id=610 data-nosnippet>610</a>    clone_flags: CloneFlags,
-<a href=#611 id=611 data-nosnippet>611</a>) -&gt; UserContext {
-<a href=#612 id=612 data-nosnippet>612</a>    <span class="kw">let </span><span class="kw-2">mut </span>child_context = parent_context.clone();
-<a href=#613 id=613 data-nosnippet>613</a>    <span class="comment">// The return value in the child thread is zero.
-<a href=#614 id=614 data-nosnippet>614</a>    </span>child_context.set_syscall_ret(<span class="number">0</span>);
-<a href=#615 id=615 data-nosnippet>615</a>
-<a href=#616 id=616 data-nosnippet>616</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(new_sp) = new_sp {
-<a href=#617 id=617 data-nosnippet>617</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(stack_size) = stack_size {
-<a href=#618 id=618 data-nosnippet>618</a>            <span class="comment">// `new_sp` is the stack bottom if the stack size is specified.
-<a href=#619 id=619 data-nosnippet>619</a>            </span>child_context.set_stack_pointer((new_sp.get() + stack_size.get()) <span class="kw">as </span>usize);
-<a href=#620 id=620 data-nosnippet>620</a>        } <span class="kw">else </span>{
-<a href=#621 id=621 data-nosnippet>621</a>            <span class="comment">// `new_sp` is the stack top if the stack size is not specified.
-<a href=#622 id=622 data-nosnippet>622</a>            </span>child_context.set_stack_pointer(new_sp.get() <span class="kw">as </span>usize);
-<a href=#623 id=623 data-nosnippet>623</a>        }
-<a href=#624 id=624 data-nosnippet>624</a>    }
-<a href=#625 id=625 data-nosnippet>625</a>    <span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_SETTLS) {
-<a href=#626 id=626 data-nosnippet>626</a>        child_context.set_tls_pointer(tls <span class="kw">as </span>usize);
+<a href=#611 id=611 data-nosnippet>611</a>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#612 id=612 data-nosnippet>612</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(addr) =
+<a href=#613 id=613 data-nosnippet>613</a>        parent_tidptr.filter(|<span class="kw">_</span>| clone_flags.contains(CloneFlags::CLONE_PARENT_SETTID))
+<a href=#614 id=614 data-nosnippet>614</a>    {
+<a href=#615 id=615 data-nosnippet>615</a>        <span class="macro">current_userspace!</span>().write_val(addr, <span class="kw-2">&amp;</span>child_tid)<span class="question-mark">?</span>;
+<a href=#616 id=616 data-nosnippet>616</a>    }
+<a href=#617 id=617 data-nosnippet>617</a>    <span class="prelude-val">Ok</span>(())
+<a href=#618 id=618 data-nosnippet>618</a>}
+<a href=#619 id=619 data-nosnippet>619</a>
+<a href=#620 id=620 data-nosnippet>620</a><span class="kw">fn </span>clone_vmar(parent_vmar: <span class="kw-2">&amp;</span>Arc&lt;Vmar&gt;, clone_flags: CloneFlags) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;Vmar&gt;&gt; {
+<a href=#621 id=621 data-nosnippet>621</a>    <span class="comment">// If CLONE_VM is set, the child and parent share the same VMAR.
+<a href=#622 id=622 data-nosnippet>622</a>    // Otherwise, the child has a copy of the parent's VMAR.
+<a href=#623 id=623 data-nosnippet>623</a>    </span><span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_VM) {
+<a href=#624 id=624 data-nosnippet>624</a>        <span class="prelude-val">Ok</span>(parent_vmar.clone())
+<a href=#625 id=625 data-nosnippet>625</a>    } <span class="kw">else </span>{
+<a href=#626 id=626 data-nosnippet>626</a>        <span class="prelude-val">Ok</span>(Vmar::fork_from(parent_vmar)<span class="question-mark">?</span>)
 <a href=#627 id=627 data-nosnippet>627</a>    }
-<a href=#628 id=628 data-nosnippet>628</a>
-<a href=#629 id=629 data-nosnippet>629</a>    child_context
-<a href=#630 id=630 data-nosnippet>630</a>}
-<a href=#631 id=631 data-nosnippet>631</a>
-<a href=#632 id=632 data-nosnippet>632</a><span class="kw">fn </span>clone_fs(parent_fs: <span class="kw-2">&amp;</span>Arc&lt;ThreadFsInfo&gt;, clone_flags: CloneFlags) -&gt; Arc&lt;ThreadFsInfo&gt; {
-<a href=#633 id=633 data-nosnippet>633</a>    <span class="comment">// If CLONE_FS is set, the child and parent share the same filesystem information.
-<a href=#634 id=634 data-nosnippet>634</a>    // Otherwise, the child has a copy of the parent's filesystem information.
-<a href=#635 id=635 data-nosnippet>635</a>    </span><span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_FS) {
-<a href=#636 id=636 data-nosnippet>636</a>        parent_fs.clone()
-<a href=#637 id=637 data-nosnippet>637</a>    } <span class="kw">else </span>{
-<a href=#638 id=638 data-nosnippet>638</a>        Arc::new(parent_fs.as_ref().clone())
-<a href=#639 id=639 data-nosnippet>639</a>    }
-<a href=#640 id=640 data-nosnippet>640</a>}
-<a href=#641 id=641 data-nosnippet>641</a>
-<a href=#642 id=642 data-nosnippet>642</a><span class="kw">fn </span>clone_files(parent_file_table: <span class="kw-2">&amp;</span>RwArc&lt;FileTable&gt;, clone_flags: CloneFlags) -&gt; RwArc&lt;FileTable&gt; {
-<a href=#643 id=643 data-nosnippet>643</a>    <span class="comment">// If CLONE_FILES is set, the child and parent share the same file table.
-<a href=#644 id=644 data-nosnippet>644</a>    // Otherwise, the child has a copy of the parent's file table.
-<a href=#645 id=645 data-nosnippet>645</a>    </span><span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_FILES) {
-<a href=#646 id=646 data-nosnippet>646</a>        parent_file_table.clone()
-<a href=#647 id=647 data-nosnippet>647</a>    } <span class="kw">else </span>{
-<a href=#648 id=648 data-nosnippet>648</a>        RwArc::new(parent_file_table.read().clone())
+<a href=#628 id=628 data-nosnippet>628</a>}
+<a href=#629 id=629 data-nosnippet>629</a>
+<a href=#630 id=630 data-nosnippet>630</a><span class="kw">fn </span>clone_user_ctx(
+<a href=#631 id=631 data-nosnippet>631</a>    parent_context: <span class="kw-2">&amp;</span>UserContext,
+<a href=#632 id=632 data-nosnippet>632</a>    new_sp: <span class="prelude-ty">Option</span>&lt;NonZeroU64&gt;,
+<a href=#633 id=633 data-nosnippet>633</a>    stack_size: <span class="prelude-ty">Option</span>&lt;NonZeroU64&gt;,
+<a href=#634 id=634 data-nosnippet>634</a>    tls: u64,
+<a href=#635 id=635 data-nosnippet>635</a>    clone_flags: CloneFlags,
+<a href=#636 id=636 data-nosnippet>636</a>) -&gt; UserContext {
+<a href=#637 id=637 data-nosnippet>637</a>    <span class="kw">let </span><span class="kw-2">mut </span>child_context = parent_context.clone();
+<a href=#638 id=638 data-nosnippet>638</a>    <span class="comment">// The return value in the child thread is zero.
+<a href=#639 id=639 data-nosnippet>639</a>    </span>child_context.set_syscall_ret(<span class="number">0</span>);
+<a href=#640 id=640 data-nosnippet>640</a>
+<a href=#641 id=641 data-nosnippet>641</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(new_sp) = new_sp {
+<a href=#642 id=642 data-nosnippet>642</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(stack_size) = stack_size {
+<a href=#643 id=643 data-nosnippet>643</a>            <span class="comment">// `new_sp` is the stack bottom if the stack size is specified.
+<a href=#644 id=644 data-nosnippet>644</a>            </span>child_context.set_stack_pointer((new_sp.get() + stack_size.get()) <span class="kw">as </span>usize);
+<a href=#645 id=645 data-nosnippet>645</a>        } <span class="kw">else </span>{
+<a href=#646 id=646 data-nosnippet>646</a>            <span class="comment">// `new_sp` is the stack top if the stack size is not specified.
+<a href=#647 id=647 data-nosnippet>647</a>            </span>child_context.set_stack_pointer(new_sp.get() <span class="kw">as </span>usize);
+<a href=#648 id=648 data-nosnippet>648</a>        }
 <a href=#649 id=649 data-nosnippet>649</a>    }
-<a href=#650 id=650 data-nosnippet>650</a>}
-<a href=#651 id=651 data-nosnippet>651</a>
-<a href=#652 id=652 data-nosnippet>652</a><span class="kw">fn </span>clone_sighand(
-<a href=#653 id=653 data-nosnippet>653</a>    parent_sig_dispositions: <span class="kw-2">&amp;</span>Mutex&lt;Arc&lt;Mutex&lt;SigDispositions&gt;&gt;&gt;,
-<a href=#654 id=654 data-nosnippet>654</a>    clone_flags: CloneFlags,
-<a href=#655 id=655 data-nosnippet>655</a>) -&gt; Arc&lt;Mutex&lt;SigDispositions&gt;&gt; {
-<a href=#656 id=656 data-nosnippet>656</a>    <span class="comment">// If CLONE_SIGHAND is set, the child and parent shares the same signal handlers.
-<a href=#657 id=657 data-nosnippet>657</a>    // Otherwise, the child has a copy of the parent's signal handlers.
-<a href=#658 id=658 data-nosnippet>658</a>    </span><span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_SIGHAND) {
-<a href=#659 id=659 data-nosnippet>659</a>        parent_sig_dispositions.lock().clone()
-<a href=#660 id=660 data-nosnippet>660</a>    } <span class="kw">else </span>{
-<a href=#661 id=661 data-nosnippet>661</a>        <span class="kw">let </span>sig_dispositions = parent_sig_dispositions.lock();
-<a href=#662 id=662 data-nosnippet>662</a>        <span class="kw">let </span>sig_dispositions = sig_dispositions.lock();
-<a href=#663 id=663 data-nosnippet>663</a>        Arc::new(Mutex::new(<span class="kw-2">*</span>sig_dispositions))
+<a href=#650 id=650 data-nosnippet>650</a>    <span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_SETTLS) {
+<a href=#651 id=651 data-nosnippet>651</a>        child_context.set_tls_pointer(tls <span class="kw">as </span>usize);
+<a href=#652 id=652 data-nosnippet>652</a>    }
+<a href=#653 id=653 data-nosnippet>653</a>
+<a href=#654 id=654 data-nosnippet>654</a>    child_context
+<a href=#655 id=655 data-nosnippet>655</a>}
+<a href=#656 id=656 data-nosnippet>656</a>
+<a href=#657 id=657 data-nosnippet>657</a><span class="kw">fn </span>clone_fs(parent_fs: <span class="kw-2">&amp;</span>Arc&lt;ThreadFsInfo&gt;, clone_flags: CloneFlags) -&gt; Arc&lt;ThreadFsInfo&gt; {
+<a href=#658 id=658 data-nosnippet>658</a>    <span class="comment">// If CLONE_FS is set, the child and parent share the same filesystem information.
+<a href=#659 id=659 data-nosnippet>659</a>    // Otherwise, the child has a copy of the parent's filesystem information.
+<a href=#660 id=660 data-nosnippet>660</a>    </span><span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_FS) {
+<a href=#661 id=661 data-nosnippet>661</a>        parent_fs.clone()
+<a href=#662 id=662 data-nosnippet>662</a>    } <span class="kw">else </span>{
+<a href=#663 id=663 data-nosnippet>663</a>        Arc::new(parent_fs.as_ref().clone())
 <a href=#664 id=664 data-nosnippet>664</a>    }
 <a href=#665 id=665 data-nosnippet>665</a>}
 <a href=#666 id=666 data-nosnippet>666</a>
-<a href=#667 id=667 data-nosnippet>667</a><span class="kw">fn </span>clone_sysvsem(clone_flags: CloneFlags) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-<a href=#668 id=668 data-nosnippet>668</a>    <span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_SYSVSEM) {
-<a href=#669 id=669 data-nosnippet>669</a>        <span class="macro">warn!</span>(<span class="string">"CLONE_SYSVSEM is not supported now"</span>);
-<a href=#670 id=670 data-nosnippet>670</a>    }
-<a href=#671 id=671 data-nosnippet>671</a>    <span class="prelude-val">Ok</span>(())
-<a href=#672 id=672 data-nosnippet>672</a>}
-<a href=#673 id=673 data-nosnippet>673</a>
-<a href=#674 id=674 data-nosnippet>674</a><span class="kw">fn </span>clone_pidfd(
-<a href=#675 id=675 data-nosnippet>675</a>    ctx: <span class="kw-2">&amp;</span>Context,
-<a href=#676 id=676 data-nosnippet>676</a>    child: <span class="kw-2">&amp;</span>Arc&lt;Process&gt;,
-<a href=#677 id=677 data-nosnippet>677</a>    clone_flags: CloneFlags,
-<a href=#678 id=678 data-nosnippet>678</a>    pidfd_addr: <span class="prelude-ty">Option</span>&lt;Vaddr&gt;,
-<a href=#679 id=679 data-nosnippet>679</a>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-<a href=#680 id=680 data-nosnippet>680</a>    <span class="kw">if </span>!clone_flags.contains(CloneFlags::CLONE_PIDFD) {
-<a href=#681 id=681 data-nosnippet>681</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-<a href=#682 id=682 data-nosnippet>682</a>    }
-<a href=#683 id=683 data-nosnippet>683</a>
-<a href=#684 id=684 data-nosnippet>684</a>    <span class="kw">let </span>pidfd_addr = pidfd_addr.unwrap();
-<a href=#685 id=685 data-nosnippet>685</a>
-<a href=#686 id=686 data-nosnippet>686</a>    <span class="kw">let </span>fd = {
-<a href=#687 id=687 data-nosnippet>687</a>        <span class="kw">let </span>pid_file = PidFile::new(child.clone(), <span class="bool-val">false</span>);
-<a href=#688 id=688 data-nosnippet>688</a>        <span class="kw">let </span>file_table = ctx.thread_local.borrow_file_table();
-<a href=#689 id=689 data-nosnippet>689</a>        <span class="kw">let </span><span class="kw-2">mut </span>file_table_locked = file_table.unwrap().write();
-<a href=#690 id=690 data-nosnippet>690</a>        file_table_locked.insert(Arc::new(pid_file), FdFlags::CLOEXEC)
-<a href=#691 id=691 data-nosnippet>691</a>    };
-<a href=#692 id=692 data-nosnippet>692</a>
-<a href=#693 id=693 data-nosnippet>693</a>    <span class="comment">// Since `write_val` may sleep, we cannot hold the file table lock during its execution.
-<a href=#694 id=694 data-nosnippet>694</a>    // FIXME: Should we remove the file from the file table if the write operation fails?
-<a href=#695 id=695 data-nosnippet>695</a>    </span><span class="kw">match </span>ctx.user_space().write_val(pidfd_addr, <span class="kw-2">&amp;</span>fd) {
-<a href=#696 id=696 data-nosnippet>696</a>        <span class="prelude-val">Ok</span>(()) =&gt; <span class="prelude-val">Ok</span>(()),
-<a href=#697 id=697 data-nosnippet>697</a>        <span class="prelude-val">Err</span>(err) =&gt; {
-<a href=#698 id=698 data-nosnippet>698</a>            <span class="kw">let </span>file_table = ctx.thread_local.borrow_file_table();
-<a href=#699 id=699 data-nosnippet>699</a>            <span class="kw">let </span><span class="kw-2">mut </span>file_table_locked = file_table.unwrap().write();
-<a href=#700 id=700 data-nosnippet>700</a>            file_table_locked.close_file(fd);
-<a href=#701 id=701 data-nosnippet>701</a>            <span class="prelude-val">Err</span>(err.into())
-<a href=#702 id=702 data-nosnippet>702</a>        }
-<a href=#703 id=703 data-nosnippet>703</a>    }
-<a href=#704 id=704 data-nosnippet>704</a>}
-<a href=#705 id=705 data-nosnippet>705</a>
-<a href=#706 id=706 data-nosnippet>706</a><span class="kw">fn </span>clone_user_ns(
-<a href=#707 id=707 data-nosnippet>707</a>    clone_flags: CloneFlags,
-<a href=#708 id=708 data-nosnippet>708</a>    thread_local: <span class="kw-2">&amp;</span>ThreadLocal,
-<a href=#709 id=709 data-nosnippet>709</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;UserNamespace&gt;&gt; {
-<a href=#710 id=710 data-nosnippet>710</a>    <span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_NEWUSER) {
-<a href=#711 id=711 data-nosnippet>711</a>        <span class="macro">return_errno_with_message!</span>(
-<a href=#712 id=712 data-nosnippet>712</a>            Errno::EINVAL,
-<a href=#713 id=713 data-nosnippet>713</a>            <span class="string">"cloning a new user namespace is not supported"
-<a href=#714 id=714 data-nosnippet>714</a>        </span>);
-<a href=#715 id=715 data-nosnippet>715</a>    } <span class="kw">else </span>{
-<a href=#716 id=716 data-nosnippet>716</a>        <span class="prelude-val">Ok</span>(thread_local.borrow_user_ns().clone())
-<a href=#717 id=717 data-nosnippet>717</a>    }
-<a href=#718 id=718 data-nosnippet>718</a>}
-<a href=#719 id=719 data-nosnippet>719</a>
-<a href=#720 id=720 data-nosnippet>720</a><span class="kw">fn </span>clone_ns_proxy(
-<a href=#721 id=721 data-nosnippet>721</a>    parent_ns_proxy: <span class="kw-2">&amp;</span>Arc&lt;NsProxy&gt;,
-<a href=#722 id=722 data-nosnippet>722</a>    user_ns: <span class="kw-2">&amp;</span>Arc&lt;UserNamespace&gt;,
-<a href=#723 id=723 data-nosnippet>723</a>    clone_flags: CloneFlags,
-<a href=#724 id=724 data-nosnippet>724</a>    posix_thread: <span class="kw-2">&amp;</span>PosixThread,
-<a href=#725 id=725 data-nosnippet>725</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;NsProxy&gt;&gt; {
-<a href=#726 id=726 data-nosnippet>726</a>    parent_ns_proxy.new_clone(user_ns, clone_flags, posix_thread)
-<a href=#727 id=727 data-nosnippet>727</a>}
-<a href=#728 id=728 data-nosnippet>728</a>
-<a href=#729 id=729 data-nosnippet>729</a><span class="attr">#[expect(clippy::too_many_arguments)]
-<a href=#730 id=730 data-nosnippet>730</a></span><span class="kw">fn </span>create_child_process(
-<a href=#731 id=731 data-nosnippet>731</a>    pid: Pid,
-<a href=#732 id=732 data-nosnippet>732</a>    vmar: Arc&lt;Vmar&gt;,
-<a href=#733 id=733 data-nosnippet>733</a>    resource_limits: ResourceLimits,
-<a href=#734 id=734 data-nosnippet>734</a>    nice: Nice,
-<a href=#735 id=735 data-nosnippet>735</a>    oom_score_adj: i16,
-<a href=#736 id=736 data-nosnippet>736</a>    sig_dispositions: Arc&lt;Mutex&lt;SigDispositions&gt;&gt;,
-<a href=#737 id=737 data-nosnippet>737</a>    user_ns: Arc&lt;UserNamespace&gt;,
-<a href=#738 id=738 data-nosnippet>738</a>    thread_builder: PosixThreadBuilder,
-<a href=#739 id=739 data-nosnippet>739</a>) -&gt; Arc&lt;Process&gt; {
-<a href=#740 id=740 data-nosnippet>740</a>    <span class="kw">let </span>child_proc = Process::new(
-<a href=#741 id=741 data-nosnippet>741</a>        pid,
-<a href=#742 id=742 data-nosnippet>742</a>        vmar,
-<a href=#743 id=743 data-nosnippet>743</a>        resource_limits,
-<a href=#744 id=744 data-nosnippet>744</a>        nice,
-<a href=#745 id=745 data-nosnippet>745</a>        oom_score_adj,
-<a href=#746 id=746 data-nosnippet>746</a>        sig_dispositions,
-<a href=#747 id=747 data-nosnippet>747</a>        user_ns,
-<a href=#748 id=748 data-nosnippet>748</a>    );
-<a href=#749 id=749 data-nosnippet>749</a>
-<a href=#750 id=750 data-nosnippet>750</a>    <span class="kw">let </span>child_task = thread_builder.process(Arc::downgrade(<span class="kw-2">&amp;</span>child_proc)).build();
-<a href=#751 id=751 data-nosnippet>751</a>    child_proc.tasks().lock().insert(child_task).unwrap();
-<a href=#752 id=752 data-nosnippet>752</a>
-<a href=#753 id=753 data-nosnippet>753</a>    child_proc
-<a href=#754 id=754 data-nosnippet>754</a>}
-<a href=#755 id=755 data-nosnippet>755</a>
-<a href=#756 id=756 data-nosnippet>756</a><span class="kw">fn </span>set_parent_and_group(clone_flags: CloneFlags, parent: <span class="kw-2">&amp;</span>Arc&lt;Process&gt;, child: <span class="kw-2">&amp;</span>Arc&lt;Process&gt;) {
-<a href=#757 id=757 data-nosnippet>757</a>    <span class="kw">loop </span>{
-<a href=#758 id=758 data-nosnippet>758</a>        <span class="kw">let </span>real_parent = clone_parent(clone_flags, parent);
-<a href=#759 id=759 data-nosnippet>759</a>
-<a href=#760 id=760 data-nosnippet>760</a>        <span class="comment">// Lock the parent's children before checking its status.
-<a href=#761 id=761 data-nosnippet>761</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>children_mut = real_parent.children().lock();
-<a href=#762 id=762 data-nosnippet>762</a>
-<a href=#763 id=763 data-nosnippet>763</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(children_mut) = children_mut.as_mut() <span class="kw">else </span>{
-<a href=#764 id=764 data-nosnippet>764</a>            <span class="comment">// The real parent is concurrently exiting group.
-<a href=#765 id=765 data-nosnippet>765</a>            // The children have been cleared,
-<a href=#766 id=766 data-nosnippet>766</a>            // so the retrial will see an up-to-date real parent.
-<a href=#767 id=767 data-nosnippet>767</a>            </span><span class="kw">continue</span>;
-<a href=#768 id=768 data-nosnippet>768</a>        };
-<a href=#769 id=769 data-nosnippet>769</a>
-<a href=#770 id=770 data-nosnippet>770</a>        <span class="comment">// Lock order: children of process -&gt; parent of process
-<a href=#771 id=771 data-nosnippet>771</a>        </span>child.parent().lock().set_process(<span class="kw-2">&amp;</span>real_parent);
-<a href=#772 id=772 data-nosnippet>772</a>
-<a href=#773 id=773 data-nosnippet>773</a>        <span class="comment">// Update `has_child_subreaper` for the child process to
-<a href=#774 id=774 data-nosnippet>774</a>        // make sure the `has_child_subreaper` state of the child process
-<a href=#775 id=775 data-nosnippet>775</a>        // will be consistent with its parent.
-<a href=#776 id=776 data-nosnippet>776</a>        </span><span class="kw">if </span>real_parent.has_child_subreaper.load(Ordering::Acquire) {
-<a href=#777 id=777 data-nosnippet>777</a>            child.has_child_subreaper.store(<span class="bool-val">true</span>, Ordering::Release);
-<a href=#778 id=778 data-nosnippet>778</a>        }
-<a href=#779 id=779 data-nosnippet>779</a>
-<a href=#780 id=780 data-nosnippet>780</a>        <span class="comment">// Lock order: children of process -&gt; process table
-<a href=#781 id=781 data-nosnippet>781</a>        // -&gt; group of process -&gt; group inner
-<a href=#782 id=782 data-nosnippet>782</a>
-<a href=#783 id=783 data-nosnippet>783</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>process_table_mut = process_table::process_table_mut();
+<a href=#667 id=667 data-nosnippet>667</a><span class="kw">fn </span>clone_files(parent_file_table: <span class="kw-2">&amp;</span>RwArc&lt;FileTable&gt;, clone_flags: CloneFlags) -&gt; RwArc&lt;FileTable&gt; {
+<a href=#668 id=668 data-nosnippet>668</a>    <span class="comment">// If CLONE_FILES is set, the child and parent share the same file table.
+<a href=#669 id=669 data-nosnippet>669</a>    // Otherwise, the child has a copy of the parent's file table.
+<a href=#670 id=670 data-nosnippet>670</a>    </span><span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_FILES) {
+<a href=#671 id=671 data-nosnippet>671</a>        parent_file_table.clone()
+<a href=#672 id=672 data-nosnippet>672</a>    } <span class="kw">else </span>{
+<a href=#673 id=673 data-nosnippet>673</a>        RwArc::new(parent_file_table.read().clone())
+<a href=#674 id=674 data-nosnippet>674</a>    }
+<a href=#675 id=675 data-nosnippet>675</a>}
+<a href=#676 id=676 data-nosnippet>676</a>
+<a href=#677 id=677 data-nosnippet>677</a><span class="kw">fn </span>clone_sighand(
+<a href=#678 id=678 data-nosnippet>678</a>    parent_sig_dispositions: <span class="kw-2">&amp;</span>Mutex&lt;Arc&lt;Mutex&lt;SigDispositions&gt;&gt;&gt;,
+<a href=#679 id=679 data-nosnippet>679</a>    clone_flags: CloneFlags,
+<a href=#680 id=680 data-nosnippet>680</a>) -&gt; Arc&lt;Mutex&lt;SigDispositions&gt;&gt; {
+<a href=#681 id=681 data-nosnippet>681</a>    <span class="comment">// If CLONE_SIGHAND is set, the child and parent shares the same signal handlers.
+<a href=#682 id=682 data-nosnippet>682</a>    // Otherwise, the child has a copy of the parent's signal handlers.
+<a href=#683 id=683 data-nosnippet>683</a>    </span><span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_SIGHAND) {
+<a href=#684 id=684 data-nosnippet>684</a>        parent_sig_dispositions.lock().clone()
+<a href=#685 id=685 data-nosnippet>685</a>    } <span class="kw">else </span>{
+<a href=#686 id=686 data-nosnippet>686</a>        <span class="kw">let </span>sig_dispositions = parent_sig_dispositions.lock();
+<a href=#687 id=687 data-nosnippet>687</a>        <span class="kw">let </span>sig_dispositions = sig_dispositions.lock();
+<a href=#688 id=688 data-nosnippet>688</a>        Arc::new(Mutex::new(<span class="kw-2">*</span>sig_dispositions))
+<a href=#689 id=689 data-nosnippet>689</a>    }
+<a href=#690 id=690 data-nosnippet>690</a>}
+<a href=#691 id=691 data-nosnippet>691</a>
+<a href=#692 id=692 data-nosnippet>692</a><span class="kw">fn </span>clone_sysvsem(clone_flags: CloneFlags) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#693 id=693 data-nosnippet>693</a>    <span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_SYSVSEM) {
+<a href=#694 id=694 data-nosnippet>694</a>        <span class="macro">warn!</span>(<span class="string">"CLONE_SYSVSEM is not supported now"</span>);
+<a href=#695 id=695 data-nosnippet>695</a>    }
+<a href=#696 id=696 data-nosnippet>696</a>    <span class="prelude-val">Ok</span>(())
+<a href=#697 id=697 data-nosnippet>697</a>}
+<a href=#698 id=698 data-nosnippet>698</a>
+<a href=#699 id=699 data-nosnippet>699</a><span class="kw">fn </span>clone_pidfd(
+<a href=#700 id=700 data-nosnippet>700</a>    ctx: <span class="kw-2">&amp;</span>Context,
+<a href=#701 id=701 data-nosnippet>701</a>    child: <span class="kw-2">&amp;</span>Arc&lt;Process&gt;,
+<a href=#702 id=702 data-nosnippet>702</a>    clone_flags: CloneFlags,
+<a href=#703 id=703 data-nosnippet>703</a>    pidfd_addr: <span class="prelude-ty">Option</span>&lt;Vaddr&gt;,
+<a href=#704 id=704 data-nosnippet>704</a>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#705 id=705 data-nosnippet>705</a>    <span class="kw">if </span>!clone_flags.contains(CloneFlags::CLONE_PIDFD) {
+<a href=#706 id=706 data-nosnippet>706</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<a href=#707 id=707 data-nosnippet>707</a>    }
+<a href=#708 id=708 data-nosnippet>708</a>
+<a href=#709 id=709 data-nosnippet>709</a>    <span class="kw">let </span>pidfd_addr = pidfd_addr.unwrap();
+<a href=#710 id=710 data-nosnippet>710</a>
+<a href=#711 id=711 data-nosnippet>711</a>    <span class="kw">let </span>fd = {
+<a href=#712 id=712 data-nosnippet>712</a>        <span class="kw">let </span>pid_file = PidFile::new(child.clone(), <span class="bool-val">false</span>);
+<a href=#713 id=713 data-nosnippet>713</a>        <span class="kw">let </span>file_table = ctx.thread_local.borrow_file_table();
+<a href=#714 id=714 data-nosnippet>714</a>        <span class="kw">let </span><span class="kw-2">mut </span>file_table_locked = file_table.unwrap().write();
+<a href=#715 id=715 data-nosnippet>715</a>        file_table_locked.insert(Arc::new(pid_file), FdFlags::CLOEXEC)
+<a href=#716 id=716 data-nosnippet>716</a>    };
+<a href=#717 id=717 data-nosnippet>717</a>
+<a href=#718 id=718 data-nosnippet>718</a>    <span class="comment">// Since `write_val` may sleep, we cannot hold the file table lock during its execution.
+<a href=#719 id=719 data-nosnippet>719</a>    // FIXME: Should we remove the file from the file table if the write operation fails?
+<a href=#720 id=720 data-nosnippet>720</a>    </span><span class="kw">match </span>ctx.user_space().write_val(pidfd_addr, <span class="kw-2">&amp;</span>fd) {
+<a href=#721 id=721 data-nosnippet>721</a>        <span class="prelude-val">Ok</span>(()) =&gt; <span class="prelude-val">Ok</span>(()),
+<a href=#722 id=722 data-nosnippet>722</a>        <span class="prelude-val">Err</span>(err) =&gt; {
+<a href=#723 id=723 data-nosnippet>723</a>            <span class="kw">let </span>file_table = ctx.thread_local.borrow_file_table();
+<a href=#724 id=724 data-nosnippet>724</a>            <span class="kw">let </span><span class="kw-2">mut </span>file_table_locked = file_table.unwrap().write();
+<a href=#725 id=725 data-nosnippet>725</a>            file_table_locked.close_file(fd);
+<a href=#726 id=726 data-nosnippet>726</a>            <span class="prelude-val">Err</span>(err.into())
+<a href=#727 id=727 data-nosnippet>727</a>        }
+<a href=#728 id=728 data-nosnippet>728</a>    }
+<a href=#729 id=729 data-nosnippet>729</a>}
+<a href=#730 id=730 data-nosnippet>730</a>
+<a href=#731 id=731 data-nosnippet>731</a><span class="kw">fn </span>clone_user_ns(
+<a href=#732 id=732 data-nosnippet>732</a>    clone_flags: CloneFlags,
+<a href=#733 id=733 data-nosnippet>733</a>    thread_local: <span class="kw-2">&amp;</span>ThreadLocal,
+<a href=#734 id=734 data-nosnippet>734</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;UserNamespace&gt;&gt; {
+<a href=#735 id=735 data-nosnippet>735</a>    <span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_NEWUSER) {
+<a href=#736 id=736 data-nosnippet>736</a>        <span class="macro">return_errno_with_message!</span>(
+<a href=#737 id=737 data-nosnippet>737</a>            Errno::EINVAL,
+<a href=#738 id=738 data-nosnippet>738</a>            <span class="string">"cloning a new user namespace is not supported"
+<a href=#739 id=739 data-nosnippet>739</a>        </span>);
+<a href=#740 id=740 data-nosnippet>740</a>    } <span class="kw">else </span>{
+<a href=#741 id=741 data-nosnippet>741</a>        <span class="prelude-val">Ok</span>(thread_local.borrow_user_ns().clone())
+<a href=#742 id=742 data-nosnippet>742</a>    }
+<a href=#743 id=743 data-nosnippet>743</a>}
+<a href=#744 id=744 data-nosnippet>744</a>
+<a href=#745 id=745 data-nosnippet>745</a><span class="kw">fn </span>clone_ns_proxy(
+<a href=#746 id=746 data-nosnippet>746</a>    parent_ns_proxy: <span class="kw-2">&amp;</span>Arc&lt;NsProxy&gt;,
+<a href=#747 id=747 data-nosnippet>747</a>    user_ns: <span class="kw-2">&amp;</span>Arc&lt;UserNamespace&gt;,
+<a href=#748 id=748 data-nosnippet>748</a>    clone_flags: CloneFlags,
+<a href=#749 id=749 data-nosnippet>749</a>    posix_thread: <span class="kw-2">&amp;</span>PosixThread,
+<a href=#750 id=750 data-nosnippet>750</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;NsProxy&gt;&gt; {
+<a href=#751 id=751 data-nosnippet>751</a>    parent_ns_proxy.new_clone(user_ns, clone_flags, posix_thread)
+<a href=#752 id=752 data-nosnippet>752</a>}
+<a href=#753 id=753 data-nosnippet>753</a>
+<a href=#754 id=754 data-nosnippet>754</a><span class="attr">#[expect(clippy::too_many_arguments)]
+<a href=#755 id=755 data-nosnippet>755</a></span><span class="kw">fn </span>create_child_process(
+<a href=#756 id=756 data-nosnippet>756</a>    pid: Pid,
+<a href=#757 id=757 data-nosnippet>757</a>    vmar: Arc&lt;Vmar&gt;,
+<a href=#758 id=758 data-nosnippet>758</a>    resource_limits: ResourceLimits,
+<a href=#759 id=759 data-nosnippet>759</a>    nice: Nice,
+<a href=#760 id=760 data-nosnippet>760</a>    oom_score_adj: i16,
+<a href=#761 id=761 data-nosnippet>761</a>    sig_dispositions: Arc&lt;Mutex&lt;SigDispositions&gt;&gt;,
+<a href=#762 id=762 data-nosnippet>762</a>    user_ns: Arc&lt;UserNamespace&gt;,
+<a href=#763 id=763 data-nosnippet>763</a>    thread_builder: PosixThreadBuilder,
+<a href=#764 id=764 data-nosnippet>764</a>) -&gt; Arc&lt;Process&gt; {
+<a href=#765 id=765 data-nosnippet>765</a>    <span class="kw">let </span>child_proc = Process::new(
+<a href=#766 id=766 data-nosnippet>766</a>        pid,
+<a href=#767 id=767 data-nosnippet>767</a>        vmar,
+<a href=#768 id=768 data-nosnippet>768</a>        resource_limits,
+<a href=#769 id=769 data-nosnippet>769</a>        nice,
+<a href=#770 id=770 data-nosnippet>770</a>        oom_score_adj,
+<a href=#771 id=771 data-nosnippet>771</a>        sig_dispositions,
+<a href=#772 id=772 data-nosnippet>772</a>        user_ns,
+<a href=#773 id=773 data-nosnippet>773</a>    );
+<a href=#774 id=774 data-nosnippet>774</a>
+<a href=#775 id=775 data-nosnippet>775</a>    <span class="kw">let </span>child_task = thread_builder.process(Arc::downgrade(<span class="kw-2">&amp;</span>child_proc)).build();
+<a href=#776 id=776 data-nosnippet>776</a>    child_proc.tasks().lock().insert(child_task).unwrap();
+<a href=#777 id=777 data-nosnippet>777</a>
+<a href=#778 id=778 data-nosnippet>778</a>    child_proc
+<a href=#779 id=779 data-nosnippet>779</a>}
+<a href=#780 id=780 data-nosnippet>780</a>
+<a href=#781 id=781 data-nosnippet>781</a><span class="kw">fn </span>set_parent_and_group(clone_flags: CloneFlags, parent: <span class="kw-2">&amp;</span>Arc&lt;Process&gt;, child: <span class="kw-2">&amp;</span>Arc&lt;Process&gt;) {
+<a href=#782 id=782 data-nosnippet>782</a>    <span class="kw">loop </span>{
+<a href=#783 id=783 data-nosnippet>783</a>        <span class="kw">let </span>real_parent = clone_parent(clone_flags, parent);
 <a href=#784 id=784 data-nosnippet>784</a>
-<a href=#785 id=785 data-nosnippet>785</a>        <span class="kw">let </span>process_group_mut = parent.process_group.lock();
-<a href=#786 id=786 data-nosnippet>786</a>
-<a href=#787 id=787 data-nosnippet>787</a>        <span class="kw">let </span>process_group = process_group_mut.upgrade().unwrap();
-<a href=#788 id=788 data-nosnippet>788</a>        <span class="kw">let </span><span class="kw-2">mut </span>process_group_inner = process_group.lock();
-<a href=#789 id=789 data-nosnippet>789</a>
-<a href=#790 id=790 data-nosnippet>790</a>        <span class="comment">// Put the child process in the parent's process group
-<a href=#791 id=791 data-nosnippet>791</a>        </span>process_group_inner.insert_process(child.clone());
-<a href=#792 id=792 data-nosnippet>792</a>        <span class="kw-2">*</span>child.process_group.lock() = Arc::downgrade(<span class="kw-2">&amp;</span>process_group);
-<a href=#793 id=793 data-nosnippet>793</a>
-<a href=#794 id=794 data-nosnippet>794</a>        <span class="comment">// Put the child process in the parent's `children` field
-<a href=#795 id=795 data-nosnippet>795</a>        </span>children_mut.insert(child.pid(), child.clone());
-<a href=#796 id=796 data-nosnippet>796</a>
-<a href=#797 id=797 data-nosnippet>797</a>        <span class="comment">// Put the child process in the global table
-<a href=#798 id=798 data-nosnippet>798</a>        </span>process_table_mut.insert(child.pid(), child.clone());
-<a href=#799 id=799 data-nosnippet>799</a>
-<a href=#800 id=800 data-nosnippet>800</a>        <span class="kw">return</span>;
-<a href=#801 id=801 data-nosnippet>801</a>    }
-<a href=#802 id=802 data-nosnippet>802</a>}
-<a href=#803 id=803 data-nosnippet>803</a>
-<a href=#804 id=804 data-nosnippet>804</a><span class="kw">fn </span>clone_parent(clone_flags: CloneFlags, current: <span class="kw-2">&amp;</span>Arc&lt;Process&gt;) -&gt; Cow&lt;<span class="lifetime">'_</span>, Arc&lt;Process&gt;&gt; {
-<a href=#805 id=805 data-nosnippet>805</a>    <span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_PARENT) {
-<a href=#806 id=806 data-nosnippet>806</a>        <span class="comment">// The parent process of the current process cannot be `None`, since we have checked that
-<a href=#807 id=807 data-nosnippet>807</a>        // the current process is not the init process.
-<a href=#808 id=808 data-nosnippet>808</a>        </span>Cow::Owned(current.parent().lock().process().upgrade().unwrap())
-<a href=#809 id=809 data-nosnippet>809</a>    } <span class="kw">else </span>{
-<a href=#810 id=810 data-nosnippet>810</a>        Cow::Borrowed(current)
-<a href=#811 id=811 data-nosnippet>811</a>    }
-<a href=#812 id=812 data-nosnippet>812</a>}
+<a href=#785 id=785 data-nosnippet>785</a>        <span class="comment">// Lock the parent's children before checking its status.
+<a href=#786 id=786 data-nosnippet>786</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>children_mut = real_parent.children().lock();
+<a href=#787 id=787 data-nosnippet>787</a>
+<a href=#788 id=788 data-nosnippet>788</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(children_mut) = children_mut.as_mut() <span class="kw">else </span>{
+<a href=#789 id=789 data-nosnippet>789</a>            <span class="comment">// The real parent is concurrently exiting group.
+<a href=#790 id=790 data-nosnippet>790</a>            // The children have been cleared,
+<a href=#791 id=791 data-nosnippet>791</a>            // so the retrial will see an up-to-date real parent.
+<a href=#792 id=792 data-nosnippet>792</a>            </span><span class="kw">continue</span>;
+<a href=#793 id=793 data-nosnippet>793</a>        };
+<a href=#794 id=794 data-nosnippet>794</a>
+<a href=#795 id=795 data-nosnippet>795</a>        <span class="comment">// Lock order: children of process -&gt; parent of process
+<a href=#796 id=796 data-nosnippet>796</a>        </span>child.parent().lock().set_process(<span class="kw-2">&amp;</span>real_parent);
+<a href=#797 id=797 data-nosnippet>797</a>
+<a href=#798 id=798 data-nosnippet>798</a>        <span class="comment">// Update `has_child_subreaper` for the child process to
+<a href=#799 id=799 data-nosnippet>799</a>        // make sure the `has_child_subreaper` state of the child process
+<a href=#800 id=800 data-nosnippet>800</a>        // will be consistent with its parent.
+<a href=#801 id=801 data-nosnippet>801</a>        </span><span class="kw">if </span>real_parent.has_child_subreaper.load(Ordering::Acquire) {
+<a href=#802 id=802 data-nosnippet>802</a>            child.has_child_subreaper.store(<span class="bool-val">true</span>, Ordering::Release);
+<a href=#803 id=803 data-nosnippet>803</a>        }
+<a href=#804 id=804 data-nosnippet>804</a>
+<a href=#805 id=805 data-nosnippet>805</a>        <span class="comment">// Lock order: children of process -&gt; process table
+<a href=#806 id=806 data-nosnippet>806</a>        // -&gt; group of process -&gt; group inner
+<a href=#807 id=807 data-nosnippet>807</a>
+<a href=#808 id=808 data-nosnippet>808</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>process_table_mut = process_table::process_table_mut();
+<a href=#809 id=809 data-nosnippet>809</a>
+<a href=#810 id=810 data-nosnippet>810</a>        <span class="kw">let </span>process_group_mut = parent.process_group.lock();
+<a href=#811 id=811 data-nosnippet>811</a>
+<a href=#812 id=812 data-nosnippet>812</a>        <span class="kw">let </span>process_group = process_group_mut.upgrade().unwrap();
+<a href=#813 id=813 data-nosnippet>813</a>        <span class="kw">let </span><span class="kw-2">mut </span>process_group_inner = process_group.lock();
+<a href=#814 id=814 data-nosnippet>814</a>
+<a href=#815 id=815 data-nosnippet>815</a>        <span class="comment">// Put the child process in the parent's process group
+<a href=#816 id=816 data-nosnippet>816</a>        </span>process_group_inner.insert_process(child.clone());
+<a href=#817 id=817 data-nosnippet>817</a>        <span class="kw-2">*</span>child.process_group.lock() = Arc::downgrade(<span class="kw-2">&amp;</span>process_group);
+<a href=#818 id=818 data-nosnippet>818</a>
+<a href=#819 id=819 data-nosnippet>819</a>        <span class="comment">// Put the child process in the parent's `children` field
+<a href=#820 id=820 data-nosnippet>820</a>        </span>children_mut.insert(child.pid(), child.clone());
+<a href=#821 id=821 data-nosnippet>821</a>
+<a href=#822 id=822 data-nosnippet>822</a>        <span class="comment">// Put the child process in the global table
+<a href=#823 id=823 data-nosnippet>823</a>        </span>process_table_mut.insert(child.pid(), child.clone());
+<a href=#824 id=824 data-nosnippet>824</a>
+<a href=#825 id=825 data-nosnippet>825</a>        <span class="kw">return</span>;
+<a href=#826 id=826 data-nosnippet>826</a>    }
+<a href=#827 id=827 data-nosnippet>827</a>}
+<a href=#828 id=828 data-nosnippet>828</a>
+<a href=#829 id=829 data-nosnippet>829</a><span class="kw">fn </span>clone_parent(clone_flags: CloneFlags, current: <span class="kw-2">&amp;</span>Arc&lt;Process&gt;) -&gt; Cow&lt;<span class="lifetime">'_</span>, Arc&lt;Process&gt;&gt; {
+<a href=#830 id=830 data-nosnippet>830</a>    <span class="kw">if </span>clone_flags.contains(CloneFlags::CLONE_PARENT) {
+<a href=#831 id=831 data-nosnippet>831</a>        <span class="comment">// The parent process of the current process cannot be `None`, since we have checked that
+<a href=#832 id=832 data-nosnippet>832</a>        // the current process is not the init process.
+<a href=#833 id=833 data-nosnippet>833</a>        </span>Cow::Owned(current.parent().lock().process().upgrade().unwrap())
+<a href=#834 id=834 data-nosnippet>834</a>    } <span class="kw">else </span>{
+<a href=#835 id=835 data-nosnippet>835</a>        Cow::Borrowed(current)
+<a href=#836 id=836 data-nosnippet>836</a>    }
+<a href=#837 id=837 data-nosnippet>837</a>}
 </code></pre></div></section></main></body></html>

@@ -7,7 +7,7 @@
 <a href=#7 id=7 data-nosnippet>7</a><span class="kw">use crate</span>::{
 <a href=#8 id=8 data-nosnippet>8</a>    fs::{
 <a href=#9 id=9 data-nosnippet>9</a>        pipe::AnonPipeInode,
-<a href=#10 id=10 data-nosnippet>10</a>        pseudofs::PseudoFs,
+<a href=#10 id=10 data-nosnippet>10</a>        pseudofs::NaivePseudoFs,
 <a href=#11 id=11 data-nosnippet>11</a>        vfs::{
 <a href=#12 id=12 data-nosnippet>12</a>            file_system::{FileSystem, FsFlags},
 <a href=#13 id=13 data-nosnippet>13</a>            path::{Mount, Path},
@@ -23,10 +23,10 @@
 <a href=#23 id=23 data-nosnippet>23</a>
 <a href=#24 id=24 data-nosnippet>24</a><span class="kw">impl </span>PipeFs {
 <a href=#25 id=25 data-nosnippet>25</a>    <span class="doccomment">/// Returns the singleton instance of the anonymous pipe file system.
-<a href=#26 id=26 data-nosnippet>26</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::fs) <span class="kw">fn </span>singleton() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>Arc&lt;PseudoFs&gt; {
-<a href=#27 id=27 data-nosnippet>27</a>        <span class="kw">static </span>PIPEFS: Once&lt;Arc&lt;PseudoFs&gt;&gt; = Once::new();
+<a href=#26 id=26 data-nosnippet>26</a>    </span><span class="kw">pub</span>(<span class="kw">in </span><span class="kw">crate</span>::fs) <span class="kw">fn </span>singleton() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>Arc&lt;NaivePseudoFs&gt; {
+<a href=#27 id=27 data-nosnippet>27</a>        <span class="kw">static </span>PIPEFS: Once&lt;Arc&lt;NaivePseudoFs&gt;&gt; = Once::new();
 <a href=#28 id=28 data-nosnippet>28</a>
-<a href=#29 id=29 data-nosnippet>29</a>        PseudoFs::singleton(<span class="kw-2">&amp;</span>PIPEFS, <span class="string">"pipefs"</span>, PIPEFS_MAGIC)
+<a href=#29 id=29 data-nosnippet>29</a>        NaivePseudoFs::singleton(<span class="kw-2">&amp;</span>PIPEFS, <span class="string">"pipefs"</span>, PIPEFS_MAGIC)
 <a href=#30 id=30 data-nosnippet>30</a>    }
 <a href=#31 id=31 data-nosnippet>31</a>
 <a href=#32 id=32 data-nosnippet>32</a>    <span class="doccomment">/// Creates a pseudo `Path` for an anonymous pipe.

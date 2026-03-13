@@ -108,7 +108,7 @@
 <a href=#108 id=108 data-nosnippet>108</a>            <span class="macro">return_errno_with_message!</span>(Errno::ENOENT, <span class="string">"the child node does not exist"</span>);
 <a href=#109 id=109 data-nosnippet>109</a>        };
 <a href=#110 id=110 data-nosnippet>110</a>
-<a href=#111 id=111 data-nosnippet>111</a>        <span class="kw">let </span>target_node = child.as_any().downcast_ref::&lt;CgroupNode&gt;().unwrap();
+<a href=#111 id=111 data-nosnippet>111</a>        <span class="kw">let </span>target_node = Arc::downcast::&lt;CgroupNode&gt;(child).unwrap();
 <a href=#112 id=112 data-nosnippet>112</a>
 <a href=#113 id=113 data-nosnippet>113</a>        <span class="comment">// This will succeed only if the child is empty and has not been removed.
 <a href=#114 id=114 data-nosnippet>114</a>        </span>target_node.mark_as_dead()<span class="question-mark">?</span>;

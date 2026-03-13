@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["ProcSym"],"trait":["SymOps"]};
+window.SIDEBAR_ITEMS = {"fn":["new_symlink_common"],"struct":["ProcSym"],"trait":["SymOps"]};

@@ -177,19 +177,19 @@
 <a href=#177 id=177 data-nosnippet>177</a><span class="kw">impl </span>From&lt;Metadata&gt; <span class="kw">for </span>Stat {
 <a href=#178 id=178 data-nosnippet>178</a>    <span class="kw">fn </span>from(info: Metadata) -&gt; <span class="self">Self </span>{
 <a href=#179 id=179 data-nosnippet>179</a>        <span class="self">Self </span>{
-<a href=#180 id=180 data-nosnippet>180</a>            st_dev: info.dev,
+<a href=#180 id=180 data-nosnippet>180</a>            st_dev: info.container_dev_id.as_encoded_u64(),
 <a href=#181 id=181 data-nosnippet>181</a>            st_ino: info.ino,
-<a href=#182 id=182 data-nosnippet>182</a>            st_nlink: info.nlinks <span class="kw">as _</span>,
+<a href=#182 id=182 data-nosnippet>182</a>            st_nlink: info.nr_hard_links <span class="kw">as _</span>,
 <a href=#183 id=183 data-nosnippet>183</a>            st_mode: info.type_ <span class="kw">as </span>u32 | info.mode.bits() <span class="kw">as </span>u32,
 <a href=#184 id=184 data-nosnippet>184</a>            st_uid: info.uid.into(),
 <a href=#185 id=185 data-nosnippet>185</a>            st_gid: info.gid.into(),
-<a href=#186 id=186 data-nosnippet>186</a>            st_rdev: info.rdev,
+<a href=#186 id=186 data-nosnippet>186</a>            st_rdev: info.self_dev_id.map_or(<span class="number">0</span>, |id| id.as_encoded_u64()),
 <a href=#187 id=187 data-nosnippet>187</a>            st_size: info.size <span class="kw">as </span>i64,
-<a href=#188 id=188 data-nosnippet>188</a>            st_blksize: info.blk_size <span class="kw">as _</span>,
-<a href=#189 id=189 data-nosnippet>189</a>            st_blocks: (info.blocks * (info.blk_size / <span class="number">512</span>)) <span class="kw">as </span>i64,
-<a href=#190 id=190 data-nosnippet>190</a>            st_atime: info.atime.into(),
-<a href=#191 id=191 data-nosnippet>191</a>            st_mtime: info.mtime.into(),
-<a href=#192 id=192 data-nosnippet>192</a>            st_ctime: info.ctime.into(),
+<a href=#188 id=188 data-nosnippet>188</a>            st_blksize: info.optimal_block_size <span class="kw">as _</span>,
+<a href=#189 id=189 data-nosnippet>189</a>            st_blocks: info.nr_sectors_allocated <span class="kw">as _</span>,
+<a href=#190 id=190 data-nosnippet>190</a>            st_atime: info.last_access_at.into(),
+<a href=#191 id=191 data-nosnippet>191</a>            st_mtime: info.last_modify_at.into(),
+<a href=#192 id=192 data-nosnippet>192</a>            st_ctime: info.last_meta_change_at.into(),
 <a href=#193 id=193 data-nosnippet>193</a>            ..Default::default()
 <a href=#194 id=194 data-nosnippet>194</a>        }
 <a href=#195 id=195 data-nosnippet>195</a>    }
