@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["init_in_first_process","serial0_device"],"static":["SERIAL0"],"struct":["SerialDriver"]};

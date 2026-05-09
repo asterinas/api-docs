@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":["define_flag_param","define_flag_param_early","define_kv_param","define_kv_param_early","define_repeatable_kv_param","define_repeatable_kv_param_early","define_unimplemented_param"],"mod":["parse","types"],"static":["INIT_PROC_ARGS"]};

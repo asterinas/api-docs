@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["KEEPALIVE_INTERVAL"],"enum":["CongestionControl"],"struct":["Congestion","DeferAccept","Inq","KeepIdle","MaxSegment","NoDelay","SynCnt","UserTimeout","WindowClamp"]};

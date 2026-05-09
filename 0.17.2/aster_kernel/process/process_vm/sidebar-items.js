@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["activate_vmar"],"mod":["heap","init_stack"],"struct":["ProcessVm","ProcessVmarGuard","VmarSnapshot"]};

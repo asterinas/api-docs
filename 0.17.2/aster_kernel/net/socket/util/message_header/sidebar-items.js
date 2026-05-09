@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CMSG_ALIGN"],"enum":["ControlMessage"],"struct":["CControlHeader","MessageHeader"]};

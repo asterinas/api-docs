@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["ADDR_MAX_LEN"],"enum":["CSocketAddrFamily"],"fn":["read_socket_addr_from_user","write_c_socket_address_util","write_socket_addr_to_user","write_socket_addr_with_max_len"],"struct":["Storage"]};

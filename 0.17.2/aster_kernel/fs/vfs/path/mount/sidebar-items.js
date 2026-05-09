@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["AtimePolicy","MountNsFileCopying","MountPropType"],"fn":["init"],"static":["ID_ALLOCATOR","RESERVED_MOUNT_ID"],"struct":["AtomicPerMountFlags","Mount","PerMountFlags"]};

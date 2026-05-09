@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["SERIAL_PORT"],"struct":["SerialAccess"]};

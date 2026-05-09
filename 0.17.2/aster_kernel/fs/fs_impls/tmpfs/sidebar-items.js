@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["TMPFS_MAGIC"],"fn":["init"],"mod":["fs"]};

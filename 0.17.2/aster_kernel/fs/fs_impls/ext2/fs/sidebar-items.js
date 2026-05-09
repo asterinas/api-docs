@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["ROOT_INO"],"struct":["Ext2","Ext2Type"]};

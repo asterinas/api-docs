@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["AMBIENT_CAPSET"],"mod":["c_types","capabilities","credentials_","group","secure_bits","static_cap","user"],"struct":["Credentials"]};

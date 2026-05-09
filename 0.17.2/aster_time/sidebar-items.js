@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["default_clocksource","read_monotonic_time","read_start_time"],"static":["VDSO_DATA_HIGH_RES_UPDATE_FN"],"struct":["ClockSource","Instant","SystemTime"]};

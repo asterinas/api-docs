@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["alloc_ephemeral_abstract_name","create_abstract_name","lookup_abstract_name"],"static":["HANDLE_TABLE"],"struct":["AbstractHandle","HandleTable"]};

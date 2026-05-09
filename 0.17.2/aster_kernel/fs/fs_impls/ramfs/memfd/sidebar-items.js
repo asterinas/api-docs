@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_MEMFD_NAME_LEN"],"fn":["memfd_inode_or_err"],"struct":["FileSeals","MemfdFlags","MemfdInode","MemfdTmpFs"],"trait":["MemfdInodeHandle"]};

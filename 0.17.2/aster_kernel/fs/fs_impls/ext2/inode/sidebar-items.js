@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_FAST_SYMLINK_LEN","MAX_FNAME_LEN"],"fn":["blocks_to_sectors","is_block_aligned","read_lock_two_inodes","sectors_to_blocks","write_lock_multiple_inodes","write_lock_two_inodes"],"struct":["DeviceRangeReader","FileFlags","FilePerm","Inode","InodeBlockManager","InodeDesc","InodeImpl","InodeInner","Osd2","RawInode"]};

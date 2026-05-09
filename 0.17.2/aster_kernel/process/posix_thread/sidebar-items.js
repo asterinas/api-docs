@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["FIRST_POSIX_TID","PID_MAX"],"enum":["SleepingState"],"fn":["allocate_posix_tid","last_tid"],"mod":["alien_access","builder","exit","futex","name","posix_thread_ext","ptrace","robust_list","thread_local"],"static":["POSIX_TID_ALLOCATOR"],"struct":["PosixThread"],"trait":["ContextPthreadAdminApi"]};

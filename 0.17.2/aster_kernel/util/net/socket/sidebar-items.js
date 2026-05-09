@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SOCK_TYPE_MASK"],"enum":["Protocol","SockType"],"struct":["CUserMsgHdr","SockFlags"]};

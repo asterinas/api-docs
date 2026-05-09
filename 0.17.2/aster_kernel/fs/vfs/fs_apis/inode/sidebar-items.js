@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["FallocMode","MknodType","SymbolicLink"],"struct":["Extension","InodeWriter","Metadata","RevalidationPolicy"],"trait":["Inode","InodeIo"]};

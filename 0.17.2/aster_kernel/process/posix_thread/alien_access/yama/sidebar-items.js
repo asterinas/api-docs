@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["YamaScope"],"fn":["check_alien_access","get_yama_scope","is_ancestor_of","set_yama_scope"],"static":["YAMA_SCOPE"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["console_set_font","init_in_first_process","tty1_device"],"static":["TTY1"],"struct":["VtDriver"]};

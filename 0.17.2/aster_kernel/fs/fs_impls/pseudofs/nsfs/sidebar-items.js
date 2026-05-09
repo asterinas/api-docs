@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["NSFS_MAGIC"],"enum":["NsType"],"fn":["open_ns_as_file"],"mod":["ioctl_defs"],"struct":["NsFile","NsFs","NsInode","StashedDentry"],"trait":["NsCommonOps"]};

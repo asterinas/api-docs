@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["notify_inode","notify_inode_with_name","notify_parent","on_access","on_attr_change","on_change","on_close","on_create","on_delete","on_inode_removed","on_link","on_link_count","on_mkdir","on_modify","on_open"],"mod":["inotify"],"struct":["AtomicFsEvents","FsEventPublisher","FsEvents"],"trait":["FsEventSubscriber"]};

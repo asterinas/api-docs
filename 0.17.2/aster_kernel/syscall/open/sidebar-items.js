@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["do_open","sys_creat","sys_open","sys_openat"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["init"],"mod":["block_group","block_ptr","dir","fs","impl_for_vfs","indirect_block_cache","inode","prelude","super_block","utils","xattr"]};

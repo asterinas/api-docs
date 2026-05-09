@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["XATTR_LIST_MAX_LEN","XATTR_NAME_MAX_LEN","XATTR_VALUE_MAX_LEN"],"enum":["XattrNamespace"],"struct":["XattrName","XattrSetFlags"]};

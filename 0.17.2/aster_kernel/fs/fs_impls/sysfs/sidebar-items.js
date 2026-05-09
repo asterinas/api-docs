@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["init","register_kernel_sysnode","systree_singleton","unregister_kernel_sysnode"],"mod":["fs","inode","kernel"]};

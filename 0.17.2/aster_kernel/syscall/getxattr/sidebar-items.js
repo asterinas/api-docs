@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["getxattr","sys_fgetxattr","sys_getxattr","sys_lgetxattr"]};

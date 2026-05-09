@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EXFAT_BAD_CLUSTER","EXFAT_EOF_CLUSTER","EXFAT_FREE_CLUSTER","FAT_ENTRY_SIZE"],"enum":["FatValue"],"struct":["ExfatChain","FatChainFlags"],"trait":["ClusterAllocator"],"type":["ClusterID","ExfatChainPosition"]};

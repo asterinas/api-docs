@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["PLACEHOLDER_DIRENT_INO"],"fn":["keyed_readdir_entries","sequential_readdir_entries","visit_listed_entries","visit_readdir_entries"],"struct":["ListedEntry","ReaddirEntry"]};

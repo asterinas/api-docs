@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAGIC_NUM","SUPER_BLOCK_OFFSET","SUPER_BLOCK_SIZE"],"enum":["ErrorsBehaviour","OsId","RevLevel"],"struct":["FeatureCompatSet","FeatureInCompatSet","FeatureRoCompatSet","FsState","RawSuperBlock","Reserved","SuperBlock"]};

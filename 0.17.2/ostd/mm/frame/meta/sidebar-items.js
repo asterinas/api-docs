@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["FRAME_METADATA_MAX_ALIGN","FRAME_METADATA_MAX_SIZE"],"enum":["GetFrameError"],"macro":["impl_frame_meta_for"],"struct":["KernelMeta","MetaPageMeta","ReservedMemoryMeta","UnusableMemoryMeta"],"trait":["AnyFrameMeta"]};

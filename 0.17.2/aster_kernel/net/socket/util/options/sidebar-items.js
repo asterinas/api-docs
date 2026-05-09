@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MIN_RECVBUF","MIN_SENDBUF"],"fn":["check_current_privileged","check_priority"],"struct":["SocketOptionSet"],"trait":["GetSocketLevelOption","SetSocketLevelOption"]};

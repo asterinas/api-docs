@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["RxQueue","TxPendingGuard","TxQueue"],"trait":["TxCompletion"]};

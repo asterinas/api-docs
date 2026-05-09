@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["alloc_vmo","committed_pages_if_continuous"],"struct":["VmoOptions"]};

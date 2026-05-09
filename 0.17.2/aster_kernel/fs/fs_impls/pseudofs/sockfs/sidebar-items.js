@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SOCKFS_MAGIC"],"struct":["SockFs","SockFsType"]};

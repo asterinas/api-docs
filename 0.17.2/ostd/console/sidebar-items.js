@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["early_print"],"mod":["uart_ns16650a"]};

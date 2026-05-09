@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PageState"],"struct":["AtomicPageState","CachePageMeta","PageCache","PageCacheManager","ReadaheadState","ReadaheadWindow"],"trait":["CachePageExt","PageCacheBackend"],"type":["CachePage"]};

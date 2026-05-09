@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["listed_entries_from_table","lookup_child_from_table"],"mod":["readdir"],"struct":["ProcDir"],"trait":["DirOps"],"type":["StaticDirEntry"]};

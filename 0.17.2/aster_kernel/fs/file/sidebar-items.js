@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["file_attr","file_handle","file_table","flock","inode_attr","inode_handle"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["__global_heap_slot_info_from_layout","mem_total","slot_type_from_layout"],"mod":["perms","vmar","vmo"],"static":["FRAME_ALLOCATOR","HEAP_ALLOCATOR","__GLOBAL_FRAME_ALLOCATOR_REF","__GLOBAL_HEAP_ALLOCATOR_REF"]};

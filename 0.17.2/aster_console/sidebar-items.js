@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ConsoleSetFontError"],"fn":["all_devices","all_devices_lock","register_device"],"mod":["font","mode"],"trait":["AnyConsoleDevice"],"type":["ConsoleCallback"]};

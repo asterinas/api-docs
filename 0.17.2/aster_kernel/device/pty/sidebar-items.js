@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["init_in_first_process","new_pty_pair"],"mod":["driver","file","ioctl_defs","master","packet"],"static":["DEV_PTS"]};

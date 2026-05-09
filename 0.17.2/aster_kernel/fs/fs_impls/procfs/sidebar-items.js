@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BLOCK_SIZE","PROC_MAGIC","PROC_ROOT_INO"],"fn":["init","init_on_each_cpu"],"mod":["cmdline","cpuinfo","filesystems","loadavg","meminfo","mounts","pid","self_","stat","sys","template","thread_self","uptime","version"],"struct":["ProcFs","ProcFsType","RootDirOps"]};
