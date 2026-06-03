@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["do_sys_eventfd2","sys_eventfd","sys_eventfd2"],"struct":["EventFile","Flags"]};

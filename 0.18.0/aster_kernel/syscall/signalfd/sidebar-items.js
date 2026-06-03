@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["create_new_signalfd","sys_signalfd","sys_signalfd4","update_existing_signalfd"],"struct":["SignalFile","SignalFileFlags","SignalfdSiginfo"],"trait":["ToSignalfdSiginfo"]};

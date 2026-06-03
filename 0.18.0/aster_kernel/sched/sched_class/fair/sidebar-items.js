@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["HAS_PENDING","WEIGHT_0"],"fn":["nice_to_weight"],"struct":["FairAttr","FairClassRq","FairQueueItem"]};

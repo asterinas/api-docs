@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["do_get_addr","iface_to_new_addr"]};

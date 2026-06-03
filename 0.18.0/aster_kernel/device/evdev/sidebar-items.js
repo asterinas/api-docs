@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EVDEV_MAJOR_ID"],"fn":["init_in_first_kthread"],"mod":["file"],"static":["EVDEV_DEVICES","EVDEV_MINOR_COUNTER"],"struct":["EvdevDevice","EvdevHandlerClass"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BASE_SLICE_NS","MIN_PERIOD_NS"],"fn":["base_slice_clocks","consts","min_period_clocks","tsc_factors"]};

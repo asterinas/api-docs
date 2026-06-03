@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_ALLOWED_PROTOCOL_ID"],"enum":["NetlinkRouteProtocol","NetlinkUeventProtocol","StandardNetlinkProtocol"],"fn":["init","is_valid_protocol"],"mod":["multicast"],"static":["NETLINK_SOCKET_TABLE"],"struct":["BoundHandle","NetlinkSocketTable","ProtocolSocketTable"],"trait":["SupportedNetlinkProtocol"]};

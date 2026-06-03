@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["init","init_in_first_kthread","init_in_first_process","init_on_each_cpu"],"mod":["file","fs_impls","pipe","rootfs","thread_info","utils","vfs"]};

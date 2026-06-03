@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["alloc_cpu_local","type_from_layout"],"struct":["CpuLocalBox","HeapAllocator"]};

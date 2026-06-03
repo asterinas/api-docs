@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["IFNAME_SIZE"],"mod":["addr","link"]};

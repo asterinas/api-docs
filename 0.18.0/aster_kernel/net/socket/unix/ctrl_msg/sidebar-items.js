@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_NR_FILES"],"enum":["CControlType","Message"],"struct":["AuxiliaryData","CredMessage","FileMessage","UnixControlMessage"]};

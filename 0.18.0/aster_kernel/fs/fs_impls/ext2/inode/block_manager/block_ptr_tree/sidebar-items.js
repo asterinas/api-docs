@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_BLOCK_POINTER_LEVELS","PTRS_PER_BLOCK","SECTORS_PER_BLOCK"],"enum":["ResolvedBlockRange"],"struct":["BlockAllocGuard","BlockPointerPath","BlockPointerWalk","BlockPtrTree","RawBlockPtrs"]};

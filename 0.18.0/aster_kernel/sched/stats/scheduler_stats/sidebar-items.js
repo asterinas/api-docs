@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["nr_queued_and_running","set_stats_from_scheduler"],"static":["SCHEDULER_STATS"],"trait":["SchedulerStats"]};

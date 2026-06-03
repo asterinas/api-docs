@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["PIPEFS_MAGIC"],"fn":["init"],"struct":["PipeFs","PipeFsType"]};

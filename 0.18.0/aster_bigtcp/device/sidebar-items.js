@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Checksum","Medium"],"struct":["ChecksumCapabilities","DeviceCapabilities","Loopback"],"trait":["Device","NotifyDevice","RxToken","TxToken","WithDevice"]};

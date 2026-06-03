@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["duration_to_ext2_secs","now"],"macro":["impl_ipo_for"],"struct":["Dirty"],"trait":["IsPowerOf"]};

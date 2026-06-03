@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BLOCK_SIZE","VIRTIOFS_MAGIC"],"struct":["VirtioFs","VirtioFsType"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["LEGACY_MMAP_FLAGS","MAP_TYPE_MASK"],"enum":["MMapType"],"fn":["adjust_addr_hint","check_addr","check_len","check_offset","do_sys_mmap","sys_mmap"],"struct":["MMapFlags","MMapOptions"]};

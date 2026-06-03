@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DOT_BYTE"],"fn":["init","is_dot","is_dot_or_dotdot","is_dotdot","try_get_mnt_ns_inode"],"mod":["dentry","mount","mount_namespace","resolver"],"struct":["Path"]};

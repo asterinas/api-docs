@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["WorkPriority"],"fn":["init_in_first_kthread","submit_work_func","submit_work_item"],"mod":["simple_scheduler","work_item","worker","worker_pool"],"static":["WORKERPOOL_HIGH_PRI","WORKERPOOL_NORMAL","WORKQUEUE_GLOBAL_HIGH_PRI","WORKQUEUE_GLOBAL_NORMAL"],"struct":["WorkQueue","WorkQueueInner"]};

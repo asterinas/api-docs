@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["IO_CAPACITY"],"fn":["init_in_first_process"],"mod":["device","driver","file","flags","hvc","ioctl_defs","line_discipline","serial","termio","vt"],"struct":["Tty"]};

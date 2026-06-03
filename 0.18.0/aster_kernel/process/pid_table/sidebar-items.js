@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PidEntryType"],"fn":["pid_table_mut"],"static":["PID_TABLE"],"struct":["PidEntry","PidEntryInner","PidTable"],"trait":["WeakIsDangling"]};

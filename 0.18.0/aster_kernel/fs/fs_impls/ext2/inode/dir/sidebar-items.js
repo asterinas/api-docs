@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_MULTI_INODE_LOCKS"],"mod":["dir_entry"],"struct":["DirEntryInfo","DirSlotInfo","MultiInodeInnerGuards"]};

@@ -1,0 +1,9 @@
+(function() {
+    const implementors = Object.fromEntries([["aster_kernel",[["impl FromStr for <a class=\"enum\" href=\"aster_kernel/fs/fs_impls/cgroupfs/controller/enum.SubCtrlType.html\" title=\"enum aster_kernel::fs::fs_impls::cgroupfs::controller::SubCtrlType\">SubCtrlType</a>",0],["impl FromStr for <a class=\"enum\" href=\"aster_kernel/net/socket/netlink/kobject_uevent/message/uevent/enum.SysObjAction.html\" title=\"enum aster_kernel::net::socket::netlink::kobject_uevent::message::uevent::SysObjAction\">SysObjAction</a>",0],["impl FromStr for <a class=\"struct\" href=\"aster_kernel/net/socket/netlink/kobject_uevent/message/syn_uevent/struct.SyntheticUevent.html\" title=\"struct aster_kernel::net::socket::netlink::kobject_uevent::message::syn_uevent::SyntheticUevent\">SyntheticUevent</a>",0],["impl FromStr for <a class=\"struct\" href=\"aster_kernel/net/socket/netlink/kobject_uevent/message/syn_uevent/struct.Uuid.html\" title=\"struct aster_kernel::net::socket::netlink::kobject_uevent::message::syn_uevent::Uuid\">Uuid</a>",0]]],["log",[["impl FromStr for <a class=\"enum\" href=\"log/enum.Level.html\" title=\"enum log::Level\">Level</a>",0],["impl FromStr for <a class=\"enum\" href=\"log/enum.LevelFilter.html\" title=\"enum log::LevelFilter\">LevelFilter</a>",0]]],["owo_colors",[["impl FromStr for <a class=\"enum\" href=\"owo_colors/enum.DynColors.html\" title=\"enum owo_colors::DynColors\">DynColors</a>",0]]],["uguid",[["impl FromStr for <a class=\"struct\" href=\"uguid/struct.Guid.html\" title=\"struct uguid::Guid\">Guid</a>",0]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":59,"fragment_lengths":[988,240,149,125]}

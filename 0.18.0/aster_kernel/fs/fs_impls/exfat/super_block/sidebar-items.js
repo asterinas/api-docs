@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BOOTSEC_FS_NAME_LEN","BOOTSEC_JUMP_BOOT_LEN","BOOTSEC_OLDBPB_LEN","DENTRY_SIZE_BITS"],"struct":["ExfatBootSector","ExfatSuperBlock"]};

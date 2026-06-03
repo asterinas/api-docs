@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["create_default_init_process","create_init_process","create_init_task","set_bootstrap_session_and_group","spawn_init_process","with_init_argv0"]};

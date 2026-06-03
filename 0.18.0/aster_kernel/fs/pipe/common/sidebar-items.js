@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_PIPE_BUF_SIZE","PIPE_BUF"],"fn":["check_status_flags","new_pair","new_pair_with_capacity"],"struct":["Pipe","PipeHandle","PipeInner","PipeObj","PipeReader","PipeWriter"]};

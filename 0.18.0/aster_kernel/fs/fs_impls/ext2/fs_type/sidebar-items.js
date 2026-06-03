@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Ext2Type"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ArrayFactory"],"struct":["U16Array","U32Array","U64Array","U8Array"],"trait":["ArrayManufacture"]};

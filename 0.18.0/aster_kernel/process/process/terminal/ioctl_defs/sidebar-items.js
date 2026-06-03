@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"type":["GetControlSid","GetForegroundPgid","SetControlNoTty","SetControlTty","SetForegroundPgid"]};

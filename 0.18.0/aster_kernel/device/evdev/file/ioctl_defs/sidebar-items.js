@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"type":["GetDeviceName","GetDevicePhys","GetDeviceUniq","GetDriverVer","GetEventBits","GetInputId","GetKeyState","GetLedState","GetSwState","SetClockId"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["RtnlSegment"],"mod":["addr","legacy","link","route"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["NSEC_PER_SEC","NSEC_PER_USEC","TIMER_ABSTIME","USEC_PER_SEC"],"fn":["init","init_on_each_cpu"],"mod":["clocks","core","cpu_time_stats","softirq","system_time","timerfd","wait"],"struct":["UnixTime","itimerspec_t","itimerval_t","timespec_t","timeval_t"],"type":["clockid_t","suseconds_t","time_t"]};

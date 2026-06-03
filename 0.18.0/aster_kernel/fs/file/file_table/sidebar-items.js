@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":["get_file_fast"],"struct":["FdFlags","FileDesc","FileTable","FileTableEntry","OwnerObserver"],"trait":["WithFileTable"],"type":["Owner","RawFileDesc"]};

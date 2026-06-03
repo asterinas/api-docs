@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["STATIC_MAX_LEVEL"],"enum":["Level","LevelFilter"],"fn":["inject_logger","max_level","set_max_level"],"struct":["Record"],"trait":["Log"]};

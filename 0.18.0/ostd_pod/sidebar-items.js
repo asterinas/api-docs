@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"attr":["derive","padding_struct","pod_union"],"derive":["FromBytes","FromZeros","Immutable","IntoBytes","KnownLayout"],"mod":["array_helper"],"trait":["FromBytes","FromZeros","Immutable","IntoBytes","KnownLayout","Pod"]};

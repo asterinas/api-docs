@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ExitCode"],"fn":["inject_poweroff_handler","inject_restart_handler","poweroff","restart"]};

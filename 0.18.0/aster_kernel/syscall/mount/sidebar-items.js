@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MS_PROPAGATION"],"fn":["do_bind_mount","do_change_type","do_move_mount_old","do_new_mount","do_remount_mnt","do_remount_mnt_and_fs","open_fs","sys_mount"],"struct":["MountFlags"]};

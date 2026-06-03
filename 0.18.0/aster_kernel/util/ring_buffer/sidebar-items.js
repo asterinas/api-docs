@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Consumer","Producer","RingBuffer"],"trait":["ConsumerU8Ext","ProducerU8Ext"],"type":["RbConsumer","RbProducer"]};

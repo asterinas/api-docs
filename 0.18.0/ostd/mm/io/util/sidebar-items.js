@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["VmReaderWriterIdentity","VmReaderWriterResult"],"trait":["HasVmReaderWriter","VmReaderWriterTypes"]};

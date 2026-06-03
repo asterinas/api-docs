@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["NETLINK_DEFAULT_BUF_SIZE"],"struct":["MessageQueue","MessageReceiver"],"trait":["QueueableMessage"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BLOCK_SIZE","SECTOR_SIZE"],"enum":["BioDirection","BioStatus"],"struct":["BioSegment","Duration","Frame","FrameAllocOptions","IoBatch","Range","RwMutex","RwMutexReadGuard","RwMutexWriteGuard","Segment"],"trait":["AlignExt","BlockDevice","Deref","DerefMut","VmIo","VmIoFill"],"type":["Bid","USegment"]};

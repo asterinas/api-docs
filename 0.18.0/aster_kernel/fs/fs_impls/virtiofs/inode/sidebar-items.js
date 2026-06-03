@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["TimeField","WriteOffset"],"mod":["metadata","ops","page_cache"],"struct":["InodeInner","VirtioFsInode"]};

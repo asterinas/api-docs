@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["AtomicCapSet","CapSet","InvalidCapSetError"]};

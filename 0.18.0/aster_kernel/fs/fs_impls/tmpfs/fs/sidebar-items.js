@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["default_max_blocks","default_max_inodes"],"struct":["TmpFsType"],"type":["TmpFs"]};

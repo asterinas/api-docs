@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["build_proxy_from_ns_file","build_proxy_from_pid_file","check_set_ns_perms","set_cgroup_ns","set_ipc_ns","set_mnt_ns","set_uts_ns","sys_setns","try_apply_ns_from_inode"]};

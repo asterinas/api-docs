@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["cache_page","vmo"],"struct":["PageCache"],"trait":["BlockAsPageCacheBackend","PageCacheBackend"]};
