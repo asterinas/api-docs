@@ -6,13 +6,13 @@
     fn <a href="#tymethod.probe" class="fn">probe</a>(
         &amp;self,
         device: <a class="struct" href="../common_device/struct.PciCommonDevice.html" title="struct aster_pci::common_device::PciCommonDevice">PciCommonDevice</a>,
-    ) -&gt; Result&lt;Arc&lt;dyn <a class="trait" href="trait.PciDevice.html" title="trait aster_pci::bus::PciDevice">PciDevice</a>&gt;, (<a class="enum" href="../../ostd/bus/enum.BusProbeError.html" title="enum ostd::bus::BusProbeError">BusProbeError</a>, <a class="struct" href="../common_device/struct.PciCommonDevice.html" title="struct aster_pci::common_device::PciCommonDevice">PciCommonDevice</a>)&gt;;
+    ) -&gt; Result&lt;Arc&lt;dyn <a class="trait" href="trait.PciDevice.html" title="trait aster_pci::bus::PciDevice">PciDevice</a>&gt;, (BusProbeError, <a class="struct" href="../common_device/struct.PciCommonDevice.html" title="struct aster_pci::common_device::PciCommonDevice">PciCommonDevice</a>)&gt;;
 }</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>A trait that represents PCI device drivers.</p>
 <p>The PCI bus will pass the device through the <code>probe</code> function when a new device is registered.</p>
 </div></details><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="tymethod.probe" class="method"><a class="src rightside" href="../../src/aster_pci/bus.rs.html#31-34">Source</a><h4 class="code-header">fn <a href="#tymethod.probe" class="fn">probe</a>(
     &amp;self,
     device: <a class="struct" href="../common_device/struct.PciCommonDevice.html" title="struct aster_pci::common_device::PciCommonDevice">PciCommonDevice</a>,
-) -&gt; Result&lt;Arc&lt;dyn <a class="trait" href="trait.PciDevice.html" title="trait aster_pci::bus::PciDevice">PciDevice</a>&gt;, (<a class="enum" href="../../ostd/bus/enum.BusProbeError.html" title="enum ostd::bus::BusProbeError">BusProbeError</a>, <a class="struct" href="../common_device/struct.PciCommonDevice.html" title="struct aster_pci::common_device::PciCommonDevice">PciCommonDevice</a>)&gt;</h4></section></summary><div class="docblock"><p>Probes an unclaimed PCI device.</p>
+) -&gt; Result&lt;Arc&lt;dyn <a class="trait" href="trait.PciDevice.html" title="trait aster_pci::bus::PciDevice">PciDevice</a>&gt;, (BusProbeError, <a class="struct" href="../common_device/struct.PciCommonDevice.html" title="struct aster_pci::common_device::PciCommonDevice">PciCommonDevice</a>)&gt;</h4></section></summary><div class="docblock"><p>Probes an unclaimed PCI device.</p>
 <p>If the driver matches and succeeds in initializing the unclaimed device,
 then the driver will return an claimed instance of the device,
 signaling that the PCI device is now ready to work.</p>
