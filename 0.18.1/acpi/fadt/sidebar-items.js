@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PowerProfile"],"struct":["ArmBootArchFlags","Fadt","FixedFeatureFlags","IaPcBootArchFlags"]};

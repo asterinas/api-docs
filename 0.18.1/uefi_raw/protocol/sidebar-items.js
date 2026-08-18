@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["acpi","ata","block","console","device_path","disk","driver","file_system","firmware_volume","hii","iommu","loaded_image","media","memory_protection","misc","network","nvme","pci","rng","scsi","shell","shell_params","string","tcg","usb"]};

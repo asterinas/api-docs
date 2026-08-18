@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":[["alert",1],["crit",1],["debug",1],["emerg",1],["error",1],["info",1],["notice",1],["print",1],["println",1],["warn",1]],"type":["Result"]};

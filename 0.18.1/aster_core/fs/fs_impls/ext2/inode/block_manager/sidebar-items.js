@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["block_ptr_tree","indirect_block_manager"],"struct":["InodeBlockManager"]};

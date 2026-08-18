@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["DetectedExecutable","ShebangScriptPath"],"fn":["check_executable_inode","open_executable_file"],"mod":["elf","shebang"],"struct":["ProgramToLoad","UndetectedExecutable"]};

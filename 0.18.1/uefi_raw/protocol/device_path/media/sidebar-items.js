@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["CdRom","FilePath","HardDrive","PartitionFormat","PiwgFirmwareFile","PiwgFirmwareVolume","Protocol","RamDisk","RamDiskType","RelativeOffsetRange","Vendor"]};

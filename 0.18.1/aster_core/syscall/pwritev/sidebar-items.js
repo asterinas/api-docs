@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["do_sys_pwritev","do_sys_writev","sys_pwritev","sys_pwritev2","sys_writev"],"struct":["RWFFlag"]};

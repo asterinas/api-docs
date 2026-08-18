@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["sem","sem_set"],"struct":["PermissionMode"]};

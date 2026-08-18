@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BLOCK_SIZE"],"enum":["Errno"],"macro":[["return_errno",1],["return_errno_with_msg",1]],"struct":["Aead","AeadIv","AeadKey","AeadMac","Buf","BufMut","BufRef","Error","MlsDisk","Rng"],"trait":["BlockSet","RandomInit"],"type":["BlockId"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":[["guid",1],["newtype_enum",1]],"mod":["capsule","firmware_storage","protocol","table","time"],"struct":["Boolean","Guid","Ipv4Address","Ipv6Address","MacAddress","Status"],"type":["Char16","Char8","Event","Handle","PhysicalAddress","VirtualAddress"],"union":["IpAddress"]};

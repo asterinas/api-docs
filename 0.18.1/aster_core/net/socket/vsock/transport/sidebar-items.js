@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CREDIT_UPDATE_THRESHOLD","DEFAULT_CLOSE_TIMEOUT","DEFAULT_CONNECT_TIMEOUT","DEFAULT_RX_BUF_SIZE","DEFAULT_TX_BUF_SIZE","MAX_BACKLOG"],"fn":["init","process_event_callback","process_rx_callback"],"mod":["conn_id","connection","listener","port","space","timer"]};

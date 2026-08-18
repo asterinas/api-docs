@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PageState"],"fn":["lock_page","try_lock_page","unlock_page"],"struct":["AtomicPageState","CachePageMeta","LockedCachePage"],"trait":["CachePageExt"],"type":["CachePage","LockedCachePageGuard"]};

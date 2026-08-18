@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["acpi","bios_boot_spec","end","hardware","media","messaging"],"struct":["DevicePathFromTextProtocol","DevicePathProtocol","DevicePathToTextProtocol","DevicePathUtilitiesProtocol","DeviceSubType","DeviceType"]};

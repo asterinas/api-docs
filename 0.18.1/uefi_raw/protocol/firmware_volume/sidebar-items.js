@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["FirmwareVolume2Protocol","FirmwareVolumeBlock2Protocol","FvAttributes","FvFileAttributes","FvFiletype","FvWriteFileData","FvWritePolicy","SectionType"]};

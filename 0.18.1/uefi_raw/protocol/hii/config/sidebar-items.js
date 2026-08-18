@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["BrowserAction","BrowserActionRequest","ConfigKeywordHandlerProtocol","HiiConfigAccessProtocol","HiiConfigRoutingProtocol","HiiDate","HiiRef","HiiTime"],"type":["FormId","QuestionId","StringId"],"union":["IfrTypeValue"]};

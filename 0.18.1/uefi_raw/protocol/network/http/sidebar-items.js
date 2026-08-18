@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["HttpConfigData","HttpHeader","HttpMessage","HttpMethod","HttpProtocol","HttpRequestData","HttpResponseData","HttpStatusCode","HttpToken","HttpV4AccessPoint","HttpV6AccessPoint","HttpVersion"],"union":["HttpAccessPoint","HttpRequestOrResponse"]};

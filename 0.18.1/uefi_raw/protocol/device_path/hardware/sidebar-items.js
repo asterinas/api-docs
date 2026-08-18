@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Bmc","BmcInterfaceType","Controller","MemoryMapped","Pccard","Pci","Vendor"]};

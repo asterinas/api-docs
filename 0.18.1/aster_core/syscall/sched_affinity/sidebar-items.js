@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CPUS_IN_PART","SIZE_OF_PART"],"fn":["read_cpu_set_from","sys_sched_getaffinity","sys_sched_setaffinity","write_cpu_set_to"],"type":["Part"]};

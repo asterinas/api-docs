@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["alien_access","capability"],"trait":["LsmAlienAccessHook","LsmCapabilityHook"]};

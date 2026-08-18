@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["nr_open"],"struct":["FsDirOps"]};

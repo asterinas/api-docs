@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BLOCK_SIZE","SECTOR_SIZE"],"enum":["Error","PartitionInfo"],"fn":["acquire_major","allocate_major","collect_all","lookup","lookup_by_name","register","scan_partitions","unregister"],"mod":["bio","id","request_queue"],"static":["EXTENDED_DEVICE_ID_ALLOCATOR"],"struct":["BlockDeviceMeta","MajorIdOwner","PartitionNode"],"trait":["BlockDevice"]};

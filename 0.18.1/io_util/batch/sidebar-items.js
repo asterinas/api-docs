@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["IoBatch"],"trait":["IoCompletion"]};

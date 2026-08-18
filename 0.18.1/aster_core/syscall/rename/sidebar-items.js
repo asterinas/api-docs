@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["sys_rename","sys_renameat","sys_renameat2"],"struct":["Flags"]};

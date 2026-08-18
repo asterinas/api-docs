@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["active_vt","default_vt","init_in_first_process"],"mod":["console"],"static":["VT_MANAGER"],"struct":["VtManager","VtManagerGuard","VtManagerState"]};

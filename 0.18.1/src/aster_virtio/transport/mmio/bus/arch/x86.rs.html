@@ -1,0 +1,103 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `kernel/core/comps/virtio/src/transport/mmio/bus/arch/x86.rs`."><title>x86.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../../static.files/rustdoc-ddecd707.css"><meta name="rustdoc-vars" data-root-path="../../../../../../" data-static-root-path="../../../../../../static.files/" data-current-crate="aster_virtio" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0-nightly (87e5904f5 2026-07-20)" data-channel="nightly" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../../../../static.files/storage-41dd4d93.js"></script><script defer src="../../../../../../static.files/src-script-813739b1.js"></script><script defer src="../../../../../../src-files.js"></script><script defer src="../../../../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">aster_virtio/transport/mmio/bus/arch/</div>x86.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="comment">// SPDX-License-Identifier: MPL-2.0
+<a href=#2 id=2 data-nosnippet>2</a>
+<a href=#3 id=3 data-nosnippet>3</a></span><span class="kw">use </span>alloc::vec::Vec;
+<a href=#4 id=4 data-nosnippet>4</a>
+<a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>aster_cmdline::types::MmioDevice;
+<a href=#6 id=6 data-nosnippet>6</a><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">use </span>ostd::arch::irq::MappedIrqLine;
+<a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span>ostd::{arch::irq::IRQ_CHIP, debug, info, warn};
+<a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>spin::Once;
+<a href=#9 id=9 data-nosnippet>9</a>
+<a href=#10 id=10 data-nosnippet>10</a><span class="kw">use </span><span class="kw">crate</span>::transport::mmio::bus::MmioRegisterError;
+<a href=#11 id=11 data-nosnippet>11</a>
+<a href=#12 id=12 data-nosnippet>12</a><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>probe_for_device() {
+<a href=#13 id=13 data-nosnippet>13</a>    probe_from_kernel_cmdline();
+<a href=#14 id=14 data-nosnippet>14</a>    probe_from_microvm_constants();
+<a href=#15 id=15 data-nosnippet>15</a>}
+<a href=#16 id=16 data-nosnippet>16</a>
+<a href=#17 id=17 data-nosnippet>17</a><span class="kw">static </span>VIRTIO_MMIO_CMDLINE_DEVICES: Once&lt;Vec&lt;MmioDevice&gt;&gt; = Once::new();
+<a href=#18 id=18 data-nosnippet>18</a><span class="macro">aster_cmdline::define_repeatable_kv_param!</span>(<span class="string">"virtio_mmio.device"</span>, VIRTIO_MMIO_CMDLINE_DEVICES);
+<a href=#19 id=19 data-nosnippet>19</a>
+<a href=#20 id=20 data-nosnippet>20</a><span class="doccomment">/// Probes Linux-compatible `virtio_mmio.device=&lt;size&gt;@&lt;base&gt;:&lt;irq&gt;[:&lt;id&gt;]` parameters.
+<a href=#21 id=21 data-nosnippet>21</a>///
+<a href=#22 id=22 data-nosnippet>22</a>/// This format follows Linux's `virtio_mmio.device` kernel parameter.
+<a href=#23 id=23 data-nosnippet>23</a></span><span class="kw">fn </span>probe_from_kernel_cmdline() {
+<a href=#24 id=24 data-nosnippet>24</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(devices) = VIRTIO_MMIO_CMDLINE_DEVICES.get() <span class="kw">else </span>{
+<a href=#25 id=25 data-nosnippet>25</a>        <span class="kw">return</span>;
+<a href=#26 id=26 data-nosnippet>26</a>    };
+<a href=#27 id=27 data-nosnippet>27</a>
+<a href=#28 id=28 data-nosnippet>28</a>    <span class="kw">let </span>irq_chip = IRQ_CHIP.get().unwrap();
+<a href=#29 id=29 data-nosnippet>29</a>
+<a href=#30 id=30 data-nosnippet>30</a>    <span class="kw">for </span>device <span class="kw">in </span>devices {
+<a href=#31 id=31 data-nosnippet>31</a>        <span class="macro">info!</span>(
+<a href=#32 id=32 data-nosnippet>32</a>            <span class="string">"Probe MMIO command-line device: base={:#x}, size={:#x}, irq={}"</span>,
+<a href=#33 id=33 data-nosnippet>33</a>            device.base(),
+<a href=#34 id=34 data-nosnippet>34</a>            device.size().get(),
+<a href=#35 id=35 data-nosnippet>35</a>            device.irq().get()
+<a href=#36 id=36 data-nosnippet>36</a>        );
+<a href=#37 id=37 data-nosnippet>37</a>
+<a href=#38 id=38 data-nosnippet>38</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(mmio_end) = device.base().checked_add(device.size().get()) <span class="kw">else </span>{
+<a href=#39 id=39 data-nosnippet>39</a>            <span class="macro">warn!</span>(
+<a href=#40 id=40 data-nosnippet>40</a>                <span class="string">"Ignore MMIO command-line device at {:#x} because its range overflows"</span>,
+<a href=#41 id=41 data-nosnippet>41</a>                device.base()
+<a href=#42 id=42 data-nosnippet>42</a>            );
+<a href=#43 id=43 data-nosnippet>43</a>            <span class="kw">continue</span>;
+<a href=#44 id=44 data-nosnippet>44</a>        };
+<a href=#45 id=45 data-nosnippet>45</a>
+<a href=#46 id=46 data-nosnippet>46</a>        <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = <span class="kw">super</span>::try_register_mmio_device(device.base()..mmio_end, |irq_line| {
+<a href=#47 id=47 data-nosnippet>47</a>            irq_chip.map_gsi_pin_to(irq_line, device.irq().get())
+<a href=#48 id=48 data-nosnippet>48</a>        }) {
+<a href=#49 id=49 data-nosnippet>49</a>            <span class="macro">warn!</span>(
+<a href=#50 id=50 data-nosnippet>50</a>                <span class="string">"Ignore MMIO command-line device at {:#x} due to an error ({:?})"</span>,
+<a href=#51 id=51 data-nosnippet>51</a>                device.base(),
+<a href=#52 id=52 data-nosnippet>52</a>                err,
+<a href=#53 id=53 data-nosnippet>53</a>            );
+<a href=#54 id=54 data-nosnippet>54</a>        }
+<a href=#55 id=55 data-nosnippet>55</a>    }
+<a href=#56 id=56 data-nosnippet>56</a>}
+<a href=#57 id=57 data-nosnippet>57</a>
+<a href=#58 id=58 data-nosnippet>58</a><span class="kw">fn </span>probe_from_microvm_constants() {
+<a href=#59 id=59 data-nosnippet>59</a>    <span class="comment">// TODO: If ACPI tables are present, the correct method for detecting VirtIO-MMIO
+<a href=#60 id=60 data-nosnippet>60</a>    // devices is to parse the ACPI SSDT [1]. It is not supported yet, so we fall
+<a href=#61 id=61 data-nosnippet>61</a>    // back to blindly scanning QEMU MicroVM's fixed MMIO window as a workaround.
+<a href=#62 id=62 data-nosnippet>62</a>    // [1]: https://github.com/torvalds/linux/blob/0ff41df1cb268fc69e703a08a57ee14ae967d0ca/drivers/virtio/virtio_mmio.c#L840
+<a href=#63 id=63 data-nosnippet>63</a>
+<a href=#64 id=64 data-nosnippet>64</a>    // Constants from QEMU MicroVM. We should remove them as they're QEMU's implementation details.
+<a href=#65 id=65 data-nosnippet>65</a>    //
+<a href=#66 id=66 data-nosnippet>66</a>    // https://github.com/qemu/qemu/blob/3c5a5e213e5f08fbfe70728237f7799ac70f5b99/hw/i386/microvm.c#L201
+<a href=#67 id=67 data-nosnippet>67</a>    </span><span class="kw">const </span>QEMU_MMIO_BASE: usize = <span class="number">0xFEB0_0000</span>;
+<a href=#68 id=68 data-nosnippet>68</a>    <span class="kw">const </span>QEMU_MMIO_SIZE: usize = <span class="number">512</span>;
+<a href=#69 id=69 data-nosnippet>69</a>    <span class="comment">// https://github.com/qemu/qemu/blob/3c5a5e213e5f08fbfe70728237f7799ac70f5b99/hw/i386/microvm.c#L196
+<a href=#70 id=70 data-nosnippet>70</a>    </span><span class="kw">const </span>QEMU_IOAPIC1_GSI_BASE: u32 = <span class="number">16</span>;
+<a href=#71 id=71 data-nosnippet>71</a>    <span class="kw">const </span>QEMU_IOAPIC1_NUM_TRANS: u32 = <span class="number">8</span>;
+<a href=#72 id=72 data-nosnippet>72</a>    <span class="comment">// https://github.com/qemu/qemu/blob/3c5a5e213e5f08fbfe70728237f7799ac70f5b99/hw/i386/microvm.c#L192
+<a href=#73 id=73 data-nosnippet>73</a>    </span><span class="kw">const </span>QEMU_IOAPIC2_GSI_BASE: u32 = <span class="number">24</span>;
+<a href=#74 id=74 data-nosnippet>74</a>    <span class="kw">const </span>QEMU_IOAPIC2_NUM_TRANS: u32 = <span class="number">24</span>;
+<a href=#75 id=75 data-nosnippet>75</a>
+<a href=#76 id=76 data-nosnippet>76</a>    <span class="kw">let </span>irq_chip = IRQ_CHIP.get().unwrap();
+<a href=#77 id=77 data-nosnippet>77</a>    <span class="kw">let </span>(gsi_base, num_trans) = <span class="kw">match </span>irq_chip.count_io_apics() {
+<a href=#78 id=78 data-nosnippet>78</a>        <span class="number">1 </span>=&gt; (QEMU_IOAPIC1_GSI_BASE, QEMU_IOAPIC1_NUM_TRANS),
+<a href=#79 id=79 data-nosnippet>79</a>        <span class="number">2</span>.. =&gt; (QEMU_IOAPIC2_GSI_BASE, QEMU_IOAPIC2_NUM_TRANS),
+<a href=#80 id=80 data-nosnippet>80</a>        <span class="number">0 </span>=&gt; {
+<a href=#81 id=81 data-nosnippet>81</a>            <span class="macro">debug!</span>(<span class="string">"Skip MMIO detection because there are no I/O APICs"</span>);
+<a href=#82 id=82 data-nosnippet>82</a>            <span class="kw">return</span>;
+<a href=#83 id=83 data-nosnippet>83</a>        }
+<a href=#84 id=84 data-nosnippet>84</a>    };
+<a href=#85 id=85 data-nosnippet>85</a>
+<a href=#86 id=86 data-nosnippet>86</a>    <span class="kw">for </span>index <span class="kw">in </span><span class="number">0</span>..num_trans {
+<a href=#87 id=87 data-nosnippet>87</a>        <span class="kw">let </span>mmio_base = QEMU_MMIO_BASE + (index <span class="kw">as </span>usize) * QEMU_MMIO_SIZE;
+<a href=#88 id=88 data-nosnippet>88</a>        <span class="kw">match </span><span class="kw">super</span>::try_register_mmio_device(mmio_base..(mmio_base + QEMU_MMIO_SIZE), |irq_line| {
+<a href=#89 id=89 data-nosnippet>89</a>            irq_chip.map_gsi_pin_to(irq_line, gsi_base + index)
+<a href=#90 id=90 data-nosnippet>90</a>        }) {
+<a href=#91 id=91 data-nosnippet>91</a>            <span class="prelude-val">Err</span>(e) <span class="kw">if </span>e.is_fatal() =&gt; <span class="kw">break</span>,
+<a href=#92 id=92 data-nosnippet>92</a>            <span class="kw">_ </span>=&gt; <span class="kw">continue</span>,
+<a href=#93 id=93 data-nosnippet>93</a>        }
+<a href=#94 id=94 data-nosnippet>94</a>    }
+<a href=#95 id=95 data-nosnippet>95</a>}
+<a href=#96 id=96 data-nosnippet>96</a>
+<a href=#97 id=97 data-nosnippet>97</a><span class="kw">impl </span>MmioRegisterError {
+<a href=#98 id=98 data-nosnippet>98</a>    <span class="doccomment">/// Returns `true` if it should terminate a linear MMIO scan.
+<a href=#99 id=99 data-nosnippet>99</a>    </span><span class="kw">fn </span>is_fatal(<span class="self">self</span>) -&gt; bool {
+<a href=#100 id=100 data-nosnippet>100</a>        <span class="macro">matches!</span>(<span class="self">self</span>, <span class="self">Self</span>::MmioUnavailable | <span class="self">Self</span>::MagicMismatch)
+<a href=#101 id=101 data-nosnippet>101</a>    }
+<a href=#102 id=102 data-nosnippet>102</a>}
+</code></pre></div></section></main></body></html>

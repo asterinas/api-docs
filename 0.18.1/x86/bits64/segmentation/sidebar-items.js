@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["load_cs","rdfsbase","rdgsbase","swapgs","wrfsbase","wrgsbase"],"macro":[["fs_deref",1],["gs_deref",1]],"struct":["Descriptor64"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["active_modules"],"mod":["capability","yama"],"static":["ACTIVE_MODULES","ALL_MODULES","ALL_MODULES_BY_NAME","DEFAULT_OPTIONAL_MODULES","LEGACY_SECURITY_PARAM","LSM_PARAM","MANDATORY_MODULES"],"struct":["ModuleSelection"]};

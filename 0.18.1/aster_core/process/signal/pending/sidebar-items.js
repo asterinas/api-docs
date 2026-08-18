@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["DequeuedSignal"],"fn":["has_pending_signal"],"trait":["HandlePendingSignal"]};

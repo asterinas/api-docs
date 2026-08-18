@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["XattrFileCtx"],"fn":["check_xattr_namespace","lookup_path_for_xattr","parse_xattr_name","read_xattr_name_cstr_from_user","setxattr","sys_fsetxattr","sys_lsetxattr","sys_setxattr"]};

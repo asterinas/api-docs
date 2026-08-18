@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MNT_UNIQUE_ID_MIN"],"enum":["AtimePolicy","MountNsFileCopying","MountPropType"],"fn":["global_mount_topology","init"],"static":["MOUNT_ID_ALLOCATOR","NEXT_FREE_UNIQUE_ID"],"struct":["AtomicPerMountFlags","Mount","MountId","MountTopology","PerMountFlags"]};

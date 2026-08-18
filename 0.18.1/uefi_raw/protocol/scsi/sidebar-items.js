@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SCSI_TARGET_MAX_BYTES"],"struct":["ExtScsiPassThruMode","ExtScsiPassThruProtocol","ScsiIoDataDirection","ScsiIoHostAdapterStatus","ScsiIoProtocol","ScsiIoScsiRequestPacket","ScsiIoTargetStatus","ScsiIoType"]};

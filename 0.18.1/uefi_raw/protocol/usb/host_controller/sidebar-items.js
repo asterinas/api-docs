@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["HostControllerState","PortChangeStatus","PortFeature","PortStatus","ResetAttributes","Speed","TransactionTranslator","Usb2HostControllerProtocol","UsbPortStatus"]};

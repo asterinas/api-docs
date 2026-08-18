@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DAY_RANGE","DOUBLE_SECOND_RANGE","EXFAT_TIME_ZONE_VALID","HOUR_RANGE","MINUTE_RANGE","MONTH_RANGE","YEAR_RANGE"],"fn":["calc_checksum_16","calc_checksum_32","get_value_from_range","make_hash_index"],"struct":["DosTimestamp"]};

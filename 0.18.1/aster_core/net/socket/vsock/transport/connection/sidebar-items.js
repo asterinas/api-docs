@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Phase"],"mod":["basic","connect","recv","send","shutdown","utils"],"struct":["Connection","ConnectionInner","ConnectionState","CreditState","RxQueue","ShutdownState","TimerState"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["siginfo_sigfault_first_t"],"union":["__siginfo_sigfault_first_t__"]};

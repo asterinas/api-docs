@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["StaleAttrAction"],"fn":["metadata_from_attr"]};

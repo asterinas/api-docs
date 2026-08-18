@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["NUM_SPECIAL_ENTRIES"],"enum":["Inner"],"fn":["current_fs_ids","now","write_lock_two_direntries_by_ino"],"struct":["DirChange","DirEntry","InodeMeta","RamFs","RamFsType","RamInode"]};

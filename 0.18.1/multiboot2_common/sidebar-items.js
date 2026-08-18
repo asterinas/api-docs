@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["ALIGNMENT"],"enum":["MemoryError"],"fn":["clone_dyn","increase_to_alignment","new_boxed"],"mod":["test_utils"],"struct":["BytesRef","DynSizedStructure","TagIter"],"trait":["Header","MaybeDynSized","Tag"]};

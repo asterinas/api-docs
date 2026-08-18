@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["BlockDeviceResolution"],"fn":["init","look_up","register","with_iter"],"static":["FS_REGISTRY"],"struct":["FsAndRoot","FsCache","FsCreationCtx","FsProperties","FsRegistry","WeakFsAndRoot"],"trait":["DynFsType","FsType"]};

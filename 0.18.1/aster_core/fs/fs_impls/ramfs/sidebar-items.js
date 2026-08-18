@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BLOCK_SIZE","NAME_MAX","RAMFS_MAGIC","ROOT_INO"],"fn":["init"],"mod":["fs","memfd","xattr"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["sys_pipe","sys_pipe2"],"struct":["PipeFds"]};

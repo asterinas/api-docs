@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["NAME_MAX","PATH_MAX","SYMLINKS_MAX"],"mod":["dirent_visitor","direntry_vec","endpoint","id_bitmap","systree_inode"],"type":["CStr256","Str16","Str64"]};

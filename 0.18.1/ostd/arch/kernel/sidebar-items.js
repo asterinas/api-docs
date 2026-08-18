@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["ACPI_INFO"],"struct":["AcpiInfo"]};

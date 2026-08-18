@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["find_init","init_in_first_kthread","try_append_entry_to_rootfs","try_device_id_from_metadata"],"macro":[["__log_prefix",1]],"static":["RDINIT_PATH"],"struct":["InodeWriter"]};

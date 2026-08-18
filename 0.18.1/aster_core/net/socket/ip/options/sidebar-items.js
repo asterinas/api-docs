@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_TTL","INET_ECN_MASK"],"struct":["Hdrincl","IpOptionSet","IpTtl","Recverr","Tos","Ttl"],"trait":["SetIpLevelOption"]};

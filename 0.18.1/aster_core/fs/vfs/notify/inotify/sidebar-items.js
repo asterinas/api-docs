@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_MAX_QUEUED_EVENTS"],"fn":["can_merge_events","is_interesting","is_mergeable_event_type"],"struct":["InotifyControls","InotifyEvent","InotifyEventHeader","InotifyEvents","InotifyFile","InotifySubscriber","SubscriberEntry"]};

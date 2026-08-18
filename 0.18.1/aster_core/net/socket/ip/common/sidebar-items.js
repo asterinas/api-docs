@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["get_ephemeral_endpoint","get_ephemeral_iface","get_iface_to_bind","resolve_bind_iface_and_config"]};

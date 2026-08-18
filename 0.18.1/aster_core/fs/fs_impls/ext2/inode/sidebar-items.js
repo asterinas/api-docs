@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_FAST_SYMLINK_LEN","MAX_LINK_COUNT","RAW_BLOCK_PTRS_LEN"],"enum":["InodePayload"],"mod":["attrs","block_manager","dir","file","io_range","symlink","sync"],"struct":["FileFlags","FilePerm","Inode","InodeDesc","InodeInner","RawInode"],"type":["Ext2Bid","Ext2Ino","Iblock"]};

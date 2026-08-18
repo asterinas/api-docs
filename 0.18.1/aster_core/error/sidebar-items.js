@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Errno"],"macro":[["return_errno",1],["return_errno_with_message",1]],"struct":["Error"]};

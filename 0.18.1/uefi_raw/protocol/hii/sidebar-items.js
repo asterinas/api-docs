@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["config","database"],"struct":["HiiPackageHeader","HiiPackageListHeader","Key","KeyDescriptor","Modifier"],"type":["HiiHandle"]};

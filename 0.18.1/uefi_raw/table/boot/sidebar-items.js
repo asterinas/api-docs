@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["PAGE_SIZE"],"struct":["AllocateType","BootServices","EventType","InterfaceType","MemoryAttribute","MemoryDescriptor","MemoryType","OpenProtocolInformationEntry","TimerDelay","Tpl"],"type":["EventNotifyFn"]};

@@ -1,0 +1,48 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Kernel command-line interface for Asterinas."><title>aster_cmdline - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ddecd707.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="aster_cmdline" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0-nightly (87e5904f5 2026-07-20)" data-channel="nightly" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../static.files/storage-41dd4d93.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate aster_cmdline</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../aster_cmdline/index.html">aster_<wbr>cmdline</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#macros" title="Macros">Macros</a></li><li><a href="#statics" title="Statics">Statics</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1>Crate <span>aster_<wbr>cmdline</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/aster_cmdline/lib.rs.html#3-222">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Kernel command-line interface for Asterinas.</p>
+<p>This crate provides a macro-based registration model to declare kernel
+parameters which are collected at compile time and parsed during early boot.</p>
+<p>Registration model</p>
+<ul>
+<li>Macros: <code>define_kv_param!</code>, <code>define_repeatable_kv_param!</code>,
+<code>define_flag_param!</code> are used by components to register handlers/storage
+for parameters. These macros submit <code>KernelParam</code> entries into the
+<code>inventory</code> registry which the <code>dispatch</code> module consumes at boot.</li>
+</ul>
+<p>Key traits</p>
+<ul>
+<li><code>ParseParamValue</code>, <code>ParseRepeatableParamValue</code>, <code>ParseFlag</code>: parsing
+traits that convert raw <code>&amp;str</code> tokens into typed values.</li>
+<li><code>ParamStorage</code>: storage abstraction used by components to receive parsed
+values (examples: <code>spin::Once&lt;T&gt;</code>, atomic types, <code>Once&lt;Vec&lt;T&gt;&gt;</code>).</li>
+</ul>
+<p>How it works</p>
+<ul>
+<li>Each registration macro submits a <code>KernelParam</code> (name + setup function)
+into the <code>inventory</code> registry.</li>
+<li>At early boot the <code>dispatch</code> module builds a lookup table from the
+registry, tokenizes the kernel command line, groups recognized
+occurrences and calls the corresponding setup functions in
+command-line order (sorted by the last occurrence position of each
+parameter). Early parameters are dispatched before regular ones.
+Unrecognized tokens are forwarded to the init process as <code>argv</code>
+(bare tokens) or <code>envp</code> (<code>key=value</code>).</li>
+</ul>
+<p>Relationship to components</p>
+<ul>
+<li>This crate integrates with the component initialization system. The cmdline
+component registers an initialization step that parses kernel parameters
+during early boot. Any component that depends on <code>aster-cmdline</code> will be
+initialized after the cmdline component has run, so parameters registered
+via the macros are parsed and stored before the dependent component’s
+<code>init_component</code> executes. This guarantees that other components can rely
+on kernel parameters being initialized when they start.</li>
+</ul>
+<p>Usage example</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="comment">// storage for a single key=value parameter
+</span><span class="kw">static </span>LOG_LEVEL: AtomicU8 = AtomicU8::new(DEFAULT_LOG_LEVEL);
+<span class="macro">define_kv_param!</span>(<span class="string">"log_level"</span>, LOG_LEVEL);
+
+<span class="comment">// repeatable example
+</span><span class="kw">static </span>CONSOLES: Once&lt;Vec&lt;String&gt;&gt; = Once::new();
+<span class="macro">define_repeatable_kv_param!</span>(<span class="string">"console"</span>, CONSOLES);</code></pre></div></div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="parse/index.html" title="mod aster_cmdline::parse">parse</a></dt><dd>Kernel command-line parameter parsing and storage.</dd><dt><a class="mod" href="types/index.html" title="mod aster_cmdline::types">types</a></dt><dd>Common parameter value types for the cmdline framework.</dd></dl><h2 id="macros" class="section-header">Macros<a href="#macros" class="anchor">§</a></h2><dl class="item-table"><dt><a class="macro" href="macro.define_flag_param.html" title="macro aster_cmdline::define_flag_param">define_<wbr>flag_<wbr>param</a></dt><dd>Defines a <strong>flag</strong> kernel command-line parameter.</dd><dt><a class="macro" href="macro.define_flag_param_early.html" title="macro aster_cmdline::define_flag_param_early">define_<wbr>flag_<wbr>param_<wbr>early</a></dt><dd>Defines an <strong>early flag</strong> kernel command-line parameter.</dd><dt><a class="macro" href="macro.define_kv_param.html" title="macro aster_cmdline::define_kv_param">define_<wbr>kv_<wbr>param</a></dt><dd>Defines a <strong>single-value</strong> <code>key=value</code> kernel command-line parameter.</dd><dt><a class="macro" href="macro.define_kv_param_early.html" title="macro aster_cmdline::define_kv_param_early">define_<wbr>kv_<wbr>param_<wbr>early</a></dt><dd>Defines an <strong>early</strong> <code>key=value</code> kernel command-line parameter.</dd><dt><a class="macro" href="macro.define_repeatable_kv_param.html" title="macro aster_cmdline::define_repeatable_kv_param">define_<wbr>repeatable_<wbr>kv_<wbr>param</a></dt><dd>Defines a <strong>repeatable</strong> <code>key=value</code> kernel command-line parameter.</dd><dt><a class="macro" href="macro.define_repeatable_kv_param_early.html" title="macro aster_cmdline::define_repeatable_kv_param_early">define_<wbr>repeatable_<wbr>kv_<wbr>param_<wbr>early</a></dt><dd>Defines an <strong>early repeatable</strong> <code>key=value</code> kernel command-line parameter.</dd><dt><a class="macro" href="macro.define_unimplemented_param.html" title="macro aster_cmdline::define_unimplemented_param">define_<wbr>unimplemented_<wbr>param</a></dt><dd>Defines kernel command-line parameters that are intentionally left unimplemented.</dd></dl><h2 id="statics" class="section-header">Statics<a href="#statics" class="anchor">§</a></h2><dl class="item-table"><dt><a class="static" href="static.INIT_PROC_ARGS.html" title="static aster_cmdline::INIT_PROC_ARGS">INIT_<wbr>PROC_<wbr>ARGS</a></dt></dl></section></div></main></body></html>

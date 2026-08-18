@@ -1,0 +1,98 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Page-cache infrastructure shared by filesystems, memory mappings, and writeback."><title>aster_core::vm::page_cache - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ddecd707.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="aster_core" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0-nightly (87e5904f5 2026-07-20)" data-channel="nightly" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module page_cache</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../aster_core/index.html">aster_<wbr>core</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module page_<wbr>cache</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#overview" title="Overview">Overview</a></li><li><a href="#responsibility-boundary" title="Responsibility Boundary">Responsibility Boundary</a></li><li><a href="#synchronization-model" title="Synchronization Model">Synchronization Model</a></li></ul><h3><a href="#modules">Module Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#traits" title="Traits">Traits</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In aster_<wbr>core::<wbr>vm</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">aster_core</a>::<wbr><a href="../index.html">vm</a></div><h1>Module <span>page_<wbr>cache</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/aster_core/vm/page_cache/mod.rs.html#3-537">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Page-cache infrastructure shared by filesystems, memory mappings, and
+writeback.</p>
+<p>This module is the filesystem-facing entry point to the page-cache
+subsystem. A filesystem typically keeps one <a href="struct.PageCache.html" title="struct aster_core::vm::page_cache::PageCache"><code>PageCache</code></a> per file (or per
+inode data stream) and uses it for buffered I/O, truncate/extend, and cache
+invalidation.</p>
+<h2 id="overview"><a class="doc-anchor" href="#overview">§</a>Overview</h2>
+<p>The subsystem is split into four layers with different responsibilities:</p>
+<ul>
+<li><a href="struct.PageCache.html" title="struct aster_core::vm::page_cache::PageCache"><code>PageCache</code></a> is the per-file façade used by filesystems. It exposes
+buffered I/O, resize, flush, and invalidation operations in filesystem
+terms.</li>
+<li><a href="vmo/struct.Vmo.html" title="struct aster_core::vm::page_cache::vmo::Vmo"><code>Vmo</code></a> is the lower-level memory object underneath a page cache. It owns
+the page array, commits pages on demand, and is the abstraction shared
+with page-fault and mapping code.</li>
+<li><a href="cache_page/type.CachePage.html" title="type aster_core::vm::page_cache::cache_page::CachePage"><code>CachePage</code></a> stores cached page contents, while
+<a href="cache_page/enum.PageState.html" title="enum aster_core::vm::page_cache::cache_page::PageState"><code>cache_page::PageState</code></a> records whether those contents are uninitialized,
+clean, or dirty.</li>
+<li><a href="trait.PageCacheBackend.html" title="trait aster_core::vm::page_cache::PageCacheBackend"><code>PageCacheBackend</code></a> is the storage-facing contract used
+to make a page readable or durable. <a href="trait.BlockAsPageCacheBackend.html" title="trait aster_core::vm::page_cache::BlockAsPageCacheBackend"><code>BlockAsPageCacheBackend</code></a> is a
+helper interface for backends that can satisfy that contract with
+block-device BIOs.</li>
+</ul>
+<p>For a file with a backend, the steady-state flow is
+<code>filesystem metadata -&gt; PageCache -&gt; Vmo -&gt; PageCacheBackend -&gt; block device or remote server</code>. Anonymous page caches use the same <code>PageCache</code> / <code>Vmo</code> layers
+without a backend.</p>
+<h2 id="responsibility-boundary"><a class="doc-anchor" href="#responsibility-boundary">§</a>Responsibility Boundary</h2>
+<p><code>PageCache</code> manages page-aligned cache capacity and cached contents. The
+filesystem still owns file size, extent or block mapping metadata, and the
+higher-level locking that keeps those decisions stable while the page cache
+is accessed.</p>
+<p>Stay at <a href="struct.PageCache.html" title="struct aster_core::vm::page_cache::PageCache"><code>PageCache</code></a> when the caller is operating in filesystem terms. Drop
+to <a href="vmo/struct.Vmo.html" title="struct aster_core::vm::page_cache::vmo::Vmo"><code>Vmo</code></a> only when code needs the lower-level memory-object interface
+directly, such as <code>mmap</code> setup or page-fault handling.</p>
+<h2 id="synchronization-model"><a class="doc-anchor" href="#synchronization-model">§</a>Synchronization Model</h2>
+<p>The page-cache subsystem serializes per-page state transitions, including
+the backend page states in <a href="cache_page/enum.PageState.html" title="enum aster_core::vm::page_cache::cache_page::PageState"><code>cache_page::PageState</code></a> and the auxiliary
+writeback tracking bit in <a href="cache_page/struct.CachePageMeta.html" title="struct aster_core::vm::page_cache::cache_page::CachePageMeta"><code>CachePageMeta</code></a>.</p>
+<p><a href="struct.PageCache.html" title="struct aster_core::vm::page_cache::PageCache"><code>PageCache</code></a> is stored inside a filesystem-level lock or inode lock. It
+prevents conflicting buffered I/O and resizing. However, it cannot prevent
+concurrent page faults. They need to be synchronized with page table locks,
+the reverse-mapping lock, and per-page locks. This module handles the
+complexity in cooperation with <a href="../vmar/index.html" title="mod aster_core::vm::vmar"><code>super::vmar</code></a>.</p>
+<p>A complete overview of how cached file I/O (“read”/“write” below),
+<code>O_DIRECT</code> file I/O (“read (direct)”/“write (direct)”), page cache
+management operations (“resize”/“flush”/“evict”), and page faults
+(“fault (load)”/“fault (store)”) interact with each other when they are
+invoked concurrently is shown below.</p>
+<div><table><thead><tr><th></th><th>read</th><th>write</th><th>read (direct)</th><th>write (direct)</th><th>resize</th><th>flush</th><th>evict</th><th>fault (load)</th><th>fault (store)</th></tr></thead><tbody>
+<tr><td>read</td><td>N/A</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td>write</td><td>inode*</td><td>inode*</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td>read (direct)</td><td>N/A</td><td>(flush)</td><td>N/A</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td>write (direct)</td><td>(flush + evict)</td><td>(flush + evict)</td><td>inode*</td><td>inode*</td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td>resize</td><td>inode</td><td>inode</td><td>inode</td><td>inode</td><td>inode</td><td></td><td></td><td></td><td></td></tr>
+<tr><td>flush</td><td>N/A</td><td>page</td><td>(flush)</td><td>(flush + evict)</td><td>rmap + page</td><td>rmap + page</td><td></td><td></td><td></td></tr>
+<tr><td>evict</td><td>N/A</td><td>page</td><td>(flush)</td><td>(flush + evict)</td><td>rmap + page</td><td>rmap + page</td><td>rmap + page</td><td></td><td></td></tr>
+<tr><td>fault (load)</td><td>N/A</td><td>N/A</td><td>N/A</td><td>(flush + evict)</td><td>PT + xarray</td><td>N/A</td><td>PT + page</td><td>N/A</td><td></td></tr>
+<tr><td>fault (store)</td><td>N/A</td><td>N/A</td><td>(flush)</td><td>(flush + evict)</td><td>PT + xarray</td><td>PT + page</td><td>PT + page</td><td>N/A</td><td>N/A</td></tr>
+</tbody></table>
+</div>
+<p>The annotations in the table are explained below.</p>
+<ul>
+<li>
+<p>If two operations have no semantic conflicts, even if they are called
+concurrently (e.g., if both operations try to read something), the
+corresponding entry is noted as <code>N/A</code>.</p>
+</li>
+<li>
+<p>Userspace programs should not mix cached and direct file I/O. Otherwise,
+data corruption caused by the program will be the user’s fault. The
+corresponding entry is noted as <code>(OP)</code> where <code>OP</code> is the operation
+inserted by the filesystem before starting direct file I/O, which
+ensures the correctness when the two operations are called
+<strong>sequentially</strong>.</p>
+</li>
+<li>
+<p>For two operations protected by the inode lock, the entry is noted as
+<code>inode</code> or <code>inode*</code>. The latter, <code>inode*</code>, means that lock usage is not
+yet enforced at the page cache layer or the Rust type level (i.e.,
+<a href="struct.PageCache.html" title="struct aster_core::vm::page_cache::PageCache"><code>PageCache</code></a> operations do not yet take <code>&amp;mut self</code>).</p>
+</li>
+<li>
+<p>In this table, <code>flush</code> and <code>evict</code> are assumed to be able to be called
+without holding the inode lock (e.g., under memory pressure). But as we
+have not implemented any related mechanisms, they can currently only be
+called from the filesystem while holding at least the inode read lock.</p>
+</li>
+<li>
+<p>For interactions between page faults and page cache management, the
+correct order of multiple locks is important to ensure that the cached
+page is always in a consistent state, even when operations are called
+concurrently. The corresponding entry is noted as <code>LockA + LockB</code>. We
+use <code>rmap</code> to denote the reverse-mapping lock, <code>PT</code> to denote the page
+table lock, <code>page</code> to denote the page lock, and <code>xarray</code> to denote the
+lock of VMO pages. For details, see the comments in the implementation.</p>
+</li>
+</ul>
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="cache_page/index.html" title="mod aster_core::vm::page_cache::cache_page">cache_<wbr>page</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dt><a class="mod" href="vmo/index.html" title="mod aster_core::vm::page_cache::vmo">vmo</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Lower-level virtual memory object machinery used by the page cache.</dd></dl><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.PageCache.html" title="struct aster_core::vm::page_cache::PageCache">Page<wbr>Cache</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>The page cache for a file-like object.</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.BlockAsPageCacheBackend.html" title="trait aster_core::vm::page_cache::BlockAsPageCacheBackend">Block<wbr>AsPage<wbr>Cache<wbr>Backend</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>A block-I/O object that can serve as a <a href="trait.PageCacheBackend.html" title="trait aster_core::vm::page_cache::PageCacheBackend"><code>PageCacheBackend</code></a>.</dd><dt><a class="trait" href="trait.PageCacheBackend.html" title="trait aster_core::vm::page_cache::PageCacheBackend">Page<wbr>Cache<wbr>Backend</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>A storage backend for a backed <a href="struct.PageCache.html" title="struct aster_core::vm::page_cache::PageCache"><code>PageCache</code></a>.</dd></dl></section></div></main></body></html>

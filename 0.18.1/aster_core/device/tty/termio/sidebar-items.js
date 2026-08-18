@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["CCtrlBaud","CCtrlCharId","CCtrlSize"],"struct":["CCtrlFlags","CFontOp","CInputFlags","CLocalFlags","COutputFlags","CTermios","CTermios2","CTermiosSpeeds","CWinSize"],"type":["CCtrlChar","CSpeed"]};
