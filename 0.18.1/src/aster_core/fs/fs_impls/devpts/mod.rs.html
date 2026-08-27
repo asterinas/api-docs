@@ -357,34 +357,36 @@
 <a href=#357 id=357 data-nosnippet>357</a>    <span class="kw">fn </span>rename(
 <a href=#358 id=358 data-nosnippet>358</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#359 id=359 data-nosnippet>359</a>        _old_name: <span class="kw-2">&amp;</span>str,
-<a href=#360 id=360 data-nosnippet>360</a>        _target: <span class="kw-2">&amp;</span>Arc&lt;<span class="kw">dyn </span>Inode&gt;,
-<a href=#361 id=361 data-nosnippet>361</a>        _new_name: <span class="kw-2">&amp;</span>str,
-<a href=#362 id=362 data-nosnippet>362</a>        _mode: RenameMode,
-<a href=#363 id=363 data-nosnippet>363</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-<a href=#364 id=364 data-nosnippet>364</a>        <span class="prelude-val">Err</span>(Error::new(Errno::EPERM))
-<a href=#365 id=365 data-nosnippet>365</a>    }
-<a href=#366 id=366 data-nosnippet>366</a>
-<a href=#367 id=367 data-nosnippet>367</a>    <span class="kw">fn </span>fs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="kw">dyn </span>FileSystem&gt; {
-<a href=#368 id=368 data-nosnippet>368</a>        <span class="self">self</span>.fs.upgrade().unwrap()
-<a href=#369 id=369 data-nosnippet>369</a>    }
-<a href=#370 id=370 data-nosnippet>370</a>
-<a href=#371 id=371 data-nosnippet>371</a>    <span class="kw">fn </span>revalidation_policy(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; RevalidationPolicy {
-<a href=#372 id=372 data-nosnippet>372</a>        RevalidationPolicy::REVALIDATE_EXISTS | RevalidationPolicy::REVALIDATE_ABSENT
-<a href=#373 id=373 data-nosnippet>373</a>    }
-<a href=#374 id=374 data-nosnippet>374</a>
-<a href=#375 id=375 data-nosnippet>375</a>    <span class="kw">fn </span>revalidate_exists(<span class="kw-2">&amp;</span><span class="self">self</span>, _name: <span class="kw-2">&amp;</span>str, _child: <span class="kw-2">&amp;</span><span class="kw">dyn </span>Inode) -&gt; bool {
-<a href=#376 id=376 data-nosnippet>376</a>        <span class="comment">// Slave entries are created by opening `ptmx` and removed when the
-<a href=#377 id=377 data-nosnippet>377</a>        // master is dropped, bypassing VFS dentry updates. Always retry lookup
-<a href=#378 id=378 data-nosnippet>378</a>        // so a cached dentry cannot refer to a removed or reused pty index.
-<a href=#379 id=379 data-nosnippet>379</a>        //
-<a href=#380 id=380 data-nosnippet>380</a>        // TODO: Add a devpts-to-VFS dentry invalidation/update path for slave
-<a href=#381 id=381 data-nosnippet>381</a>        // add/remove, similar to Linux devpts dropping slave dentries on pty
-<a href=#382 id=382 data-nosnippet>382</a>        // teardown. Then this conservative revalidation can be relaxed.
-<a href=#383 id=383 data-nosnippet>383</a>        </span><span class="bool-val">false
-<a href=#384 id=384 data-nosnippet>384</a>    </span>}
-<a href=#385 id=385 data-nosnippet>385</a>
-<a href=#386 id=386 data-nosnippet>386</a>    <span class="kw">fn </span>revalidate_absent(<span class="kw-2">&amp;</span><span class="self">self</span>, _name: <span class="kw-2">&amp;</span>str) -&gt; bool {
-<a href=#387 id=387 data-nosnippet>387</a>        <span class="bool-val">false
-<a href=#388 id=388 data-nosnippet>388</a>    </span>}
-<a href=#389 id=389 data-nosnippet>389</a>}
+<a href=#360 id=360 data-nosnippet>360</a>        _old_inode: <span class="kw-2">&amp;</span>Arc&lt;<span class="kw">dyn </span>Inode&gt;,
+<a href=#361 id=361 data-nosnippet>361</a>        _new_dir_inode: <span class="kw-2">&amp;</span>Arc&lt;<span class="kw">dyn </span>Inode&gt;,
+<a href=#362 id=362 data-nosnippet>362</a>        _new_name: <span class="kw-2">&amp;</span>str,
+<a href=#363 id=363 data-nosnippet>363</a>        _replaced_inode: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Arc&lt;<span class="kw">dyn </span>Inode&gt;&gt;,
+<a href=#364 id=364 data-nosnippet>364</a>        _mode: RenameMode,
+<a href=#365 id=365 data-nosnippet>365</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#366 id=366 data-nosnippet>366</a>        <span class="prelude-val">Err</span>(Error::new(Errno::EPERM))
+<a href=#367 id=367 data-nosnippet>367</a>    }
+<a href=#368 id=368 data-nosnippet>368</a>
+<a href=#369 id=369 data-nosnippet>369</a>    <span class="kw">fn </span>fs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="kw">dyn </span>FileSystem&gt; {
+<a href=#370 id=370 data-nosnippet>370</a>        <span class="self">self</span>.fs.upgrade().unwrap()
+<a href=#371 id=371 data-nosnippet>371</a>    }
+<a href=#372 id=372 data-nosnippet>372</a>
+<a href=#373 id=373 data-nosnippet>373</a>    <span class="kw">fn </span>revalidation_policy(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; RevalidationPolicy {
+<a href=#374 id=374 data-nosnippet>374</a>        RevalidationPolicy::REVALIDATE_EXISTS | RevalidationPolicy::REVALIDATE_ABSENT
+<a href=#375 id=375 data-nosnippet>375</a>    }
+<a href=#376 id=376 data-nosnippet>376</a>
+<a href=#377 id=377 data-nosnippet>377</a>    <span class="kw">fn </span>revalidate_exists(<span class="kw-2">&amp;</span><span class="self">self</span>, _name: <span class="kw-2">&amp;</span>str, _child: <span class="kw-2">&amp;</span><span class="kw">dyn </span>Inode) -&gt; bool {
+<a href=#378 id=378 data-nosnippet>378</a>        <span class="comment">// Slave entries are created by opening `ptmx` and removed when the
+<a href=#379 id=379 data-nosnippet>379</a>        // master is dropped, bypassing VFS dentry updates. Always retry lookup
+<a href=#380 id=380 data-nosnippet>380</a>        // so a cached dentry cannot refer to a removed or reused pty index.
+<a href=#381 id=381 data-nosnippet>381</a>        //
+<a href=#382 id=382 data-nosnippet>382</a>        // TODO: Add a devpts-to-VFS dentry invalidation/update path for slave
+<a href=#383 id=383 data-nosnippet>383</a>        // add/remove, similar to Linux devpts dropping slave dentries on pty
+<a href=#384 id=384 data-nosnippet>384</a>        // teardown. Then this conservative revalidation can be relaxed.
+<a href=#385 id=385 data-nosnippet>385</a>        </span><span class="bool-val">false
+<a href=#386 id=386 data-nosnippet>386</a>    </span>}
+<a href=#387 id=387 data-nosnippet>387</a>
+<a href=#388 id=388 data-nosnippet>388</a>    <span class="kw">fn </span>revalidate_absent(<span class="kw-2">&amp;</span><span class="self">self</span>, _name: <span class="kw-2">&amp;</span>str) -&gt; bool {
+<a href=#389 id=389 data-nosnippet>389</a>        <span class="bool-val">false
+<a href=#390 id=390 data-nosnippet>390</a>    </span>}
+<a href=#391 id=391 data-nosnippet>391</a>}
 </code></pre></div></section></main></body></html>

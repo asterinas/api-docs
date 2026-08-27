@@ -14,24 +14,20 @@
 <a href=#14 id=14 data-nosnippet>14</a>    itimerspec_addr: Vaddr,
 <a href=#15 id=15 data-nosnippet>15</a>    ctx: <span class="kw-2">&amp;</span>Context,
 <a href=#16 id=16 data-nosnippet>16</a>) -&gt; <span class="prelude-ty">Result</span>&lt;SyscallReturn&gt; {
-<a href=#17 id=17 data-nosnippet>17</a>    <span class="kw">if </span>itimerspec_addr == <span class="number">0 </span>{
-<a href=#18 id=18 data-nosnippet>18</a>        <span class="macro">return_errno_with_message!</span>(Errno::EINVAL, <span class="string">"invalid pointer to return value"</span>);
-<a href=#19 id=19 data-nosnippet>19</a>    }
-<a href=#20 id=20 data-nosnippet>20</a>
-<a href=#21 id=21 data-nosnippet>21</a>    <span class="kw">let </span>file_table = ctx.thread_local.borrow_file_table();
-<a href=#22 id=22 data-nosnippet>22</a>    <span class="kw">let </span>file_table_locked = file_table.unwrap().read();
-<a href=#23 id=23 data-nosnippet>23</a>    <span class="kw">let </span>timerfd_file = file_table_locked.get_file(raw_fd.try_into()<span class="question-mark">?</span>)<span class="question-mark">?</span>;
-<a href=#24 id=24 data-nosnippet>24</a>    <span class="kw">let </span>timerfd_file = timerfd_file
-<a href=#25 id=25 data-nosnippet>25</a>        .downcast_ref::&lt;TimerfdFile&gt;()
-<a href=#26 id=26 data-nosnippet>26</a>        .ok_or_else(|| Error::with_message(Errno::EINVAL, <span class="string">"the fd is not a timerfd"</span>))<span class="question-mark">?</span>;
-<a href=#27 id=27 data-nosnippet>27</a>
-<a href=#28 id=28 data-nosnippet>28</a>    <span class="kw">let </span>(interval, remain) = timerfd_file.get_time();
-<a href=#29 id=29 data-nosnippet>29</a>    <span class="kw">let </span>itimerspec = itimerspec_t {
-<a href=#30 id=30 data-nosnippet>30</a>        it_interval: timespec_t::from(interval),
-<a href=#31 id=31 data-nosnippet>31</a>        it_value: timespec_t::from(remain),
-<a href=#32 id=32 data-nosnippet>32</a>    };
-<a href=#33 id=33 data-nosnippet>33</a>    ctx.user_space().write_val(itimerspec_addr, <span class="kw-2">&amp;</span>itimerspec)<span class="question-mark">?</span>;
-<a href=#34 id=34 data-nosnippet>34</a>
-<a href=#35 id=35 data-nosnippet>35</a>    <span class="prelude-val">Ok</span>(SyscallReturn::Return(<span class="number">0</span>))
-<a href=#36 id=36 data-nosnippet>36</a>}
+<a href=#17 id=17 data-nosnippet>17</a>    <span class="kw">let </span>file_table = ctx.thread_local.borrow_file_table();
+<a href=#18 id=18 data-nosnippet>18</a>    <span class="kw">let </span>file_table_locked = file_table.unwrap().read();
+<a href=#19 id=19 data-nosnippet>19</a>    <span class="kw">let </span>timerfd_file = file_table_locked.get_file(raw_fd.try_into()<span class="question-mark">?</span>)<span class="question-mark">?</span>;
+<a href=#20 id=20 data-nosnippet>20</a>    <span class="kw">let </span>timerfd_file = timerfd_file
+<a href=#21 id=21 data-nosnippet>21</a>        .downcast_ref::&lt;TimerfdFile&gt;()
+<a href=#22 id=22 data-nosnippet>22</a>        .ok_or_else(|| Error::with_message(Errno::EINVAL, <span class="string">"the fd is not a timerfd"</span>))<span class="question-mark">?</span>;
+<a href=#23 id=23 data-nosnippet>23</a>
+<a href=#24 id=24 data-nosnippet>24</a>    <span class="kw">let </span>(interval, remain) = timerfd_file.get_time();
+<a href=#25 id=25 data-nosnippet>25</a>    <span class="kw">let </span>itimerspec = itimerspec_t {
+<a href=#26 id=26 data-nosnippet>26</a>        it_interval: timespec_t::from(interval),
+<a href=#27 id=27 data-nosnippet>27</a>        it_value: timespec_t::from(remain),
+<a href=#28 id=28 data-nosnippet>28</a>    };
+<a href=#29 id=29 data-nosnippet>29</a>    ctx.user_space().write_val(itimerspec_addr, <span class="kw-2">&amp;</span>itimerspec)<span class="question-mark">?</span>;
+<a href=#30 id=30 data-nosnippet>30</a>
+<a href=#31 id=31 data-nosnippet>31</a>    <span class="prelude-val">Ok</span>(SyscallReturn::Return(<span class="number">0</span>))
+<a href=#32 id=32 data-nosnippet>32</a>}
 </code></pre></div></section></main></body></html>

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["DeviceType"],"fn":["add_node","init_in_first_kthread","init_in_first_process"],"mod":["evdev","fb","mem","misc","pty","registry","shm","tty"],"struct":["DevtmpfsInodeMeta"],"trait":["Device"]};
+window.SIDEBAR_ITEMS = {"enum":["DeviceType"],"fn":["init_in_first_kthread","init_in_first_process"],"mod":["evdev","fb","mem","misc","pty","registry","tty"],"trait":["Device"]};

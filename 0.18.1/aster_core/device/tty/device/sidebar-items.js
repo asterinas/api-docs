@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["init_in_first_process"],"static":["CONSOLES"],"struct":["SystemConsole","Tty0Device","TtyDevice"]};
+window.SIDEBAR_ITEMS = {"constant":["CONSOLE_DEVICE_ID"],"fn":["init_in_first_process"],"static":["CONSOLES"],"struct":["SystemConsole","Tty0Device","TtyDevice"]};

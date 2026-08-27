@@ -20,7 +20,7 @@
 <a href=#20 id=20 data-nosnippet>20</a>
 <a href=#21 id=21 data-nosnippet>21</a><span class="kw">impl </span>DeviceId {
 <a href=#22 id=22 data-nosnippet>22</a>    <span class="doccomment">/// Creates a device ID from the major device number and the minor device number.
-<a href=#23 id=23 data-nosnippet>23</a>    </span><span class="kw">pub fn </span>new(major: MajorId, minor: MinorId) -&gt; <span class="self">Self </span>{
+<a href=#23 id=23 data-nosnippet>23</a>    </span><span class="kw">pub const fn </span>new(major: MajorId, minor: MinorId) -&gt; <span class="self">Self </span>{
 <a href=#24 id=24 data-nosnippet>24</a>        <span class="self">Self</span>(((major.get() <span class="kw">as </span>u32) &lt;&lt; <span class="number">20</span>) | minor.get())
 <a href=#25 id=25 data-nosnippet>25</a>    }
 <a href=#26 id=26 data-nosnippet>26</a>

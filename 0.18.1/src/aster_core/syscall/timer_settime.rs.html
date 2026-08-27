@@ -7,11 +7,11 @@
 <a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span><span class="kw">super</span>::SyscallReturn;
 <a href=#8 id=8 data-nosnippet>8</a><span class="kw">use crate</span>::{
 <a href=#9 id=9 data-nosnippet>9</a>    prelude::<span class="kw-2">*</span>,
-<a href=#10 id=10 data-nosnippet>10</a>    time::{TIMER_ABSTIME, itimerspec_t, timer::Timeout, timespec_t},
+<a href=#10 id=10 data-nosnippet>10</a>    time::{TIMER_ABSTIME, itimerspec_t, timer::Timeout, timer_t, timespec_t},
 <a href=#11 id=11 data-nosnippet>11</a>};
 <a href=#12 id=12 data-nosnippet>12</a>
 <a href=#13 id=13 data-nosnippet>13</a><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>sys_timer_settime(
-<a href=#14 id=14 data-nosnippet>14</a>    timer_id: usize,
+<a href=#14 id=14 data-nosnippet>14</a>    timer_id: timer_t,
 <a href=#15 id=15 data-nosnippet>15</a>    flags: i32,
 <a href=#16 id=16 data-nosnippet>16</a>    new_itimerspec_addr: Vaddr,
 <a href=#17 id=17 data-nosnippet>17</a>    old_itimerspec_addr: Vaddr,
@@ -62,31 +62,28 @@
 <a href=#62 id=62 data-nosnippet>62</a>}
 <a href=#63 id=63 data-nosnippet>63</a>
 <a href=#64 id=64 data-nosnippet>64</a><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>sys_timer_gettime(
-<a href=#65 id=65 data-nosnippet>65</a>    timer_id: usize,
+<a href=#65 id=65 data-nosnippet>65</a>    timer_id: timer_t,
 <a href=#66 id=66 data-nosnippet>66</a>    itimerspec_addr: Vaddr,
 <a href=#67 id=67 data-nosnippet>67</a>    ctx: <span class="kw-2">&amp;</span>Context,
 <a href=#68 id=68 data-nosnippet>68</a>) -&gt; <span class="prelude-ty">Result</span>&lt;SyscallReturn&gt; {
-<a href=#69 id=69 data-nosnippet>69</a>    <span class="kw">if </span>itimerspec_addr == <span class="number">0 </span>{
-<a href=#70 id=70 data-nosnippet>70</a>        <span class="macro">return_errno_with_message!</span>(Errno::EINVAL, <span class="string">"invalid pointer to return value"</span>);
-<a href=#71 id=71 data-nosnippet>71</a>    }
-<a href=#72 id=72 data-nosnippet>72</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(timer) = ctx.process.timer_manager().find_posix_timer(timer_id) <span class="kw">else </span>{
-<a href=#73 id=73 data-nosnippet>73</a>        <span class="macro">return_errno_with_message!</span>(Errno::EINVAL, <span class="string">"invalid timer ID"</span>);
-<a href=#74 id=74 data-nosnippet>74</a>    };
-<a href=#75 id=75 data-nosnippet>75</a>
-<a href=#76 id=76 data-nosnippet>76</a>    <span class="kw">let </span>(interval, remain) = {
-<a href=#77 id=77 data-nosnippet>77</a>        <span class="kw">let </span>timer_guard = timer.lock();
-<a href=#78 id=78 data-nosnippet>78</a>        (
-<a href=#79 id=79 data-nosnippet>79</a>            timespec_t::from(timer_guard.interval()),
-<a href=#80 id=80 data-nosnippet>80</a>            timespec_t::from(timer_guard.remain()),
-<a href=#81 id=81 data-nosnippet>81</a>        )
-<a href=#82 id=82 data-nosnippet>82</a>    };
-<a href=#83 id=83 data-nosnippet>83</a>
-<a href=#84 id=84 data-nosnippet>84</a>    <span class="kw">let </span>itimerspec = itimerspec_t {
-<a href=#85 id=85 data-nosnippet>85</a>        it_interval: interval,
-<a href=#86 id=86 data-nosnippet>86</a>        it_value: remain,
-<a href=#87 id=87 data-nosnippet>87</a>    };
-<a href=#88 id=88 data-nosnippet>88</a>    ctx.user_space().write_val(itimerspec_addr, <span class="kw-2">&amp;</span>itimerspec)<span class="question-mark">?</span>;
-<a href=#89 id=89 data-nosnippet>89</a>
-<a href=#90 id=90 data-nosnippet>90</a>    <span class="prelude-val">Ok</span>(SyscallReturn::Return(<span class="number">0</span>))
-<a href=#91 id=91 data-nosnippet>91</a>}
+<a href=#69 id=69 data-nosnippet>69</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(timer) = ctx.process.timer_manager().find_posix_timer(timer_id) <span class="kw">else </span>{
+<a href=#70 id=70 data-nosnippet>70</a>        <span class="macro">return_errno_with_message!</span>(Errno::EINVAL, <span class="string">"invalid timer ID"</span>);
+<a href=#71 id=71 data-nosnippet>71</a>    };
+<a href=#72 id=72 data-nosnippet>72</a>
+<a href=#73 id=73 data-nosnippet>73</a>    <span class="kw">let </span>(interval, remain) = {
+<a href=#74 id=74 data-nosnippet>74</a>        <span class="kw">let </span>timer_guard = timer.lock();
+<a href=#75 id=75 data-nosnippet>75</a>        (
+<a href=#76 id=76 data-nosnippet>76</a>            timespec_t::from(timer_guard.interval()),
+<a href=#77 id=77 data-nosnippet>77</a>            timespec_t::from(timer_guard.remain()),
+<a href=#78 id=78 data-nosnippet>78</a>        )
+<a href=#79 id=79 data-nosnippet>79</a>    };
+<a href=#80 id=80 data-nosnippet>80</a>
+<a href=#81 id=81 data-nosnippet>81</a>    <span class="kw">let </span>itimerspec = itimerspec_t {
+<a href=#82 id=82 data-nosnippet>82</a>        it_interval: interval,
+<a href=#83 id=83 data-nosnippet>83</a>        it_value: remain,
+<a href=#84 id=84 data-nosnippet>84</a>    };
+<a href=#85 id=85 data-nosnippet>85</a>    ctx.user_space().write_val(itimerspec_addr, <span class="kw-2">&amp;</span>itimerspec)<span class="question-mark">?</span>;
+<a href=#86 id=86 data-nosnippet>86</a>
+<a href=#87 id=87 data-nosnippet>87</a>    <span class="prelude-val">Ok</span>(SyscallReturn::Return(<span class="number">0</span>))
+<a href=#88 id=88 data-nosnippet>88</a>}
 </code></pre></div></section></main></body></html>

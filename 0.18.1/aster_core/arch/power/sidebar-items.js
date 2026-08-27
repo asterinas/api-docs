@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["init","try_acpi_reset"],"static":["ACPI_RESET_PORT_AND_VAL"]};
+window.SIDEBAR_ITEMS = {"fn":["init","try_acpi_reset","try_reset"],"static":["ACPI_RESET_PORT_AND_VAL"]};

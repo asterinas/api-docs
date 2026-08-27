@@ -9,7 +9,7 @@
 <a href=#9 id=9 data-nosnippet>9</a>
 <a href=#10 id=10 data-nosnippet>10</a><span class="kw">use </span>ostd::{
 <a href=#11 id=11 data-nosnippet>11</a>    cpu::{CpuId, CpuSet},
-<a href=#12 id=12 data-nosnippet>12</a>    sync::WaitQueue,
+<a href=#12 id=12 data-nosnippet>12</a>    sync::{WaitQueue, Waiter},
 <a href=#13 id=13 data-nosnippet>13</a>    task::Task,
 <a href=#14 id=14 data-nosnippet>14</a>};
 <a href=#15 id=15 data-nosnippet>15</a>
@@ -257,7 +257,7 @@
 <a href=#257 id=257 data-nosnippet>257</a>    }
 <a href=#258 id=258 data-nosnippet>258</a>
 <a href=#259 id=259 data-nosnippet>259</a>    <span class="kw">fn </span>run_monitor_loop(<span class="self">self</span>: <span class="kw-2">&amp;</span>Arc&lt;<span class="self">Self</span>&gt;) {
-<a href=#260 id=260 data-nosnippet>260</a>        <span class="kw">let </span>sleep_queue = WaitQueue::new();
+<a href=#260 id=260 data-nosnippet>260</a>        <span class="kw">let </span>(sleep_waiter, <span class="kw">_</span>) = Waiter::new_pair();
 <a href=#261 id=261 data-nosnippet>261</a>        <span class="kw">let </span>sleep_duration = Duration::from_millis(<span class="number">100</span>);
 <a href=#262 id=262 data-nosnippet>262</a>        <span class="kw">loop </span>{
 <a href=#263 id=263 data-nosnippet>263</a>            <span class="kw">let </span>worker_pool = <span class="self">self</span>.worker_pool.upgrade();
@@ -268,7 +268,7 @@
 <a href=#268 id=268 data-nosnippet>268</a>            <span class="kw">for </span>local_pool <span class="kw">in </span>worker_pool.local_pools.iter() {
 <a href=#269 id=269 data-nosnippet>269</a>                local_pool.set_heartbeat(<span class="bool-val">false</span>);
 <a href=#270 id=270 data-nosnippet>270</a>            }
-<a href=#271 id=271 data-nosnippet>271</a>            <span class="kw">let _ </span>= sleep_queue.wait_until_or_timeout(|| -&gt; <span class="prelude-ty">Option</span>&lt;()&gt; { <span class="prelude-val">None </span>}, <span class="kw-2">&amp;</span>sleep_duration);
+<a href=#271 id=271 data-nosnippet>271</a>            <span class="kw">let _ </span>= sleep_waiter.wait_until_or_timeout(|| -&gt; <span class="prelude-ty">Option</span>&lt;()&gt; { <span class="prelude-val">None </span>}, <span class="kw-2">&amp;</span>sleep_duration);
 <a href=#272 id=272 data-nosnippet>272</a>        }
 <a href=#273 id=273 data-nosnippet>273</a>    }
 <a href=#274 id=274 data-nosnippet>274</a>}

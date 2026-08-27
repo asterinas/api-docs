@@ -1691,112 +1691,110 @@
 <a href=#1691 id=1691 data-nosnippet>1691</a>    <span class="kw">fn </span>rename(
 <a href=#1692 id=1692 data-nosnippet>1692</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#1693 id=1693 data-nosnippet>1693</a>        old_name: <span class="kw-2">&amp;</span>str,
-<a href=#1694 id=1694 data-nosnippet>1694</a>        target: <span class="kw-2">&amp;</span>Arc&lt;<span class="kw">dyn </span>Inode&gt;,
-<a href=#1695 id=1695 data-nosnippet>1695</a>        new_name: <span class="kw-2">&amp;</span>str,
-<a href=#1696 id=1696 data-nosnippet>1696</a>        mode: RenameMode,
-<a href=#1697 id=1697 data-nosnippet>1697</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-<a href=#1698 id=1698 data-nosnippet>1698</a>        <span class="kw">if </span>mode == RenameMode::Exchange {
-<a href=#1699 id=1699 data-nosnippet>1699</a>            <span class="macro">return_errno_with_message!</span>(Errno::EINVAL, <span class="string">"RENAME_EXCHANGE is not supported on exfat"</span>);
-<a href=#1700 id=1700 data-nosnippet>1700</a>        }
-<a href=#1701 id=1701 data-nosnippet>1701</a>        <span class="kw">if </span>is_dot_or_dotdot(old_name) || is_dot_or_dotdot(new_name) {
-<a href=#1702 id=1702 data-nosnippet>1702</a>            <span class="macro">return_errno!</span>(Errno::EISDIR);
-<a href=#1703 id=1703 data-nosnippet>1703</a>        }
-<a href=#1704 id=1704 data-nosnippet>1704</a>        <span class="kw">if </span>old_name.len() &gt; MAX_NAME_LENGTH || new_name.len() &gt; MAX_NAME_LENGTH {
-<a href=#1705 id=1705 data-nosnippet>1705</a>            <span class="macro">return_errno!</span>(Errno::ENAMETOOLONG)
-<a href=#1706 id=1706 data-nosnippet>1706</a>        }
-<a href=#1707 id=1707 data-nosnippet>1707</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(target_) = target.downcast_ref::&lt;ExfatInode&gt;() <span class="kw">else </span>{
-<a href=#1708 id=1708 data-nosnippet>1708</a>            <span class="macro">return_errno_with_message!</span>(Errno::EINVAL, <span class="string">"not an exfat inode"</span>)
-<a href=#1709 id=1709 data-nosnippet>1709</a>        };
-<a href=#1710 id=1710 data-nosnippet>1710</a>        <span class="kw">if </span>!<span class="self">self</span>.inner.read().inode_type.is_directory()
-<a href=#1711 id=1711 data-nosnippet>1711</a>            || !target_.inner.read().inode_type.is_directory()
-<a href=#1712 id=1712 data-nosnippet>1712</a>        {
-<a href=#1713 id=1713 data-nosnippet>1713</a>            <span class="macro">return_errno!</span>(Errno::ENOTDIR)
-<a href=#1714 id=1714 data-nosnippet>1714</a>        }
-<a href=#1715 id=1715 data-nosnippet>1715</a>
-<a href=#1716 id=1716 data-nosnippet>1716</a>        <span class="kw">let </span>fs = <span class="self">self</span>.inner.read().fs();
-<a href=#1717 id=1717 data-nosnippet>1717</a>        <span class="kw">let </span>fs_guard = fs.lock();
-<a href=#1718 id=1718 data-nosnippet>1718</a>        <span class="comment">// Rename something to itself, return success directly.
-<a href=#1719 id=1719 data-nosnippet>1719</a>        </span><span class="kw">let </span>up_old_name = fs.upcase_table().lock().str_to_upcase(old_name)<span class="question-mark">?</span>;
-<a href=#1720 id=1720 data-nosnippet>1720</a>        <span class="kw">let </span>up_new_name = fs.upcase_table().lock().str_to_upcase(new_name)<span class="question-mark">?</span>;
-<a href=#1721 id=1721 data-nosnippet>1721</a>        <span class="kw">if </span><span class="self">self</span>.inner.read().ino == target_.inner.read().ino &amp;&amp; up_old_name.eq(<span class="kw-2">&amp;</span>up_new_name) {
-<a href=#1722 id=1722 data-nosnippet>1722</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-<a href=#1723 id=1723 data-nosnippet>1723</a>        }
-<a href=#1724 id=1724 data-nosnippet>1724</a>
-<a href=#1725 id=1725 data-nosnippet>1725</a>        <span class="comment">// Read 'old_name' file or dir and its dentries.
-<a href=#1726 id=1726 data-nosnippet>1726</a>        </span><span class="kw">let </span>old_inode = <span class="self">self
-<a href=#1727 id=1727 data-nosnippet>1727</a>            </span>.inner
-<a href=#1728 id=1728 data-nosnippet>1728</a>            .read()
-<a href=#1729 id=1729 data-nosnippet>1729</a>            .lookup_by_name(old_name, <span class="bool-val">true</span>, <span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
-<a href=#1730 id=1730 data-nosnippet>1730</a>        <span class="comment">// FIXME: Users may be confused, since inode with the same upper case name will be removed.
-<a href=#1731 id=1731 data-nosnippet>1731</a>        </span><span class="kw">let </span>lookup_exist_result = target_
-<a href=#1732 id=1732 data-nosnippet>1732</a>            .inner
-<a href=#1733 id=1733 data-nosnippet>1733</a>            .read()
-<a href=#1734 id=1734 data-nosnippet>1734</a>            .lookup_by_name(new_name, <span class="bool-val">false</span>, <span class="kw-2">&amp;</span>fs_guard);
-<a href=#1735 id=1735 data-nosnippet>1735</a>        <span class="comment">// Check for the corner cases.
-<a href=#1736 id=1736 data-nosnippet>1736</a>        </span><span class="kw">if let </span><span class="prelude-val">Ok</span>(<span class="kw-2">ref </span>exist_inode) = lookup_exist_result {
-<a href=#1737 id=1737 data-nosnippet>1737</a>            check_corner_cases_for_rename(<span class="kw-2">&amp;</span>old_inode, exist_inode)<span class="question-mark">?</span>;
-<a href=#1738 id=1738 data-nosnippet>1738</a>        }
-<a href=#1739 id=1739 data-nosnippet>1739</a>
-<a href=#1740 id=1740 data-nosnippet>1740</a>        <span class="comment">// All checks are done here. This is a valid rename and it needs to modify the metadata.
-<a href=#1741 id=1741 data-nosnippet>1741</a>        </span><span class="self">self</span>.delete_inode(old_inode.clone(), <span class="bool-val">false</span>, <span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
-<a href=#1742 id=1742 data-nosnippet>1742</a>        <span class="comment">// Create the new dentries.
-<a href=#1743 id=1743 data-nosnippet>1743</a>        </span><span class="kw">let </span>new_inode =
-<a href=#1744 id=1744 data-nosnippet>1744</a>            target_.add_entry(new_name, old_inode.type_(), old_inode.mode()<span class="question-mark">?</span>, <span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
-<a href=#1745 id=1745 data-nosnippet>1745</a>        <span class="comment">// Update metadata.
-<a href=#1746 id=1746 data-nosnippet>1746</a>        </span>old_inode.copy_dentry_position_from(new_inode);
-<a href=#1747 id=1747 data-nosnippet>1747</a>        <span class="comment">// Update its children's parent_hash.
-<a href=#1748 id=1748 data-nosnippet>1748</a>        </span>old_inode.update_subdir_parent_hash(<span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
-<a href=#1749 id=1749 data-nosnippet>1749</a>        <span class="comment">// Insert back.
-<a href=#1750 id=1750 data-nosnippet>1750</a>        </span><span class="kw">let _ </span>= fs.insert_inode(old_inode.clone());
-<a href=#1751 id=1751 data-nosnippet>1751</a>        <span class="comment">// Remove the exist 'new_name' file.
-<a href=#1752 id=1752 data-nosnippet>1752</a>        </span><span class="kw">if let </span><span class="prelude-val">Ok</span>(exist_inode) = lookup_exist_result {
-<a href=#1753 id=1753 data-nosnippet>1753</a>            target_.delete_inode(exist_inode, <span class="bool-val">true</span>, <span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
-<a href=#1754 id=1754 data-nosnippet>1754</a>        }
-<a href=#1755 id=1755 data-nosnippet>1755</a>        <span class="comment">// Update the times.
-<a href=#1756 id=1756 data-nosnippet>1756</a>        </span><span class="self">self</span>.inner.write().update_atime_mtime_and_ctime()<span class="question-mark">?</span>;
-<a href=#1757 id=1757 data-nosnippet>1757</a>        target_.inner.write().update_atime_mtime_and_ctime()<span class="question-mark">?</span>;
-<a href=#1758 id=1758 data-nosnippet>1758</a>        <span class="comment">// Sync
-<a href=#1759 id=1759 data-nosnippet>1759</a>        </span><span class="kw">if </span><span class="self">self</span>.inner.read().is_sync() || target_.inner.read().is_sync() {
-<a href=#1760 id=1760 data-nosnippet>1760</a>            <span class="comment">// TODO: what if fs crashed between syncing?
-<a href=#1761 id=1761 data-nosnippet>1761</a>            </span>old_inode.inner.read().sync_all(<span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
-<a href=#1762 id=1762 data-nosnippet>1762</a>            target_.inner.read().sync_all(<span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
-<a href=#1763 id=1763 data-nosnippet>1763</a>            <span class="self">self</span>.inner.read().sync_all(<span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
-<a href=#1764 id=1764 data-nosnippet>1764</a>        }
-<a href=#1765 id=1765 data-nosnippet>1765</a>        <span class="prelude-val">Ok</span>(())
-<a href=#1766 id=1766 data-nosnippet>1766</a>    }
-<a href=#1767 id=1767 data-nosnippet>1767</a>
-<a href=#1768 id=1768 data-nosnippet>1768</a>    <span class="kw">fn </span>read_link(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;SymbolicLink&gt; {
-<a href=#1769 id=1769 data-nosnippet>1769</a>        <span class="macro">return_errno_with_message!</span>(Errno::EINVAL, <span class="string">"unsupported operation"</span>)
-<a href=#1770 id=1770 data-nosnippet>1770</a>    }
-<a href=#1771 id=1771 data-nosnippet>1771</a>
-<a href=#1772 id=1772 data-nosnippet>1772</a>    <span class="kw">fn </span>write_link(<span class="kw-2">&amp;</span><span class="self">self</span>, target: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-<a href=#1773 id=1773 data-nosnippet>1773</a>        <span class="macro">return_errno_with_message!</span>(Errno::EINVAL, <span class="string">"unsupported operation"</span>)
-<a href=#1774 id=1774 data-nosnippet>1774</a>    }
-<a href=#1775 id=1775 data-nosnippet>1775</a>
-<a href=#1776 id=1776 data-nosnippet>1776</a>    <span class="kw">fn </span>sync_all(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-<a href=#1777 id=1777 data-nosnippet>1777</a>        <span class="kw">let </span>inner = <span class="self">self</span>.inner.read();
-<a href=#1778 id=1778 data-nosnippet>1778</a>        <span class="kw">let </span>fs = inner.fs();
-<a href=#1779 id=1779 data-nosnippet>1779</a>        <span class="kw">let </span>fs_guard = fs.lock();
-<a href=#1780 id=1780 data-nosnippet>1780</a>        inner.sync_all(<span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
+<a href=#1694 id=1694 data-nosnippet>1694</a>        old_inode: <span class="kw-2">&amp;</span>Arc&lt;<span class="kw">dyn </span>Inode&gt;,
+<a href=#1695 id=1695 data-nosnippet>1695</a>        new_dir_inode: <span class="kw-2">&amp;</span>Arc&lt;<span class="kw">dyn </span>Inode&gt;,
+<a href=#1696 id=1696 data-nosnippet>1696</a>        new_name: <span class="kw-2">&amp;</span>str,
+<a href=#1697 id=1697 data-nosnippet>1697</a>        replaced_inode: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Arc&lt;<span class="kw">dyn </span>Inode&gt;&gt;,
+<a href=#1698 id=1698 data-nosnippet>1698</a>        mode: RenameMode,
+<a href=#1699 id=1699 data-nosnippet>1699</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#1700 id=1700 data-nosnippet>1700</a>        <span class="kw">if </span>mode == RenameMode::Exchange {
+<a href=#1701 id=1701 data-nosnippet>1701</a>            <span class="macro">return_errno_with_message!</span>(Errno::EINVAL, <span class="string">"RENAME_EXCHANGE is not supported on exfat"</span>);
+<a href=#1702 id=1702 data-nosnippet>1702</a>        }
+<a href=#1703 id=1703 data-nosnippet>1703</a>
+<a href=#1704 id=1704 data-nosnippet>1704</a>        <span class="kw">let </span>new_dir_inode = Arc::downcast::&lt;ExfatInode&gt;(new_dir_inode.clone()).unwrap();
+<a href=#1705 id=1705 data-nosnippet>1705</a>        <span class="kw">let </span>old_inode = Arc::downcast::&lt;ExfatInode&gt;(old_inode.clone()).unwrap();
+<a href=#1706 id=1706 data-nosnippet>1706</a>
+<a href=#1707 id=1707 data-nosnippet>1707</a>        <span class="kw">let </span>fs = <span class="self">self</span>.inner.read().fs();
+<a href=#1708 id=1708 data-nosnippet>1708</a>        <span class="kw">let </span>fs_guard = fs.lock();
+<a href=#1709 id=1709 data-nosnippet>1709</a>
+<a href=#1710 id=1710 data-nosnippet>1710</a>        <span class="comment">// FIXME: Case-only renames are not handled correctly by exFAT. Keep the existing
+<a href=#1711 id=1711 data-nosnippet>1711</a>        // no-op behavior until the VFS dentry invalidation is applied.
+<a href=#1712 id=1712 data-nosnippet>1712</a>        </span><span class="kw">let </span>up_old_name = fs.upcase_table().lock().str_to_upcase(old_name)<span class="question-mark">?</span>;
+<a href=#1713 id=1713 data-nosnippet>1713</a>        <span class="kw">let </span>up_new_name = fs.upcase_table().lock().str_to_upcase(new_name)<span class="question-mark">?</span>;
+<a href=#1714 id=1714 data-nosnippet>1714</a>        <span class="kw">if </span><span class="self">self</span>.inner.read().ino == new_dir_inode.inner.read().ino &amp;&amp; up_old_name.eq(<span class="kw-2">&amp;</span>up_new_name) {
+<a href=#1715 id=1715 data-nosnippet>1715</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<a href=#1716 id=1716 data-nosnippet>1716</a>        }
+<a href=#1717 id=1717 data-nosnippet>1717</a>
+<a href=#1718 id=1718 data-nosnippet>1718</a>        <span class="kw">let </span>replaced_inode = <span class="kw">match </span>replaced_inode {
+<a href=#1719 id=1719 data-nosnippet>1719</a>            <span class="prelude-val">Some</span>(inode) =&gt; <span class="prelude-val">Some</span>(Arc::downcast::&lt;ExfatInode&gt;(inode.clone()).unwrap()),
+<a href=#1720 id=1720 data-nosnippet>1720</a>            <span class="prelude-val">None </span>=&gt; {
+<a href=#1721 id=1721 data-nosnippet>1721</a>                <span class="comment">// FIXME: The dentry lookup may miss an existing entry whose name differs only in case,
+<a href=#1722 id=1722 data-nosnippet>1722</a>                // so perform an additional case-insensitive lookup for the replacement.
+<a href=#1723 id=1723 data-nosnippet>1723</a>                // The inode found by this fallback is not reported back to the VFS, so the positive
+<a href=#1724 id=1724 data-nosnippet>1724</a>                // dentry for the old spelling may remain stale after the replacement.
+<a href=#1725 id=1725 data-nosnippet>1725</a>                </span>new_dir_inode
+<a href=#1726 id=1726 data-nosnippet>1726</a>                    .inner
+<a href=#1727 id=1727 data-nosnippet>1727</a>                    .read()
+<a href=#1728 id=1728 data-nosnippet>1728</a>                    .lookup_by_name(new_name, <span class="bool-val">false</span>, <span class="kw-2">&amp;</span>fs_guard)
+<a href=#1729 id=1729 data-nosnippet>1729</a>                    .ok()
+<a href=#1730 id=1730 data-nosnippet>1730</a>            }
+<a href=#1731 id=1731 data-nosnippet>1731</a>        };
+<a href=#1732 id=1732 data-nosnippet>1732</a>
+<a href=#1733 id=1733 data-nosnippet>1733</a>        <span class="comment">// Check for the corner cases.
+<a href=#1734 id=1734 data-nosnippet>1734</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(exist_inode) = replaced_inode.as_ref() {
+<a href=#1735 id=1735 data-nosnippet>1735</a>            check_corner_cases_for_rename(<span class="kw-2">&amp;</span>old_inode, exist_inode)<span class="question-mark">?</span>;
+<a href=#1736 id=1736 data-nosnippet>1736</a>        }
+<a href=#1737 id=1737 data-nosnippet>1737</a>
+<a href=#1738 id=1738 data-nosnippet>1738</a>        <span class="comment">// All checks are done here. This is a valid rename and it needs to modify the metadata.
+<a href=#1739 id=1739 data-nosnippet>1739</a>        </span><span class="self">self</span>.delete_inode(old_inode.clone(), <span class="bool-val">false</span>, <span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
+<a href=#1740 id=1740 data-nosnippet>1740</a>        <span class="comment">// Create the new dentries.
+<a href=#1741 id=1741 data-nosnippet>1741</a>        </span><span class="kw">let </span>new_inode =
+<a href=#1742 id=1742 data-nosnippet>1742</a>            new_dir_inode.add_entry(new_name, old_inode.type_(), old_inode.mode()<span class="question-mark">?</span>, <span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
+<a href=#1743 id=1743 data-nosnippet>1743</a>        <span class="comment">// Update metadata.
+<a href=#1744 id=1744 data-nosnippet>1744</a>        </span>old_inode.copy_dentry_position_from(new_inode);
+<a href=#1745 id=1745 data-nosnippet>1745</a>        <span class="comment">// Update its children's parent_hash.
+<a href=#1746 id=1746 data-nosnippet>1746</a>        </span>old_inode.update_subdir_parent_hash(<span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
+<a href=#1747 id=1747 data-nosnippet>1747</a>        <span class="comment">// Insert back.
+<a href=#1748 id=1748 data-nosnippet>1748</a>        </span><span class="kw">let _ </span>= fs.insert_inode(old_inode.clone());
+<a href=#1749 id=1749 data-nosnippet>1749</a>        <span class="comment">// Remove the exist 'new_name' file.
+<a href=#1750 id=1750 data-nosnippet>1750</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(exist_inode) = replaced_inode {
+<a href=#1751 id=1751 data-nosnippet>1751</a>            new_dir_inode.delete_inode(exist_inode, <span class="bool-val">true</span>, <span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
+<a href=#1752 id=1752 data-nosnippet>1752</a>        }
+<a href=#1753 id=1753 data-nosnippet>1753</a>        <span class="comment">// Update the times.
+<a href=#1754 id=1754 data-nosnippet>1754</a>        </span><span class="self">self</span>.inner.write().update_atime_mtime_and_ctime()<span class="question-mark">?</span>;
+<a href=#1755 id=1755 data-nosnippet>1755</a>        new_dir_inode.inner.write().update_atime_mtime_and_ctime()<span class="question-mark">?</span>;
+<a href=#1756 id=1756 data-nosnippet>1756</a>        <span class="comment">// Sync
+<a href=#1757 id=1757 data-nosnippet>1757</a>        </span><span class="kw">if </span><span class="self">self</span>.inner.read().is_sync() || new_dir_inode.inner.read().is_sync() {
+<a href=#1758 id=1758 data-nosnippet>1758</a>            <span class="comment">// TODO: what if fs crashed between syncing?
+<a href=#1759 id=1759 data-nosnippet>1759</a>            </span>old_inode.inner.read().sync_all(<span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
+<a href=#1760 id=1760 data-nosnippet>1760</a>            new_dir_inode.inner.read().sync_all(<span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
+<a href=#1761 id=1761 data-nosnippet>1761</a>            <span class="self">self</span>.inner.read().sync_all(<span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
+<a href=#1762 id=1762 data-nosnippet>1762</a>        }
+<a href=#1763 id=1763 data-nosnippet>1763</a>        <span class="prelude-val">Ok</span>(())
+<a href=#1764 id=1764 data-nosnippet>1764</a>    }
+<a href=#1765 id=1765 data-nosnippet>1765</a>
+<a href=#1766 id=1766 data-nosnippet>1766</a>    <span class="kw">fn </span>read_link(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;SymbolicLink&gt; {
+<a href=#1767 id=1767 data-nosnippet>1767</a>        <span class="macro">return_errno_with_message!</span>(Errno::EINVAL, <span class="string">"unsupported operation"</span>)
+<a href=#1768 id=1768 data-nosnippet>1768</a>    }
+<a href=#1769 id=1769 data-nosnippet>1769</a>
+<a href=#1770 id=1770 data-nosnippet>1770</a>    <span class="kw">fn </span>write_link(<span class="kw-2">&amp;</span><span class="self">self</span>, target: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#1771 id=1771 data-nosnippet>1771</a>        <span class="macro">return_errno_with_message!</span>(Errno::EINVAL, <span class="string">"unsupported operation"</span>)
+<a href=#1772 id=1772 data-nosnippet>1772</a>    }
+<a href=#1773 id=1773 data-nosnippet>1773</a>
+<a href=#1774 id=1774 data-nosnippet>1774</a>    <span class="kw">fn </span>sync_all(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#1775 id=1775 data-nosnippet>1775</a>        <span class="kw">let </span>inner = <span class="self">self</span>.inner.read();
+<a href=#1776 id=1776 data-nosnippet>1776</a>        <span class="kw">let </span>fs = inner.fs();
+<a href=#1777 id=1777 data-nosnippet>1777</a>        <span class="kw">let </span>fs_guard = fs.lock();
+<a href=#1778 id=1778 data-nosnippet>1778</a>        inner.sync_all(<span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
+<a href=#1779 id=1779 data-nosnippet>1779</a>
+<a href=#1780 id=1780 data-nosnippet>1780</a>        fs.block_device().sync()<span class="question-mark">?</span>;
 <a href=#1781 id=1781 data-nosnippet>1781</a>
-<a href=#1782 id=1782 data-nosnippet>1782</a>        fs.block_device().sync()<span class="question-mark">?</span>;
-<a href=#1783 id=1783 data-nosnippet>1783</a>
-<a href=#1784 id=1784 data-nosnippet>1784</a>        <span class="prelude-val">Ok</span>(())
-<a href=#1785 id=1785 data-nosnippet>1785</a>    }
-<a href=#1786 id=1786 data-nosnippet>1786</a>
-<a href=#1787 id=1787 data-nosnippet>1787</a>    <span class="kw">fn </span>sync_data(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-<a href=#1788 id=1788 data-nosnippet>1788</a>        <span class="kw">let </span>inner = <span class="self">self</span>.inner.read();
-<a href=#1789 id=1789 data-nosnippet>1789</a>        <span class="kw">let </span>fs = inner.fs();
-<a href=#1790 id=1790 data-nosnippet>1790</a>        <span class="kw">let </span>fs_guard = fs.lock();
-<a href=#1791 id=1791 data-nosnippet>1791</a>        inner.sync_data(<span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
+<a href=#1782 id=1782 data-nosnippet>1782</a>        <span class="prelude-val">Ok</span>(())
+<a href=#1783 id=1783 data-nosnippet>1783</a>    }
+<a href=#1784 id=1784 data-nosnippet>1784</a>
+<a href=#1785 id=1785 data-nosnippet>1785</a>    <span class="kw">fn </span>sync_data(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<a href=#1786 id=1786 data-nosnippet>1786</a>        <span class="kw">let </span>inner = <span class="self">self</span>.inner.read();
+<a href=#1787 id=1787 data-nosnippet>1787</a>        <span class="kw">let </span>fs = inner.fs();
+<a href=#1788 id=1788 data-nosnippet>1788</a>        <span class="kw">let </span>fs_guard = fs.lock();
+<a href=#1789 id=1789 data-nosnippet>1789</a>        inner.sync_data(<span class="kw-2">&amp;</span>fs_guard)<span class="question-mark">?</span>;
+<a href=#1790 id=1790 data-nosnippet>1790</a>
+<a href=#1791 id=1791 data-nosnippet>1791</a>        fs.block_device().sync()<span class="question-mark">?</span>;
 <a href=#1792 id=1792 data-nosnippet>1792</a>
-<a href=#1793 id=1793 data-nosnippet>1793</a>        fs.block_device().sync()<span class="question-mark">?</span>;
-<a href=#1794 id=1794 data-nosnippet>1794</a>
-<a href=#1795 id=1795 data-nosnippet>1795</a>        <span class="prelude-val">Ok</span>(())
-<a href=#1796 id=1796 data-nosnippet>1796</a>    }
-<a href=#1797 id=1797 data-nosnippet>1797</a>
-<a href=#1798 id=1798 data-nosnippet>1798</a>    <span class="kw">fn </span>extension(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Extension {
-<a href=#1799 id=1799 data-nosnippet>1799</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.extension
-<a href=#1800 id=1800 data-nosnippet>1800</a>    }
-<a href=#1801 id=1801 data-nosnippet>1801</a>}
+<a href=#1793 id=1793 data-nosnippet>1793</a>        <span class="prelude-val">Ok</span>(())
+<a href=#1794 id=1794 data-nosnippet>1794</a>    }
+<a href=#1795 id=1795 data-nosnippet>1795</a>
+<a href=#1796 id=1796 data-nosnippet>1796</a>    <span class="kw">fn </span>extension(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Extension {
+<a href=#1797 id=1797 data-nosnippet>1797</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.extension
+<a href=#1798 id=1798 data-nosnippet>1798</a>    }
+<a href=#1799 id=1799 data-nosnippet>1799</a>}
 </code></pre></div></section></main></body></html>

@@ -67,87 +67,89 @@
 <a href=#67 id=67 data-nosnippet>67</a>
 <a href=#68 id=68 data-nosnippet>68</a><span class="kw">impl </span><span class="kw">super</span>::Apic <span class="kw">for </span>XApic {
 <a href=#69 id=69 data-nosnippet>69</a>    <span class="kw">fn </span>id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
-<a href=#70 id=70 data-nosnippet>70</a>        <span class="kw">unsafe </span>{ <span class="self">self</span>.io_mem.read_once(xapic::XAPIC_ID <span class="kw">as </span>usize) }
-<a href=#71 id=71 data-nosnippet>71</a>    }
-<a href=#72 id=72 data-nosnippet>72</a>
-<a href=#73 id=73 data-nosnippet>73</a>    <span class="kw">fn </span>version(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
-<a href=#74 id=74 data-nosnippet>74</a>        <span class="kw">unsafe </span>{ <span class="self">self</span>.io_mem.read_once(xapic::XAPIC_VERSION <span class="kw">as </span>usize) }
-<a href=#75 id=75 data-nosnippet>75</a>    }
-<a href=#76 id=76 data-nosnippet>76</a>
-<a href=#77 id=77 data-nosnippet>77</a>    <span class="kw">fn </span>eoi(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-<a href=#78 id=78 data-nosnippet>78</a>        <span class="kw">unsafe </span>{ <span class="self">self</span>.io_mem.write_once(xapic::XAPIC_EOI <span class="kw">as </span>usize, <span class="kw-2">&amp;</span><span class="number">0u32</span>) };
-<a href=#79 id=79 data-nosnippet>79</a>    }
-<a href=#80 id=80 data-nosnippet>80</a>
-<a href=#81 id=81 data-nosnippet>81</a>    <span class="kw">unsafe fn </span>send_ipi(<span class="kw-2">&amp;</span><span class="self">self</span>, icr: <span class="kw">super</span>::Icr) {
-<a href=#82 id=82 data-nosnippet>82</a>        <span class="kw">let </span>_guard = <span class="kw">crate</span>::irq::disable_local();
-<a href=#83 id=83 data-nosnippet>83</a>
-<a href=#84 id=84 data-nosnippet>84</a>        <span class="comment">// SAFETY: These operations write the interrupt command to APIC and wait for results. The
-<a href=#85 id=85 data-nosnippet>85</a>        // caller guarantees it's safe to execute this interrupt command.
-<a href=#86 id=86 data-nosnippet>86</a>        </span><span class="kw">unsafe </span>{
-<a href=#87 id=87 data-nosnippet>87</a>            <span class="self">self</span>.io_mem.write_once(xapic::XAPIC_ESR <span class="kw">as </span>usize, <span class="kw-2">&amp;</span><span class="number">0u32</span>);
-<a href=#88 id=88 data-nosnippet>88</a>            <span class="comment">// The upper 32 bits of ICR must be written into XAPIC_ICR1 first,
-<a href=#89 id=89 data-nosnippet>89</a>            // because writing into XAPIC_ICR0 will trigger the action of
-<a href=#90 id=90 data-nosnippet>90</a>            // interrupt sending.
-<a href=#91 id=91 data-nosnippet>91</a>            </span><span class="self">self</span>.io_mem
-<a href=#92 id=92 data-nosnippet>92</a>                .write_once(xapic::XAPIC_ICR1 <span class="kw">as </span>usize, <span class="kw-2">&amp;</span>icr.upper());
-<a href=#93 id=93 data-nosnippet>93</a>            <span class="self">self</span>.io_mem
-<a href=#94 id=94 data-nosnippet>94</a>                .write_once(xapic::XAPIC_ICR0 <span class="kw">as </span>usize, <span class="kw-2">&amp;</span>icr.lower());
-<a href=#95 id=95 data-nosnippet>95</a>            <span class="kw">loop </span>{
-<a href=#96 id=96 data-nosnippet>96</a>                <span class="kw">let </span>icr = <span class="self">self</span>.io_mem.read_once::&lt;u32&gt;(xapic::XAPIC_ICR0 <span class="kw">as </span>usize);
-<a href=#97 id=97 data-nosnippet>97</a>                <span class="kw">if </span>((icr &gt;&gt; <span class="number">12</span>) &amp; <span class="number">0x1</span>) == <span class="number">0 </span>{
-<a href=#98 id=98 data-nosnippet>98</a>                    <span class="kw">break</span>;
-<a href=#99 id=99 data-nosnippet>99</a>                }
-<a href=#100 id=100 data-nosnippet>100</a>                <span class="kw">if </span><span class="self">self</span>.io_mem.read_once::&lt;u32&gt;(xapic::XAPIC_ESR <span class="kw">as </span>usize) &gt; <span class="number">0 </span>{
-<a href=#101 id=101 data-nosnippet>101</a>                    <span class="kw">break</span>;
-<a href=#102 id=102 data-nosnippet>102</a>                }
-<a href=#103 id=103 data-nosnippet>103</a>            }
-<a href=#104 id=104 data-nosnippet>104</a>        }
-<a href=#105 id=105 data-nosnippet>105</a>    }
-<a href=#106 id=106 data-nosnippet>106</a>}
-<a href=#107 id=107 data-nosnippet>107</a>
-<a href=#108 id=108 data-nosnippet>108</a><span class="kw">impl </span>ApicTimer <span class="kw">for </span>XApic {
-<a href=#109 id=109 data-nosnippet>109</a>    <span class="kw">fn </span>set_timer_init_count(<span class="kw-2">&amp;</span><span class="self">self</span>, value: u64) {
-<a href=#110 id=110 data-nosnippet>110</a>        <span class="kw">unsafe </span>{
-<a href=#111 id=111 data-nosnippet>111</a>            <span class="self">self</span>.io_mem
-<a href=#112 id=112 data-nosnippet>112</a>                .write_once(xapic::XAPIC_TIMER_INIT_COUNT <span class="kw">as </span>usize, <span class="kw-2">&amp;</span>(value <span class="kw">as </span>u32))
-<a href=#113 id=113 data-nosnippet>113</a>        };
-<a href=#114 id=114 data-nosnippet>114</a>    }
-<a href=#115 id=115 data-nosnippet>115</a>
-<a href=#116 id=116 data-nosnippet>116</a>    <span class="kw">fn </span>timer_current_count(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u64 {
-<a href=#117 id=117 data-nosnippet>117</a>        <span class="kw">unsafe </span>{
-<a href=#118 id=118 data-nosnippet>118</a>            <span class="self">self</span>.io_mem
-<a href=#119 id=119 data-nosnippet>119</a>                .read_once::&lt;u32&gt;(xapic::XAPIC_TIMER_CURRENT_COUNT <span class="kw">as </span>usize) <span class="kw">as </span>u64
-<a href=#120 id=120 data-nosnippet>120</a>        }
-<a href=#121 id=121 data-nosnippet>121</a>    }
-<a href=#122 id=122 data-nosnippet>122</a>
-<a href=#123 id=123 data-nosnippet>123</a>    <span class="kw">fn </span>set_lvt_timer(<span class="kw-2">&amp;</span><span class="self">self</span>, value: u64) {
-<a href=#124 id=124 data-nosnippet>124</a>        <span class="kw">unsafe </span>{
-<a href=#125 id=125 data-nosnippet>125</a>            <span class="self">self</span>.io_mem
-<a href=#126 id=126 data-nosnippet>126</a>                .write_once(xapic::XAPIC_LVT_TIMER <span class="kw">as </span>usize, <span class="kw-2">&amp;</span>(value <span class="kw">as </span>u32))
-<a href=#127 id=127 data-nosnippet>127</a>        };
-<a href=#128 id=128 data-nosnippet>128</a>    }
-<a href=#129 id=129 data-nosnippet>129</a>
-<a href=#130 id=130 data-nosnippet>130</a>    <span class="kw">fn </span>set_timer_div_config(<span class="kw-2">&amp;</span><span class="self">self</span>, div_config: <span class="kw">super</span>::DivideConfig) {
-<a href=#131 id=131 data-nosnippet>131</a>        <span class="kw">unsafe </span>{
-<a href=#132 id=132 data-nosnippet>132</a>            <span class="self">self</span>.io_mem
-<a href=#133 id=133 data-nosnippet>133</a>                .write_once(xapic::XAPIC_TIMER_DIV_CONF <span class="kw">as </span>usize, <span class="kw-2">&amp;</span>(div_config <span class="kw">as </span>u32))
-<a href=#134 id=134 data-nosnippet>134</a>        };
-<a href=#135 id=135 data-nosnippet>135</a>    }
-<a href=#136 id=136 data-nosnippet>136</a>}
-<a href=#137 id=137 data-nosnippet>137</a>
-<a href=#138 id=138 data-nosnippet>138</a><span class="doccomment">/// Reads xAPIC base address from the MSR.
-<a href=#139 id=139 data-nosnippet>139</a>///
-<a href=#140 id=140 data-nosnippet>140</a>/// # Safety
+<a href=#70 id=70 data-nosnippet>70</a>        <span class="kw">let </span>raw: u32 = <span class="kw">unsafe </span>{ <span class="self">self</span>.io_mem.read_once(xapic::XAPIC_ID <span class="kw">as </span>usize) };
+<a href=#71 id=71 data-nosnippet>71</a>        <span class="comment">// Bits 31-24: APIC ID.
+<a href=#72 id=72 data-nosnippet>72</a>        </span>(raw &gt;&gt; <span class="number">24</span>) &amp; <span class="number">0xff
+<a href=#73 id=73 data-nosnippet>73</a>    </span>}
+<a href=#74 id=74 data-nosnippet>74</a>
+<a href=#75 id=75 data-nosnippet>75</a>    <span class="kw">fn </span>version(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+<a href=#76 id=76 data-nosnippet>76</a>        <span class="kw">unsafe </span>{ <span class="self">self</span>.io_mem.read_once(xapic::XAPIC_VERSION <span class="kw">as </span>usize) }
+<a href=#77 id=77 data-nosnippet>77</a>    }
+<a href=#78 id=78 data-nosnippet>78</a>
+<a href=#79 id=79 data-nosnippet>79</a>    <span class="kw">fn </span>eoi(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#80 id=80 data-nosnippet>80</a>        <span class="kw">unsafe </span>{ <span class="self">self</span>.io_mem.write_once(xapic::XAPIC_EOI <span class="kw">as </span>usize, <span class="kw-2">&amp;</span><span class="number">0u32</span>) };
+<a href=#81 id=81 data-nosnippet>81</a>    }
+<a href=#82 id=82 data-nosnippet>82</a>
+<a href=#83 id=83 data-nosnippet>83</a>    <span class="kw">unsafe fn </span>send_ipi(<span class="kw-2">&amp;</span><span class="self">self</span>, icr: <span class="kw">super</span>::Icr) {
+<a href=#84 id=84 data-nosnippet>84</a>        <span class="kw">let </span>_guard = <span class="kw">crate</span>::irq::disable_local();
+<a href=#85 id=85 data-nosnippet>85</a>
+<a href=#86 id=86 data-nosnippet>86</a>        <span class="comment">// SAFETY: These operations write the interrupt command to APIC and wait for results. The
+<a href=#87 id=87 data-nosnippet>87</a>        // caller guarantees it's safe to execute this interrupt command.
+<a href=#88 id=88 data-nosnippet>88</a>        </span><span class="kw">unsafe </span>{
+<a href=#89 id=89 data-nosnippet>89</a>            <span class="self">self</span>.io_mem.write_once(xapic::XAPIC_ESR <span class="kw">as </span>usize, <span class="kw-2">&amp;</span><span class="number">0u32</span>);
+<a href=#90 id=90 data-nosnippet>90</a>            <span class="comment">// The upper 32 bits of ICR must be written into XAPIC_ICR1 first,
+<a href=#91 id=91 data-nosnippet>91</a>            // because writing into XAPIC_ICR0 will trigger the action of
+<a href=#92 id=92 data-nosnippet>92</a>            // interrupt sending.
+<a href=#93 id=93 data-nosnippet>93</a>            </span><span class="self">self</span>.io_mem
+<a href=#94 id=94 data-nosnippet>94</a>                .write_once(xapic::XAPIC_ICR1 <span class="kw">as </span>usize, <span class="kw-2">&amp;</span>icr.upper());
+<a href=#95 id=95 data-nosnippet>95</a>            <span class="self">self</span>.io_mem
+<a href=#96 id=96 data-nosnippet>96</a>                .write_once(xapic::XAPIC_ICR0 <span class="kw">as </span>usize, <span class="kw-2">&amp;</span>icr.lower());
+<a href=#97 id=97 data-nosnippet>97</a>            <span class="kw">loop </span>{
+<a href=#98 id=98 data-nosnippet>98</a>                <span class="kw">let </span>icr = <span class="self">self</span>.io_mem.read_once::&lt;u32&gt;(xapic::XAPIC_ICR0 <span class="kw">as </span>usize);
+<a href=#99 id=99 data-nosnippet>99</a>                <span class="kw">if </span>((icr &gt;&gt; <span class="number">12</span>) &amp; <span class="number">0x1</span>) == <span class="number">0 </span>{
+<a href=#100 id=100 data-nosnippet>100</a>                    <span class="kw">break</span>;
+<a href=#101 id=101 data-nosnippet>101</a>                }
+<a href=#102 id=102 data-nosnippet>102</a>                <span class="kw">if </span><span class="self">self</span>.io_mem.read_once::&lt;u32&gt;(xapic::XAPIC_ESR <span class="kw">as </span>usize) &gt; <span class="number">0 </span>{
+<a href=#103 id=103 data-nosnippet>103</a>                    <span class="kw">break</span>;
+<a href=#104 id=104 data-nosnippet>104</a>                }
+<a href=#105 id=105 data-nosnippet>105</a>            }
+<a href=#106 id=106 data-nosnippet>106</a>        }
+<a href=#107 id=107 data-nosnippet>107</a>    }
+<a href=#108 id=108 data-nosnippet>108</a>}
+<a href=#109 id=109 data-nosnippet>109</a>
+<a href=#110 id=110 data-nosnippet>110</a><span class="kw">impl </span>ApicTimer <span class="kw">for </span>XApic {
+<a href=#111 id=111 data-nosnippet>111</a>    <span class="kw">fn </span>set_timer_init_count(<span class="kw-2">&amp;</span><span class="self">self</span>, value: u64) {
+<a href=#112 id=112 data-nosnippet>112</a>        <span class="kw">unsafe </span>{
+<a href=#113 id=113 data-nosnippet>113</a>            <span class="self">self</span>.io_mem
+<a href=#114 id=114 data-nosnippet>114</a>                .write_once(xapic::XAPIC_TIMER_INIT_COUNT <span class="kw">as </span>usize, <span class="kw-2">&amp;</span>(value <span class="kw">as </span>u32))
+<a href=#115 id=115 data-nosnippet>115</a>        };
+<a href=#116 id=116 data-nosnippet>116</a>    }
+<a href=#117 id=117 data-nosnippet>117</a>
+<a href=#118 id=118 data-nosnippet>118</a>    <span class="kw">fn </span>timer_current_count(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u64 {
+<a href=#119 id=119 data-nosnippet>119</a>        <span class="kw">unsafe </span>{
+<a href=#120 id=120 data-nosnippet>120</a>            <span class="self">self</span>.io_mem
+<a href=#121 id=121 data-nosnippet>121</a>                .read_once::&lt;u32&gt;(xapic::XAPIC_TIMER_CURRENT_COUNT <span class="kw">as </span>usize) <span class="kw">as </span>u64
+<a href=#122 id=122 data-nosnippet>122</a>        }
+<a href=#123 id=123 data-nosnippet>123</a>    }
+<a href=#124 id=124 data-nosnippet>124</a>
+<a href=#125 id=125 data-nosnippet>125</a>    <span class="kw">fn </span>set_lvt_timer(<span class="kw-2">&amp;</span><span class="self">self</span>, value: u64) {
+<a href=#126 id=126 data-nosnippet>126</a>        <span class="kw">unsafe </span>{
+<a href=#127 id=127 data-nosnippet>127</a>            <span class="self">self</span>.io_mem
+<a href=#128 id=128 data-nosnippet>128</a>                .write_once(xapic::XAPIC_LVT_TIMER <span class="kw">as </span>usize, <span class="kw-2">&amp;</span>(value <span class="kw">as </span>u32))
+<a href=#129 id=129 data-nosnippet>129</a>        };
+<a href=#130 id=130 data-nosnippet>130</a>    }
+<a href=#131 id=131 data-nosnippet>131</a>
+<a href=#132 id=132 data-nosnippet>132</a>    <span class="kw">fn </span>set_timer_div_config(<span class="kw-2">&amp;</span><span class="self">self</span>, div_config: <span class="kw">super</span>::DivideConfig) {
+<a href=#133 id=133 data-nosnippet>133</a>        <span class="kw">unsafe </span>{
+<a href=#134 id=134 data-nosnippet>134</a>            <span class="self">self</span>.io_mem
+<a href=#135 id=135 data-nosnippet>135</a>                .write_once(xapic::XAPIC_TIMER_DIV_CONF <span class="kw">as </span>usize, <span class="kw-2">&amp;</span>(div_config <span class="kw">as </span>u32))
+<a href=#136 id=136 data-nosnippet>136</a>        };
+<a href=#137 id=137 data-nosnippet>137</a>    }
+<a href=#138 id=138 data-nosnippet>138</a>}
+<a href=#139 id=139 data-nosnippet>139</a>
+<a href=#140 id=140 data-nosnippet>140</a><span class="doccomment">/// Reads xAPIC base address from the MSR.
 <a href=#141 id=141 data-nosnippet>141</a>///
-<a href=#142 id=142 data-nosnippet>142</a>/// The caller must ensure that xAPIC is present.
-<a href=#143 id=143 data-nosnippet>143</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">unsafe fn </span>read_xapic_base_address() -&gt; usize {
-<a href=#144 id=144 data-nosnippet>144</a>    (<span class="kw">unsafe </span>{ rdmsr(IA32_APIC_BASE) &amp; <span class="number">0xffff_f000 </span>}) <span class="kw">as </span>usize
-<a href=#145 id=145 data-nosnippet>145</a>}
-<a href=#146 id=146 data-nosnippet>146</a>
-<a href=#147 id=147 data-nosnippet>147</a><span class="doccomment">/// The size of the xAPIC MMIO region.
-<a href=#148 id=148 data-nosnippet>148</a>///
-<a href=#149 id=149 data-nosnippet>149</a>/// Intel(R) 64 and IA-32 Architectures Software Developer's Manual, CHAPTER 11 ADVANCED
-<a href=#150 id=150 data-nosnippet>150</a>/// PROGRAMMABLE INTERRUPT CONTROLLER (APIC) says "The local-APIC register-address space comprises
-<a href=#151 id=151 data-nosnippet>151</a>/// the 4 KBytes at the physical address specified in the IA32_APIC_BASE MSR."
-<a href=#152 id=152 data-nosnippet>152</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">const </span>XAPIC_MMIO_SIZE: usize = <span class="kw">crate</span>::mm::PAGE_SIZE;
+<a href=#142 id=142 data-nosnippet>142</a>/// # Safety
+<a href=#143 id=143 data-nosnippet>143</a>///
+<a href=#144 id=144 data-nosnippet>144</a>/// The caller must ensure that xAPIC is present.
+<a href=#145 id=145 data-nosnippet>145</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">unsafe fn </span>read_xapic_base_address() -&gt; usize {
+<a href=#146 id=146 data-nosnippet>146</a>    (<span class="kw">unsafe </span>{ rdmsr(IA32_APIC_BASE) &amp; <span class="number">0xffff_f000 </span>}) <span class="kw">as </span>usize
+<a href=#147 id=147 data-nosnippet>147</a>}
+<a href=#148 id=148 data-nosnippet>148</a>
+<a href=#149 id=149 data-nosnippet>149</a><span class="doccomment">/// The size of the xAPIC MMIO region.
+<a href=#150 id=150 data-nosnippet>150</a>///
+<a href=#151 id=151 data-nosnippet>151</a>/// Intel(R) 64 and IA-32 Architectures Software Developer's Manual, CHAPTER 11 ADVANCED
+<a href=#152 id=152 data-nosnippet>152</a>/// PROGRAMMABLE INTERRUPT CONTROLLER (APIC) says "The local-APIC register-address space comprises
+<a href=#153 id=153 data-nosnippet>153</a>/// the 4 KBytes at the physical address specified in the IA32_APIC_BASE MSR."
+<a href=#154 id=154 data-nosnippet>154</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">const </span>XAPIC_MMIO_SIZE: usize = <span class="kw">crate</span>::mm::PAGE_SIZE;
 </code></pre></div></section></main></body></html>
