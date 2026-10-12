@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["BioDirection","BioEnqueueError","BioStatus","BioType"],"fn":["bio_segment_pool_init"],"struct":["Bio","BioSegment","SubmittedBio"],"type":["BioCompleteFn"]};

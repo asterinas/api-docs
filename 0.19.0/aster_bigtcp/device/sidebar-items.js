@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Checksum","Medium","NetError"],"struct":["ChecksumCapabilities","DeviceCapabilities","EthernetAddress","Loopback"],"trait":["AnyNetworkDevice","WithDevice"]};

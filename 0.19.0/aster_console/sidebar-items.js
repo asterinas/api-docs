@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["UART_CONSOLE_NAME"],"fn":["all_devices","all_devices_lock","register_device"],"trait":["AnyConsoleDevice"],"type":["ConsoleCallback"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["FontDisplayInfo","FontInfo","FontInfoMask","HiiFontExProtocol","HiiFontProtocol","HiiFontStyle","HiiGlyphInfo","HiiOutFlags","HiiRowInfo"],"type":["FontHandle"]};

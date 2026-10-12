@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Ip4ConfigData","Ip4IcmpType","Ip4ModeData","Ip4RouteTable"]};

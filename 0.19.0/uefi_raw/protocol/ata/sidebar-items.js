@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["AtaCommandBlock","AtaPassThruAttributes","AtaPassThruCommandPacket","AtaPassThruCommandProtocol","AtaPassThruLength","AtaPassThruMode","AtaPassThruProtocol","AtaStatusBlock"]};

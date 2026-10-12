@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"type":["ActivateVt","DisallocateVt","GetAvailableVt","GetGraphicsMode","GetKeyboardMode","GetKeyboardType","GetVtMode","GetVtState","ReleaseDisplay","SetGraphicsMode","SetKeyboardMode","SetOrGetFont","SetVtMode","WaitForVtActive"]};

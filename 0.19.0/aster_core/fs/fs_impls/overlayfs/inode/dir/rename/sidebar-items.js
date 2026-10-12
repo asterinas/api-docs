@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["LockRole","RenameTarget","WhiteoutAction"],"struct":["RenameFacts","RenameLocks"]};

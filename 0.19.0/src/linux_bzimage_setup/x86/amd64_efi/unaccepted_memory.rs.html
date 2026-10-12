@@ -1,0 +1,115 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `ostd/libs/linux-bzimage/setup/src/x86/amd64_efi/unaccepted_memory.rs`."><title>unaccepted_memory.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-ddecd707.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="linux_bzimage_setup" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0-nightly (87e5904f5 2026-07-20)" data-channel="nightly" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../../static.files/storage-41dd4d93.js"></script><script defer src="../../../../static.files/src-script-813739b1.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">linux_bzimage_setup/x86/amd64_efi/</div>unaccepted_memory.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="comment">// SPDX-License-Identifier: MPL-2.0
+<a href=#2 id=2 data-nosnippet>2</a>
+<a href=#3 id=3 data-nosnippet>3</a></span><span class="doccomment">//! EFI-side management of TDX unaccepted memory.
+<a href=#4 id=4 data-nosnippet>4</a>//!
+<a href=#5 id=5 data-nosnippet>5</a>//! The EFI stub records unaccepted memory ranges from the final UEFI memory map
+<a href=#6 id=6 data-nosnippet>6</a>//! in a bitmap and passes the table to the kernel through the boot parameters.
+<a href=#7 id=7 data-nosnippet>7</a>//! It reserves the bitmap storage before exiting boot services, then registers
+<a href=#8 id=8 data-nosnippet>8</a>//! the ranges after the final memory map is available.
+<a href=#9 id=9 data-nosnippet>9</a>//!
+<a href=#10 id=10 data-nosnippet>10</a>//! Asterinas uses a fixed kernel load address below 4 GiB, so the EFI stub does
+<a href=#11 id=11 data-nosnippet>11</a>//! not need to accept memory for an arbitrary kernel destination. When ranges
+<a href=#12 id=12 data-nosnippet>12</a>//! are registered, small regions and unaligned edges are accepted immediately;
+<a href=#13 id=13 data-nosnippet>13</a>//! the remaining aligned regions are left for the kernel to accept later.
+<a href=#14 id=14 data-nosnippet>14</a>
+<a href=#15 id=15 data-nosnippet>15</a></span><span class="kw">use </span>core::{ops::Range, ptr::NonNull};
+<a href=#16 id=16 data-nosnippet>16</a>
+<a href=#17 id=17 data-nosnippet>17</a><span class="kw">use </span>linux_boot_params::{BootParams, EfiInfo};
+<a href=#18 id=18 data-nosnippet>18</a><span class="kw">use </span>tdx_guest::unaccepted_memory::{EfiUnacceptedMemory, EfiUnacceptedMemoryBuilder};
+<a href=#19 id=19 data-nosnippet>19</a><span class="kw">use </span>uefi::{
+<a href=#20 id=20 data-nosnippet>20</a>    boot::AllocateType,
+<a href=#21 id=21 data-nosnippet>21</a>    mem::memory_map::{MemoryMap, MemoryType},
+<a href=#22 id=22 data-nosnippet>22</a>};
+<a href=#23 id=23 data-nosnippet>23</a>
+<a href=#24 id=24 data-nosnippet>24</a><span class="kw">use </span><span class="kw">crate</span>::x86::amd64_efi::{alloc, efi};
+<a href=#25 id=25 data-nosnippet>25</a>
+<a href=#26 id=26 data-nosnippet>26</a><span class="doccomment">/// Creates a builder for the unaccepted memory bitmap.
+<a href=#27 id=27 data-nosnippet>27</a>///
+<a href=#28 id=28 data-nosnippet>28</a>/// This method is called before exiting the EFI boot services to make memory allocations. Afterwards,
+<a href=#29 id=29 data-nosnippet>29</a>/// the builder can build the final bitmap without allocations. See [`finish_unaccepted_memory`].
+<a href=#30 id=30 data-nosnippet>30</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>prepare_unaccepted_memory(
+<a href=#31 id=31 data-nosnippet>31</a>    boot_params: <span class="kw-2">&amp;mut </span>BootParams,
+<a href=#32 id=32 data-nosnippet>32</a>) -&gt; <span class="prelude-ty">Option</span>&lt;EfiUnacceptedMemoryBuilder&gt; {
+<a href=#33 id=33 data-nosnippet>33</a>    <span class="kw">if </span>!tdx_guest::is_tdx_guest_early() {
+<a href=#34 id=34 data-nosnippet>34</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#35 id=35 data-nosnippet>35</a>    }
+<a href=#36 id=36 data-nosnippet>36</a>
+<a href=#37 id=37 data-nosnippet>37</a>    boot_params.efi_info.efi_loader_signature = EfiInfo::TDX_LOADER_SIGNATURE;
+<a href=#38 id=38 data-nosnippet>38</a>    boot_params.efi_info.efi_systab = <span class="number">0</span>;
+<a href=#39 id=39 data-nosnippet>39</a>    boot_params.efi_info.efi_systab_hi = <span class="number">0</span>;
+<a href=#40 id=40 data-nosnippet>40</a>
+<a href=#41 id=41 data-nosnippet>41</a>    <span class="comment">// Compute a single range that covers all unaccepted memory.
+<a href=#42 id=42 data-nosnippet>42</a>    </span><span class="kw">let </span>coverage = {
+<a href=#43 id=43 data-nosnippet>43</a>        <span class="kw">let </span>pre_exit_memory_map = uefi::boot::memory_map(MemoryType::LOADER_DATA)
+<a href=#44 id=44 data-nosnippet>44</a>            .expect(<span class="string">"failed to fetch pre-exit memory map for unaccepted bitmap setup"</span>);
+<a href=#45 id=45 data-nosnippet>45</a>        <span class="kw">let </span><span class="kw-2">mut </span>ranges = iter_unaccepted_memory(<span class="kw-2">&amp;</span>pre_exit_memory_map);
+<a href=#46 id=46 data-nosnippet>46</a>
+<a href=#47 id=47 data-nosnippet>47</a>        <span class="kw">let </span>first_range = ranges.next()<span class="question-mark">?</span>;
+<a href=#48 id=48 data-nosnippet>48</a>        ranges.fold(first_range, |coverage, range| {
+<a href=#49 id=49 data-nosnippet>49</a>            coverage.start.min(range.start)..coverage.end.max(range.end)
+<a href=#50 id=50 data-nosnippet>50</a>        })
+<a href=#51 id=51 data-nosnippet>51</a>    };
+<a href=#52 id=52 data-nosnippet>52</a>
+<a href=#53 id=53 data-nosnippet>53</a>    <span class="comment">// Allocate pages for the unaccepted memory bitmap.
+<a href=#54 id=54 data-nosnippet>54</a>    </span><span class="kw">let </span>builder = {
+<a href=#55 id=55 data-nosnippet>55</a>        <span class="kw">let </span>required_size = EfiUnacceptedMemory::required_size_for_range(coverage.clone())
+<a href=#56 id=56 data-nosnippet>56</a>            .expect(<span class="string">"invalid unaccepted memory bounds"</span>);
+<a href=#57 id=57 data-nosnippet>57</a>
+<a href=#58 id=58 data-nosnippet>58</a>        <span class="kw">let </span>allocation = alloc::alloc_pages(AllocateType::MaxAddress(u32::MAX <span class="kw">as </span>u64), required_size);
+<a href=#59 id=59 data-nosnippet>59</a>        <span class="kw">let </span>allocation_ptr = NonNull::new(allocation.as_mut_ptr().cast()).unwrap();
+<a href=#60 id=60 data-nosnippet>60</a>        <span class="comment">// SAFETY: `allocation` is writable, page-aligned, and sized for `coverage`.
+<a href=#61 id=61 data-nosnippet>61</a>        // After this call, the allocation is accessed only through the builder and
+<a href=#62 id=62 data-nosnippet>62</a>        // the resulting table, and the EFI stub never frees it.
+<a href=#63 id=63 data-nosnippet>63</a>        </span><span class="kw">unsafe </span>{ EfiUnacceptedMemory::builder(allocation_ptr, allocation.len(), coverage) }
+<a href=#64 id=64 data-nosnippet>64</a>            .expect(<span class="string">"failed to initialize unaccepted memory builder"</span>)
+<a href=#65 id=65 data-nosnippet>65</a>    };
+<a href=#66 id=66 data-nosnippet>66</a>
+<a href=#67 id=67 data-nosnippet>67</a>    <span class="macro">uefi::println!</span>(<span class="string">"[EFI stub] Passing unaccepted memory bitmap to the kernel"</span>);
+<a href=#68 id=68 data-nosnippet>68</a>
+<a href=#69 id=69 data-nosnippet>69</a>    <span class="prelude-val">Some</span>(builder)
+<a href=#70 id=70 data-nosnippet>70</a>}
+<a href=#71 id=71 data-nosnippet>71</a>
+<a href=#72 id=72 data-nosnippet>72</a><span class="doccomment">/// Builds the unaccepted memory bitmap according to `memory_map` and publishes the table address to
+<a href=#73 id=73 data-nosnippet>73</a>/// the kernel.
+<a href=#74 id=74 data-nosnippet>74</a>///
+<a href=#75 id=75 data-nosnippet>75</a>/// This method may accept memory to align the regions of unaccepted memory, allowing them to be
+<a href=#76 id=76 data-nosnippet>76</a>/// recorded in the bitmap. `memory_map` will not be updated.
+<a href=#77 id=77 data-nosnippet>77</a>///
+<a href=#78 id=78 data-nosnippet>78</a>/// # Safety
+<a href=#79 id=79 data-nosnippet>79</a>///
+<a href=#80 id=80 data-nosnippet>80</a>/// `memory_map` must accurately describe the regions of unaccepted memory.
+<a href=#81 id=81 data-nosnippet>81</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">unsafe fn </span>finish_unaccepted_memory&lt;M: MemoryMap&gt;(
+<a href=#82 id=82 data-nosnippet>82</a>    boot_params: <span class="kw-2">&amp;mut </span>BootParams,
+<a href=#83 id=83 data-nosnippet>83</a>    builder: <span class="prelude-ty">Option</span>&lt;EfiUnacceptedMemoryBuilder&gt;,
+<a href=#84 id=84 data-nosnippet>84</a>    memory_map: <span class="kw-2">&amp;</span>M,
+<a href=#85 id=85 data-nosnippet>85</a>) {
+<a href=#86 id=86 data-nosnippet>86</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>builder) = builder <span class="kw">else </span>{
+<a href=#87 id=87 data-nosnippet>87</a>        <span class="kw">return</span>;
+<a href=#88 id=88 data-nosnippet>88</a>    };
+<a href=#89 id=89 data-nosnippet>89</a>
+<a href=#90 id=90 data-nosnippet>90</a>    <span class="kw">for </span>range <span class="kw">in </span>iter_unaccepted_memory(memory_map) {
+<a href=#91 id=91 data-nosnippet>91</a>        <span class="comment">// SAFETY: The caller guarantees that `range` describes a region of unaccepted memory.
+<a href=#92 id=92 data-nosnippet>92</a>        </span><span class="kw">unsafe </span>{ builder.register_range(range.start, range.end) }
+<a href=#93 id=93 data-nosnippet>93</a>            .expect(<span class="string">"failed to register unaccepted memory range"</span>);
+<a href=#94 id=94 data-nosnippet>94</a>    }
+<a href=#95 id=95 data-nosnippet>95</a>
+<a href=#96 id=96 data-nosnippet>96</a>    <span class="kw">let </span>table = builder.build();
+<a href=#97 id=97 data-nosnippet>97</a>    <span class="kw">let </span>table_addr = core::ptr::from_ref(table.as_ref().get_ref()).addr();
+<a href=#98 id=98 data-nosnippet>98</a>    <span class="kw">let </span>table_addr = table_addr
+<a href=#99 id=99 data-nosnippet>99</a>        .try_into()
+<a href=#100 id=100 data-nosnippet>100</a>        .expect(<span class="string">"unaccepted memory table is above 4 GiB"</span>);
+<a href=#101 id=101 data-nosnippet>101</a>    boot_params.efi_info.efi_systab = table_addr;
+<a href=#102 id=102 data-nosnippet>102</a>}
+<a href=#103 id=103 data-nosnippet>103</a>
+<a href=#104 id=104 data-nosnippet>104</a><span class="kw">fn </span>iter_unaccepted_memory&lt;M: MemoryMap&gt;(memory_map: <span class="kw-2">&amp;</span>M) -&gt; <span class="kw">impl </span>Iterator&lt;Item = Range&lt;u64&gt;&gt; + <span class="lifetime">'_ </span>{
+<a href=#105 id=105 data-nosnippet>105</a>    memory_map.entries().filter_map(|entry| {
+<a href=#106 id=106 data-nosnippet>106</a>        <span class="kw">if </span>entry.ty != MemoryType::UNACCEPTED {
+<a href=#107 id=107 data-nosnippet>107</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#108 id=108 data-nosnippet>108</a>        }
+<a href=#109 id=109 data-nosnippet>109</a>
+<a href=#110 id=110 data-nosnippet>110</a>        <span class="kw">let </span>size = entry.page_count * efi::PAGE_SIZE;
+<a href=#111 id=111 data-nosnippet>111</a>        <span class="kw">let </span>end = entry.phys_start + size;
+<a href=#112 id=112 data-nosnippet>112</a>        <span class="prelude-val">Some</span>(entry.phys_start..end)
+<a href=#113 id=113 data-nosnippet>113</a>    })
+<a href=#114 id=114 data-nosnippet>114</a>}
+</code></pre></div></section></main></body></html>

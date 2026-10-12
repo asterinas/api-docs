@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["IdentityMode"],"struct":["IdentityPolicy","LayerNumbers","ObjectOriginRecord","ObjectRealId","ObjectVisibleId"]};

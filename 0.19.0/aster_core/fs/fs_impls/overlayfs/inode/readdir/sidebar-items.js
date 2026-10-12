@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["fold_layer_entries","read_layer_entries"],"struct":["LayerEntryVisitor","ReaddirCache","ReaddirEntry"],"type":["OverlayInodeLockGuard","OverlayInodeLockPayload"]};

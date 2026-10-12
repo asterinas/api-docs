@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["sys_link","sys_linkat"],"struct":["LinkFlags"]};

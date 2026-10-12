@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_VT_CONSOLE_NAME"],"fn":["init_in_first_process"],"struct":["DefaultVtConsoleDevice"]};

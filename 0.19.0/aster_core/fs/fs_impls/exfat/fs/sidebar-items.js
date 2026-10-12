@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EXFAT_ROOT_INO","FAT_LRU_CACHE_SIZE"],"enum":["ExfatErrorMode"],"static":["EXFAT_TYPE"],"struct":["ExfatFs","ExfatMountOptions","ExfatType"],"trait":["VmIo"]};

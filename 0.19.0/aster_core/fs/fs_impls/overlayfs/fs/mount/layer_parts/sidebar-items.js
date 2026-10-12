@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["resolve_lower_roots","resolve_root_dir","upper_path_is_read_only"],"struct":["MountRoots"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["find_init","open_rootfs","open_rootfs_from_candidates","rootfs_flags","rootfs_types","switch_to_rootfs"],"macro":[["__log_prefix",1]],"static":["INIT_PATH","ROOTFS_TYPES","ROOT_MOUNT_READ_ONLY","ROOT_PATH","RO_PARAM","RW_PARAM","SUPPORTED_ROOTFS_TYPES"],"struct":["RootFsTypes","SetRootMountReadOnly","SetRootMountReadWrite"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["ControlBits","Parity","SerialIoMode","SerialIoProtocol","SerialIoProtocolRevision","SerialIoProtocol_1_1","StopBits"]};

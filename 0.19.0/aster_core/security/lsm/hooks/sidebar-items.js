@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["on_capable"],"mod":["alien_access","capability"],"struct":["CapableContext"],"trait":["LsmAlienAccessHook","LsmCapabilityHook"]};

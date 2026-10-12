@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["HiiDatabaseNotifyType","HiiDatabaseProtocol","HiiKeyboardLayout"],"type":["HiiDatabaseNotifyFn"]};

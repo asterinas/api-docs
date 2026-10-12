@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_DEVNODE_MODE"],"enum":["DevKind","Error","SubsystemKind"],"struct":["Attr","BareDevice","DevNode","DevNum","DeviceBuilder","DeviceType","Subsystem"],"trait":["AnyDevice"],"type":["Result","ShowFn","StoreFn","SysStr"]};

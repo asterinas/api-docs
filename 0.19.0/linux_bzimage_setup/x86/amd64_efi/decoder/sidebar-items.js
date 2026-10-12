@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["MagicNumber"],"fn":["decode_payload","strip_gzip_header"],"struct":["InvalidMagicNumber"]};

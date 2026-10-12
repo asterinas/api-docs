@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["PciRootBridgeIoAccess","PciRootBridgeIoProtocol","PciRootBridgeIoProtocolOperation","PciRootBridgeIoProtocolWidth"]};

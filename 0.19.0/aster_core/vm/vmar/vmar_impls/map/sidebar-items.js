@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["MmapMode","VmarMapOffset"],"struct":["FileMmapRequest","VmarMapOptions"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":[["get_file_fast",1]],"struct":["ClosedFile","FdFlags","FileDesc","FileTable","FileTableEntry"],"trait":["WithFileTable"],"type":["RawFileDesc"]};

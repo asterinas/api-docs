@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_READLINK_LEN"],"struct":["ReadlinkOperation"]};

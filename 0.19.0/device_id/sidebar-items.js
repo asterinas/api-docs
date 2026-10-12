@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["decode_device_numbers","encode_device_numbers"],"struct":["DeviceId"],"type":["MajorId","MinorId"]};

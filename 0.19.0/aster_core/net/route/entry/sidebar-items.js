@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["RouteType"],"struct":["RouteEntry","RouteMetric","RouteTableId"],"trait":["RouteAddressFamily"]};

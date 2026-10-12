@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["UTIME_NOW","UTIME_OMIT"],"fn":["do_futimesat","do_utimes","read_time_from_user","sys_futimesat","sys_utime","sys_utimensat","sys_utimes","vfs_utimes"],"struct":["TimeSpecPair","Utimbuf","UtimensFlags"],"trait":["UtimeExt"]};

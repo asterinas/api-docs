@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["get_netlink_route_kernel"],"mod":["addr","link","util"],"static":["NETLINK_ROUTE_KERNEL"],"struct":["NetlinkRouteKernelSocket"]};

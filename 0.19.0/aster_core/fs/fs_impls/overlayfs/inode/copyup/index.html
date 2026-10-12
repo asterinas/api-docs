@@ -1,0 +1,39 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="The copy-up authority: per-object coordination, winner/waiter trigger, and object-kind promotion."><title>aster_core::fs::fs_impls::overlayfs::inode::copyup - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../../static.files/rustdoc-ddecd707.css"><meta name="rustdoc-vars" data-root-path="../../../../../../" data-static-root-path="../../../../../../static.files/" data-current-crate="aster_core" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0-nightly (87e5904f5 2026-07-20)" data-channel="nightly" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../../../../static.files/storage-41dd4d93.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module copyup</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../../../aster_core/index.html">aster_<wbr>core</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module copyup</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#module-map" title="Module map">Module map</a></li><li><a href="#locking" title="Locking">Locking</a></li></ul><h3><a href="#modules">Module Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In aster_<wbr>core::<wbr>fs::<wbr>fs_<wbr>impls::<wbr>overlayfs::<wbr>inode</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../../../index.html">aster_core</a>::<wbr><a href="../../../../index.html">fs</a>::<wbr><a href="../../../index.html">fs_impls</a>::<wbr><a href="../../index.html">overlayfs</a>::<wbr><a href="../index.html">inode</a></div><h1>Module <span>copyup</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../../../src/aster_core/fs/fs_impls/overlayfs/inode/copyup/mod.rs.html#3-357">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>The copy-up authority: per-object coordination, winner/waiter trigger,
+and object-kind promotion.</p>
+<p>Key concepts:</p>
+<ul>
+<li><strong>copy-up chain</strong>: the lower-only objects from the operation’s target up
+to the first upper-backed ancestor, collected from the overlay dentry
+parent chain. That ancestor is the <strong>publication parent</strong>: it publishes
+the object below it instead of being promoted, and each round’s promoted
+object becomes the next round’s publication parent. Every collected
+element carries the name it publishes under its publication parent.</li>
+<li><strong>winner/waiter</strong>: the tasks racing on one object’s per-inode transaction
+lock — for a non-directory that lock is a plain serialization token,
+because the sole published-state fact is <code>upper: Once</code> being set. The
+winner performs the promotion; the waiters re-observe <code>upper</code> under that
+lock and skip.</li>
+<li><strong>promotion round</strong>: one step promoting one object, from the <code>upper</code>
+re-check through commit.</li>
+</ul>
+<p><a href="../../fs/struct.OverlayFs.html#method.copy_up_at" title="method aster_core::fs::fs_impls::overlayfs::fs::OverlayFs::copy_up_at"><code>OverlayFs::copy_up_at</code></a> is the promotion entry that drives these rounds.</p>
+<h2 id="module-map"><a class="doc-anchor" href="#module-map">§</a>Module map</h2><div><table><thead><tr><th>Submodule</th><th>Responsibility</th></tr></thead><tbody>
+<tr><td><a href="workdir/index.html" title="mod aster_core::fs::fs_impls::overlayfs::inode::copyup::workdir"><code>workdir</code></a></td><td>the workdir temp create, publish, and cleanup lifecycle</td></tr>
+</tbody></table>
+</div><h2 id="locking"><a class="doc-anchor" href="#locking">§</a>Locking</h2>
+<p>A copy-up collects its chain from the VFS dcache alone — reading the dentry’s
+parent and name are NameAndParent leaf reads. Each promotion round then nests in
+this order — the publication parent’s transaction lock, then the promoted
+object’s transaction lock — and releases both at the round’s end, so every lock
+edge runs ancestor-to-descendant.</p>
+<p>Both name-taken latches of the round are read under those two locks and before
+anything is staged, so a name taken away aborts the round with nothing staged.
+The winner holds the promoted object’s lock continuously from the <code>upper</code>
+re-check through the commit tail, and the publication parent’s lock across that
+same span.</p>
+<p>Below the two transaction locks a round takes the commit tail’s cache guard,
+because the staging and publication calls are real-layer calls. That guard is
+the round’s single <code>InodeCache</code> touch: the commit tail rekeys the promoted
+instance onto the key its identity now resolves to, and the round’s own latch
+reads answer whether its coordinate still denotes it.</p>
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="workdir/index.html" title="mod aster_core::fs::fs_impls::overlayfs::inode::copyup::workdir">workdir</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>The workdir temporary lifecycle.</dd></dl></section></div></main></body></html>

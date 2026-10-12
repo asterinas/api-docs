@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DYNAMIC_MAJOR_ID_RANGES","MAX_MAJOR"],"fn":["acquire_major","allocate_major","lookup","register","unregister"],"static":["DEVICE_REGISTRY","MAJORS"],"struct":["MajorIdOwner"]};

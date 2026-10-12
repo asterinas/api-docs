@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["install_hooks"],"struct":["DevNodeRequest","HookError"],"trait":["KernelHooks"]};

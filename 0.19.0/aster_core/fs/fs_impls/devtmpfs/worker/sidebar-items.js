@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Request"],"fn":["create_node","delete_node","devtmpfsd","init_in_first_kthread","submit"],"static":["REQUEST_QUEUE"],"struct":["PendingRequest","RequestQueue"]};

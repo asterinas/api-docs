@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["register"],"struct":["BusDevice","BusHandle","DriverHandle"],"trait":["Bus","Driver"],"type":["BusDeviceBuilder"]};

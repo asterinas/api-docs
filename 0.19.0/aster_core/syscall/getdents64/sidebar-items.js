@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["DirentType"],"fn":["sys_getdents","sys_getdents64"],"struct":["Dirent","Dirent64","Dirent64Inner","DirentBufferReader","DirentInner"],"trait":["DirentSerializer"]};

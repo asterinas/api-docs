@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["IO_CAPACITY"],"struct":["PtyMaster"]};

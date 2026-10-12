@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EDKII_IOMMU_PROTOCOL_REVISION"],"struct":["EdkiiIommuAccess","EdkiiIommuAttribute","EdkiiIommuOperation","EdkiiIommuProtocol"]};

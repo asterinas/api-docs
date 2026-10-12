@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["capabilities","inuse","layer_parts","options","policy"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["init_on_each_cpu"],"static":["CPU_INFORMATION"],"struct":["CpuInfoFileOps"]};

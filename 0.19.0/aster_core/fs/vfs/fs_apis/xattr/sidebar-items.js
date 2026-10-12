@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SECURITY_CAPABILITY_XATTR_NAME","XATTR_LIST_MAX_LEN","XATTR_NAME_MAX_LEN","XATTR_VALUE_MAX_LEN"],"enum":["XattrNamespace"],"fn":["clear_file_priv","clear_set_id_bits"],"struct":["XattrName","XattrSetFlags"]};

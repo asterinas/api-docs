@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["read_current_uts_name","read_uts_bytes","write_current_uts_name"],"struct":["DomainnameFileOps","HostnameFileOps","OsReleaseFileOps","VersionFileOps"]};

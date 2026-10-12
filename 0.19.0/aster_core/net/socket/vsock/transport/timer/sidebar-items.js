@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["init","next_timer_generation","process_pending_timer_events","push_timer_event"],"static":["NEXT_GENERATION","PENDING_EVENTS","TASKLESS"],"struct":["TimerEvent"]};

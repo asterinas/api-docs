@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DOT_BYTE","DOT_DOT_BYTE"],"enum":["DirEntryFileType"],"struct":["DirBlockView","DirBlockViewIter","DirEntry","DirEntryHeader"]};

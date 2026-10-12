@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["host_controller","io"],"struct":["ConfigDescriptor","DataDirection","DeviceDescriptor","DeviceRequest","EndpointDescriptor","InterfaceDescriptor","UsbTransferStatus"],"type":["AsyncUsbTransferCallback"]};

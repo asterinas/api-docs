@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SIGRETURN_RFLAGS_MASK"],"enum":["CpuVendor","CpuidLeaf"],"macro":[["copy_gp_regs",1]],"static":["CPU_CORES"],"struct":["CpuInformation","SigContext"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["GET_PERSONALITY"],"fn":["sys_personality"]};

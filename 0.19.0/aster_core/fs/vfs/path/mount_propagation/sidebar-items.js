@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["PEER_GROUP_ID_MAX","PEER_GROUP_ID_MIN"],"enum":["MountBindability","MountPropType","MountPropagationOp"],"static":["MOUNT_TOPOLOGY","PEER_GROUP_ID_ALLOCATOR"],"struct":["MountPropagation","MountTopology","PeerGroup","PendingPropagationChanges"],"type":["PeerGroupId"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["add_device","register_legacy_virtual_node","remove_device"],"mod":["bus","class","common","hooks"]};

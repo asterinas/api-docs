@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["FromAndToDevice","FromDevice","ToDevice"],"struct":["DmaCoherent","DmaStream"],"trait":["DmaDirection"]};

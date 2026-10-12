@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["IPC_PRIVATE"],"enum":["IpcControlCmd"],"mod":["ipc_ids","ipc_ns","semaphore"],"struct":["IpcFlags","IpcPermission"],"type":["IpcKey"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["builder","connector","crtc","encoder","framebuffer","plane","property"],"struct":["DrmKmsObjectStore"],"type":["KmsObjectIndex"]};

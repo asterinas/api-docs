@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["all_devices","get_device","raise_receive_softirq","raise_send_softirq","register_device","register_recv_callback","register_send_callback"],"traitalias":["NetDeviceCallback"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["BootSource"],"fn":["ap_idle_loop","ap_init","booted_from_rootfs","bsp_idle_loop","first_kthread","init","init_in_first_kthread","init_on_each_cpu","main","on_first_process_startup","prepare_boot_init","print_banner","spawn_default_rootfs_init","with_init_argv0"],"static":["BOOT_SOURCE","INIT_PROCESS"],"struct":["BootInit"]};

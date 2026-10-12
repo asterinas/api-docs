@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["BrowserActionRequest","FormBrowser2Protocol","ScreenDescriptor"]};

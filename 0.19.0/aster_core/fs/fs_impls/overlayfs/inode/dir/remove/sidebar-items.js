@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["RemoveAction","RemoveKind"],"fn":["translate_stale_upper_enoent"],"struct":["RemoveTarget"]};

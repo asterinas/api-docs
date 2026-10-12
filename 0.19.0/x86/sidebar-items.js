@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Ring"],"fn":["halt","rdpid"],"macro":[["fs_deref",1],["gs_deref",1],["int",1],["syscall",1]],"mod":["apic","bits16","bits32","bits64","controlregs","cpuid","current","debugregs","dtables","fence","io","irq","msr","random","segmentation","task","time","tlb","vmx"]};

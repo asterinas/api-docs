@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["HiiDrawFlags","HiiImageExProtocol","HiiImageProtocol","ImageInput","ImageInputFlags","ImageOutput"],"union":["ImageOutputDest"]};

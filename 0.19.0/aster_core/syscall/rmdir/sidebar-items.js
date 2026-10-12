@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["do_rmdirat","sys_rmdir"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["StaleAttrAction"],"fn":["fuse_timestamp_to_duration","metadata_from_attr"]};

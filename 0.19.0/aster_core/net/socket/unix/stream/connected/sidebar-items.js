@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["UNIX_STREAM_DEFAULT_BUF_SIZE"],"struct":["Connected","Inner","RangedAuxiliaryData"]};

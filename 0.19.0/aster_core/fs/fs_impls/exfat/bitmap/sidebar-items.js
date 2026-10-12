@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BITS_PER_BYTE"],"struct":["ExfatBitmap"],"type":["BitStore"]};

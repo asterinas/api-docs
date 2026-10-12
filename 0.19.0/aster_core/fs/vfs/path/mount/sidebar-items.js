@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MNT_UNIQUE_ID_MIN"],"enum":["AtimePolicy","MountTreeCloneMode"],"fn":["init"],"static":["MOUNT_ID_ALLOCATOR","NEXT_FREE_UNIQUE_ID"],"struct":["AtomicPerMountFlags","Mount","MountId","PendingMountTreeAttachment","PerMountFlags"],"type":["RecyclableMountId","UniqueMountId"]};

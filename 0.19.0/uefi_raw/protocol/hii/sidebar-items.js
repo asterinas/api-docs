@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["config","database","font","form_browser","image","popup","string"],"struct":["HiiPackageHeader","HiiPackageListHeader","Key","KeyDescriptor","Modifier"],"type":["AnimationId","FormId","HiiHandle","ImageId","QuestionId","StringId","VarstoreId"]};

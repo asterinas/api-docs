@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["INIT_STACK_SIZE","MAX_LEN_STRING_ARG","MAX_NR_STRING_ARGS"],"fn":["generate_random_for_aux_vec"],"mod":["aux_vec"],"struct":["InitStack","InitStackReader","InitStackWriter"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Tcg2BootServiceCapability","Tcg2EventHeader","Tcg2EventLogBitmap","Tcg2HashAlgorithmBitmap","Tcg2HashLogExtendEventFlags","Tcg2Protocol","Tcg2Version"],"type":["Tcg2EventLogFormat"]};

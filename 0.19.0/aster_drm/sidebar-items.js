@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["register_device"],"mod":["device","gem","kms","utils"]};

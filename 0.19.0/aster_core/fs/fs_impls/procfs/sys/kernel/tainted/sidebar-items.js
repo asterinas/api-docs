@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["TAINT_FLAGS_COUNT","TAINT_FLAGS_MASK"],"static":["TAINTED_MASK"],"struct":["TaintedFileOps"]};

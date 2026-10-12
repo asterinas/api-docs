@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_CONSOLES"],"fn":["init_in_first_process"],"mod":["c_types","device","driver","file","ioctl_defs","keyboard","manager"],"struct":["VtIndex"]};

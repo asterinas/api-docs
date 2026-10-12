@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["SLAVE_MAJOR_NUM"],"struct":["PtySlaveInode"]};

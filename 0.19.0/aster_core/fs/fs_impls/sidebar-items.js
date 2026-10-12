@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["init","init_in_first_kthread","init_on_each_cpu"],"mod":["cgroupfs","configfs","devpts","devtmpfs","exfat","ext2","overlayfs","procfs","pseudofs","ramfs","sysfs","tmpfs","virtiofs"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["CapsuleSupport","FirmwareImageDep","FirmwareImageDescriptor","FirmwareManagementCapsuleHeader","FirmwareManagementCapsuleImageHeader","FirmwareManagementProtocol","FmpDep","ImageAttributes","ImageCompatibilities","ImageUpdatable","PackageAttributes"]};

@@ -1,0 +1,89 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Dev/ino identity: the pair an overlay object publishes, and how a mount projects it."><title>aster_core::fs::fs_impls::overlayfs::inode::identity - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../../static.files/rustdoc-ddecd707.css"><meta name="rustdoc-vars" data-root-path="../../../../../../" data-static-root-path="../../../../../../static.files/" data-current-crate="aster_core" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.0-nightly (87e5904f5 2026-07-20)" data-channel="nightly" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../../../../static.files/storage-41dd4d93.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../../../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../../../../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module identity</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../../../aster_core/index.html">aster_<wbr>core</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module identity</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#overlay-identity-projection" title="Overlay identity projection">Overlay identity projection</a></li><li><a href="#public-types" title="Public types">Public types</a></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In aster_<wbr>core::<wbr>fs::<wbr>fs_<wbr>impls::<wbr>overlayfs::<wbr>inode</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../../../index.html">aster_core</a>::<wbr><a href="../../../../index.html">fs</a>::<wbr><a href="../../../index.html">fs_impls</a>::<wbr><a href="../../index.html">overlayfs</a>::<wbr><a href="../index.html">inode</a></div><h1>Module <span>identity</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../../../src/aster_core/fs/fs_impls/overlayfs/inode/mod.rs.html#49">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Dev/ino identity: the pair an overlay object publishes, and how a mount projects it.</p>
+<h2 id="overlay-identity-projection"><a class="doc-anchor" href="#overlay-identity-projection">§</a>Overlay identity projection</h2>
+<p>Overlayfs exposes files from different underlying filesystems in one visible filesystem. Within
+one filesystem an inode should keep its identity (the <code>st_dev</code>/<code>st_ino</code> pair that a <code>stat</code> or the
+like reports) unique and stable, that is:</p>
+<ul>
+<li>the identity of one inode does not change within one mount;</li>
+<li>no two inodes share one inode number; and</li>
+<li>the identity of one inode ideally also survives a remount, because some overlayfs features
+durably record an inode’s identity.</li>
+</ul>
+<p>Filesystems, however, do not coordinate identities among themselves, so passing an underlying
+identity through as it is can break the properties above. Overlayfs therefore keeps an identity
+system of its own: it maps the real identities taken from the different underlying filesystems
+onto one identity space by an encoding of its own, which is called projection.</p>
+<p>Overlayfs has two ways to project an identity, resolved once at mount time into the mount’s
+<a href="struct.IdentityPolicy.html" title="struct aster_core::fs::fs_impls::overlayfs::inode::identity::IdentityPolicy"><code>IdentityPolicy</code></a>:</p>
+<ul>
+<li><code>SameFs</code> — every layer really lives on one underlying filesystem, so that filesystem already
+provides the identity guarantees and overlayfs may pass its identities through.
+<ul>
+<li>To decide whether the layers share one filesystem, the mount checks the filesystem instance
+each real layer belongs to and assigns one <code>fsid</code> per instance, topmost layer first; when all
+layers belong to one filesystem, only <code>fsid = 0</code> is assigned.</li>
+</ul>
+</li>
+<li><code>Xino</code> — overlayfs provides the identity guarantees itself, in particular when the layers live
+on several filesystem instances (a single-instance mount can force it too).
+<ul>
+<li>Overlayfs takes an anonymous device id of its own, distinct from every existing
+filesystem, so that device numbers cannot collide.</li>
+<li>Each overlayfs inode is given an inode number assembled from the <code>fsid</code> of the real filesystem
+the inode lives on and the inode number it has there, <code>real_ino</code>:</li>
+</ul>
+</li>
+</ul>
+<div class="example-wrap"><pre class="language-text"><code> 63         x   x-1                   0
+ +----------+---+---------------------+
+ |   fsid   |0/1|      real_ino       |
+ +----------+---+---------------------+</code></pre></div>
+<ul>
+<li>
+<ul>
+<li>The width of the <code>fsid</code> field follows the largest <code>fsid</code> the mount assigned.</li>
+</ul>
+</li>
+<li>
+<ul>
+<li>The <code>0/1</code> bit marks whether the number is a fallback number (see below).</li>
+</ul>
+</li>
+</ul>
+<p><code>Xino</code> is the default (<code>xino=auto</code>); overlayfs falls back in the following cases:</p>
+<ul>
+<li>Per object: while the xino is in use, a real inode whose <code>real_ino</code> may be too long for the
+field. Overlayfs then falls back on its own: The <code>0/1</code> bit is set on at fallback, so it cannot
+collide with an encoded one.</li>
+<li>Mount-wide, in either of two cases:
+<ul>
+<li>the mount was asked for <code>xino=off</code>; or</li>
+<li>the mount keeps <code>xino=auto</code> and can neither stay read-only nor store a private record on its
+upper. A read-only mount never copies up, so an inode’s real identity cannot change under it;
+a mount whose upper can store private xattrs keeps the origin record across a copy-up, so
+the identity stays stable there too. Either case can hold an encoded number for an object’s
+whole life, which is what xino needs. When neither holds, the whole mount falls back.</li>
+</ul>
+</li>
+</ul>
+<p>In <code>Fallback</code> mode, every directory allocates a unique inode number from the mount, and uses the
+mount’s anonymous device id as its device id. The allocation is done by a monotonic <code>u64</code>
+allocator. A non-directory keeps its real identity (both device and inode number) as it is.</p>
+<p>A directory’s number is allocated by this mount alone, so a directory’s identity does not survive
+a remount: another mount of the same layers has its own numbers. A non-directory keeps its
+layer’s own pair, so a non-directory’s identity does survive a remount. A directory’s pair and a
+non-directory’s cannot collide, because they uses different devices. Two non-directories can
+share a pair when two of the layers live on filesystems that report one device number. That means
+two instances of one device, which is rarely seen.</p>
+<h2 id="public-types"><a class="doc-anchor" href="#public-types">§</a>Public types</h2>
+<ul>
+<li><a href="struct.IdentityPolicy.html" title="struct aster_core::fs::fs_impls::overlayfs::inode::identity::IdentityPolicy"><code>IdentityPolicy</code></a>: the mount’s resolved way of projecting identities.</li>
+<li><a href="struct.ObjectRealId.html" title="struct aster_core::fs::fs_impls::overlayfs::inode::identity::ObjectRealId"><code>ObjectRealId</code></a>: <code>(fsid, real_ino)</code>, which can be used to build a visible id.</li>
+<li><a href="struct.ObjectVisibleId.html" title="struct aster_core::fs::fs_impls::overlayfs::inode::identity::ObjectVisibleId"><code>ObjectVisibleId</code></a>: <code>(st_dev, st_ino)</code>. Because fallback allocates from a monotonic allocator, a
+visible id cannot in general be decoded back into a real id. Once set for an inode, it will not
+change during the mount lifecycle.</li>
+<li><a href="struct.ObjectOriginRecord.html" title="struct aster_core::fs::fs_impls::overlayfs::inode::identity::ObjectOriginRecord"><code>ObjectOriginRecord</code></a>: <code>(magic, container_dev_id, root_ino, real_ino)</code>, which durably records
+the original lower inode of an upper inode that a copy-up produced, so that the identity
+survives across mounts.</li>
+</ul>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.IdentityPolicy.html" title="struct aster_core::fs::fs_impls::overlayfs::inode::identity::IdentityPolicy">Identity<wbr>Policy</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>The mount’s resolved way of projecting identities.</dd><dt><a class="struct" href="struct.LayerNumbers.html" title="struct aster_core::fs::fs_impls::overlayfs::inode::identity::LayerNumbers">Layer<wbr>Numbers</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>The numbers the id system keeps for one layer — what a durable layer name resolves to.</dd><dt><a class="struct" href="struct.ObjectOriginRecord.html" title="struct aster_core::fs::fs_impls::overlayfs::inode::identity::ObjectOriginRecord">Object<wbr>Origin<wbr>Record</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>The durable form of a real id.</dd><dt><a class="struct" href="struct.ObjectRealId.html" title="struct aster_core::fs::fs_impls::overlayfs::inode::identity::ObjectRealId">Object<wbr>Real<wbr>Id</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>The real id of one real object inside this mount.</dd><dt><a class="struct" href="struct.ObjectVisibleId.html" title="struct aster_core::fs::fs_impls::overlayfs::inode::identity::ObjectVisibleId">Object<wbr>Visible<wbr>Id</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>The published identity of one overlay object.</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.IdentityMode.html" title="enum aster_core::fs::fs_impls::overlayfs::inode::identity::IdentityMode">Identity<wbr>Mode</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>How this mount projects the dev/ino pair an object publishes.</dd></dl></section></div></main></body></html>

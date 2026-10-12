@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["check_corner_cases_for_rename","is_block_aligned"],"struct":["EmptyVisitor","ExfatInode","ExfatInodeInner","FatAttr"],"trait":["AlignExt"],"type":["Ino"]};

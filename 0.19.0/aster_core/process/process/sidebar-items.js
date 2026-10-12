@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BOOTSTRAP_PGID","BOOTSTRAP_SID","INIT_PROCESS_PID"],"fn":["broadcast_signal_async","enqueue_signal_async","init_on_each_cpu"],"mod":["init_proc","job_control","process_group","session","terminal","timer_manager"],"struct":["AtomicPid","ParentProcess","ParentProcessGuard","Process","ReapedChildrenStats"],"type":["ExitCode","Pgid","Pid","Sid"]};

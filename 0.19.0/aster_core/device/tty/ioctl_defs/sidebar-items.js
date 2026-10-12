@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"type":["GetTermios","GetTermios2","GetWinSize","SetTermios","SetTermios2","SetTermios2Flush","SetTermios2Wait","SetTermiosFlush","SetTermiosWait","SetWinSize"]};

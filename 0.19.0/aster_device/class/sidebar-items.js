@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["register"],"struct":["ClassDevice","ClassHandle"],"trait":["Class","ClassObserver"],"type":["ClassDeviceBuilder"]};

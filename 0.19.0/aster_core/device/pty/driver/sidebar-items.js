@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BUFFER_CAPACITY"],"struct":["PtyDriver"],"type":["PtySlave"]};

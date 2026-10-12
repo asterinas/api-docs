@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["add_device","init_in_first_kthread"],"mod":["file"],"static":["MEM_CLASS","MEM_MAJOR"],"struct":["MemClass"],"type":["MemDevice"]};
